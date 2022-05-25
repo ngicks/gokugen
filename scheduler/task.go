@@ -10,10 +10,9 @@ import (
 //
 // work will be called with scheduled time, scheduled, and current time, current.
 // current is fetched from system timer via time.Now() or equivalent implementation, right before invocation of Do.
-// So work is believed not to need to fetch current time by itself.
 type Task struct {
 	scheduledTime time.Time
-	work          func(scheduled, current time.Time)
+	work          func(scheduled time.Time)
 	done          uint32
 	cancelled     uint32
 }
@@ -21,16 +20,16 @@ type Task struct {
 // NewTask creates a new Task instance.
 // scheduledTime is scheduled time when work should be invoked.
 // work is work of Task, this will be only called once.
-func NewTask(scheduledTime time.Time, work func(scheduled, current time.Time)) *Task {
+func NewTask(scheduledTime time.Time, work func(scheduled time.Time)) *Task {
 	return &Task{
 		scheduledTime: scheduledTime,
 		work:          work,
 	}
 }
 
-func (t *Task) Do(current time.Time) {
+func (t *Task) Do() {
 	if t.work != nil && !t.IsCancelled() && atomic.CompareAndSwapUint32(&t.done, 0, 1) {
-		t.work(t.scheduledTime, current)
+		t.work(t.scheduledTime)
 	}
 }
 

@@ -11,14 +11,13 @@ type Worker struct {
 	workingState
 	endState
 	stopCh       chan struct{}
-	getNow       GetNow
 	taskCh       <-chan *Task
 	taskReceived func()
 	taskDone     func()
 }
 
-func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func(), getNow GetNow) (*Worker, error) {
-	if taskCh == nil || getNow == nil {
+func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker, error) {
+	if taskCh == nil {
 		return nil, ErrInvalidArg
 	}
 
@@ -31,7 +30,6 @@ func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func(), getNow GetNow
 
 	worker := &Worker{
 		stopCh:       make(chan struct{}, 1),
-		getNow:       getNow,
 		taskCh:       taskCh,
 		taskReceived: taskReceived,
 		taskDone:     taskDone,
@@ -45,7 +43,6 @@ func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func(), getNow GetNow
 // If worker is already started, it returns `ErrAlreadyStarted`.
 // If taskCh is closed, Start returns nil immediately, becomes ended-state.
 func (w *Worker) Start(ctx context.Context) (err error) {
-
 	if w.IsEnded() {
 		return ErrAlreadyEnded
 	}
@@ -75,7 +72,7 @@ func (w *Worker) Start(ctx context.Context) (err error) {
 				return
 			}
 			w.taskReceived()
-			job.Do(w.getNow.GetNow())
+			job.Do()
 			w.taskDone()
 		}
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 func dummyWorkerFactory() *scheduler.Worker {
-	w, _ := scheduler.NewWorker(make(<-chan *scheduler.Task), func() {}, func() {}, &scheduler.GetNowImpl{})
+	w, _ := scheduler.NewWorker(make(<-chan *scheduler.Task), func() {}, func() {})
 	return w
 }
 

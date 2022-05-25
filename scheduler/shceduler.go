@@ -38,7 +38,7 @@ func NewScheduler(initialWorkerNum, queueMax uint, getNow GetNow) *Scheduler {
 		cancellerLoop: NewCancellerLoop(feeder, getNow, time.Minute),
 		dispatchLoop:  NewDispatchLoop(feeder, getNow),
 		workerPool: NewWorkerPool(func() *Worker {
-			w, err := NewWorker(taskCh, received, done, getNow)
+			w, err := NewWorker(taskCh, received, done)
 			if err != nil {
 				panic(err)
 			}
@@ -51,7 +51,7 @@ func NewScheduler(initialWorkerNum, queueMax uint, getNow GetNow) *Scheduler {
 	return s
 }
 
-func (s *Scheduler) SchedTask(targetTime time.Time, work func(scheduled, current time.Time)) (*TaskController, error) {
+func (s *Scheduler) SchedTask(targetTime time.Time, work func(scheduled time.Time)) (*TaskController, error) {
 	if s.IsEnded() {
 		return nil, ErrAlreadyEnded
 	}

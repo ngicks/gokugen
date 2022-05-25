@@ -22,7 +22,7 @@ func TestScheduler(t *testing.T) {
 
 		taskTicker := make(chan struct{}, 5)
 		var count uint32
-		taskFunc := func(t, c time.Time) {
+		taskFunc := func(t time.Time) {
 			atomic.AddUint32(&count, 1)
 			<-taskTicker
 		}
@@ -94,7 +94,7 @@ func TestScheduler(t *testing.T) {
 
 		now := time.Now()
 		var count uint32
-		taskFunc := func(t, c time.Time) {
+		taskFunc := func(t time.Time) {
 			atomic.AddUint32(&count, 1)
 		}
 
