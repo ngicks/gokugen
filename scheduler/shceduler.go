@@ -3,7 +3,6 @@ package scheduler
 import (
 	"context"
 	"fmt"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -51,7 +50,7 @@ func NewScheduler(initialWorkerNum, queueMax uint, getNow GetNow) *Scheduler {
 	return s
 }
 
-func (s *Scheduler) SchedTask(targetTime time.Time, work func(scheduled time.Time)) (*TaskController, error) {
+func (s *Scheduler) SchedTask(targetTime time.Time, work func(cancelCh <-chan struct{}, scheduled time.Time)) (*TaskController, error) {
 	if s.IsEnded() {
 		return nil, ErrAlreadyEnded
 	}
@@ -107,27 +106,23 @@ func (s *Scheduler) Start(ctx context.Context) error {
 }
 
 func (s *Scheduler) AddWorker(delta uint32) (workerNum int) {
-	s.workerPool.Add(delta)
-	s.workerPool.Wake(math.MaxUint32)
-	workerNum, _, _ = s.workerPool.Len()
-	return
+	return int(s.workerPool.Add(delta))
 }
 
 func (s *Scheduler) RemoveWorker(delta uint32) (workerNum int) {
-	workerNum, _, _ = s.workerPool.Remove(delta, true)
-	return
+	return s.workerPool.Remove(delta)
 }
 
 func (s *Scheduler) ActiveWorkerNum() int64 {
 	return atomic.LoadInt64(s.activeWorkerNum)
 }
 
-// End remove all workers and let this scheduler to ended-state where no new Start is allowed.
+// End remove all workers and let this scheduler to step into ended-state where no new Start is allowed.
 // Calling this method *before* cancelling of ctx passed to Start will cause blocking forever.
 func (s *Scheduler) End() {
 	s.setEnded()
 	// wait for the Start loop to be done.
 	s.wg.Wait()
-	s.RemoveWorker(math.MaxInt32)
+	s.workerPool.Kill()
 	s.workerPool.Wait()
 }

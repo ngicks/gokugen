@@ -20,7 +20,7 @@ func TestFeeder(t *testing.T) {
 				tasks,
 				scheduler.NewTask(
 					now.Add(time.Duration(i*int64(time.Microsecond))),
-					func(scheduled time.Time) {},
+					func(ch <-chan struct{}, scheduled time.Time) {},
 				),
 			)
 		}
@@ -81,7 +81,7 @@ func TestFeeder(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(-2*time.Second),
-			func(scheduled time.Time) {},
+			func(ch <-chan struct{}, scheduled time.Time) {},
 		))
 
 		if d := dummyTimer.resetArg[0]; len(dummyTimer.resetArg) != 1 || d != -2*time.Second {
@@ -90,7 +90,7 @@ func TestFeeder(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(-time.Second),
-			func(scheduled time.Time) {},
+			func(ch <-chan struct{}, scheduled time.Time) {},
 		))
 
 		if len(dummyTimer.resetArg) != 1 {
@@ -101,7 +101,7 @@ func TestFeeder(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(5*time.Second),
-			func(scheduled time.Time) {},
+			func(ch <-chan struct{}, scheduled time.Time) {},
 		))
 
 		if d := dummyTimer.resetArg[1]; len(dummyTimer.resetArg) != 2 || d != 5*time.Second {
@@ -110,7 +110,7 @@ func TestFeeder(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(3*time.Second),
-			func(scheduled time.Time) {},
+			func(ch <-chan struct{}, scheduled time.Time) {},
 		))
 
 		if d := dummyTimer.resetArg[2]; len(dummyTimer.resetArg) != 3 || d != 3*time.Second {

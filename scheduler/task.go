@@ -8,11 +8,13 @@ import (
 // Task is simple set of data of
 // scheduledTime and work and calling state.
 //
-// work will be called with scheduled time, scheduled, and current time, current.
-// current is fetched from system timer via time.Now() or equivalent implementation, right before invocation of Do.
+// work will be called with cancel channel and scheduled time.
+// cancelCh is closed when caller wants to quit the task immediately.
+// It is adviced for a passed work to detect cancellation by the channel,
+// if the work needs long time to complete.
 type Task struct {
 	scheduledTime time.Time
-	work          func(scheduled time.Time)
+	work          func(cancelCh <-chan struct{}, scheduled time.Time)
 	done          uint32
 	cancelled     uint32
 }
@@ -20,16 +22,16 @@ type Task struct {
 // NewTask creates a new Task instance.
 // scheduledTime is scheduled time when work should be invoked.
 // work is work of Task, this will be only called once.
-func NewTask(scheduledTime time.Time, work func(scheduled time.Time)) *Task {
+func NewTask(scheduledTime time.Time, work func(cancelCh <-chan struct{}, scheduled time.Time)) *Task {
 	return &Task{
 		scheduledTime: scheduledTime,
 		work:          work,
 	}
 }
 
-func (t *Task) Do() {
+func (t *Task) Do(cancelCh <-chan struct{}) {
 	if t.work != nil && !t.IsCancelled() && atomic.CompareAndSwapUint32(&t.done, 0, 1) {
-		t.work(t.scheduledTime)
+		t.work(cancelCh, t.scheduledTime)
 	}
 }
 

@@ -1,7 +1,5 @@
 package scheduler
 
-import "context"
-
 // Worker represents single loop that executes tasks.
 // It will work on a single task at a time.
 // It may be in stopped-state where loop is stopped,
@@ -11,6 +9,7 @@ type Worker struct {
 	workingState
 	endState
 	stopCh       chan struct{}
+	killCh       chan struct{}
 	taskCh       <-chan *Task
 	taskReceived func()
 	taskDone     func()
@@ -30,6 +29,7 @@ func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker, err
 
 	worker := &Worker{
 		stopCh:       make(chan struct{}, 1),
+		killCh:       make(chan struct{}),
 		taskCh:       taskCh,
 		taskReceived: taskReceived,
 		taskDone:     taskDone,
@@ -41,8 +41,8 @@ func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker, err
 //
 // If worker is already ended, it returns `ErrAlreadyEnded`.
 // If worker is already started, it returns `ErrAlreadyStarted`.
-// If taskCh is closed, Start returns nil immediately, becomes ended-state.
-func (w *Worker) Start(ctx context.Context) (err error) {
+// If taskCh is closed, Start returns nil, becoming ended-state.
+func (w *Worker) Start() (err error) {
 	if w.IsEnded() {
 		return ErrAlreadyEnded
 	}
@@ -54,32 +54,37 @@ func (w *Worker) Start(ctx context.Context) (err error) {
 	defer func() {
 		select {
 		case <-w.stopCh:
-			break
 		default:
-			break
 		}
 	}()
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-w.killCh:
+			// in case of racy kill
 			return
 		case <-w.stopCh:
 			return
-		case job, ok := <-w.taskCh:
-			if !ok {
-				w.setEnded()
+		default:
+			select {
+			case <-w.stopCh:
 				return
+			case job, ok := <-w.taskCh:
+				if !ok {
+					w.setEnded()
+					return
+				}
+				w.taskReceived()
+				job.Do(w.killCh)
+				w.taskDone()
 			}
-			w.taskReceived()
-			job.Do()
-			w.taskDone()
 		}
 	}
 }
 
 // Stop stops an active Start loop.
-// If Start is not in work when Stop is called, it will stops next Start immediately after invocation.
+// If Start is not in work when Stop is called,
+// it will stops next Start immediately after an invocation of Start.
 func (w *Worker) Stop() {
 	select {
 	case <-w.stopCh:
@@ -87,4 +92,14 @@ func (w *Worker) Stop() {
 	}
 	w.stopCh <- struct{}{}
 	return
+}
+
+// Kill kills this worker.
+// If a task is being worked,
+// a channel passed to the task will be closed immediately after an invocation of this method.
+// Kill makes this worker to step into ended state, making it impossible to Start-ed again.
+func (w *Worker) Kill() {
+	w.setEnded()
+	close(w.killCh)
+	w.Stop()
 }
