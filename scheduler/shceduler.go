@@ -50,7 +50,7 @@ func NewScheduler(initialWorkerNum, queueMax uint, getNow GetNow) *Scheduler {
 	return s
 }
 
-func (s *Scheduler) SchedTask(targetTime time.Time, work func(cancelCh <-chan struct{}, scheduled time.Time)) (*TaskController, error) {
+func (s *Scheduler) SchedTask(targetTime time.Time, work WorkFn) (*TaskController, error) {
 	if s.IsEnded() {
 		return nil, ErrAlreadyEnded
 	}
@@ -118,6 +118,7 @@ func (s *Scheduler) ActiveWorkerNum() int64 {
 }
 
 // End remove all workers and let this scheduler to step into ended-state where no new Start is allowed.
+// End also cancel tasks if they are working on in any work.
 // Calling this method *before* cancelling of ctx passed to Start will cause blocking forever.
 func (s *Scheduler) End() {
 	s.setEnded()
