@@ -49,9 +49,9 @@ func (t *Task) GetScheduledTime() time.Time {
 	return t.scheduledTime
 }
 
-func (t *Task) Cancel() (closed bool) {
-	closed = atomic.CompareAndSwapUint32(&t.cancelled, 0, 1)
-	if closed {
+func (t *Task) Cancel() (cancelled bool) {
+	cancelled = atomic.CompareAndSwapUint32(&t.cancelled, 0, 1)
+	if cancelled {
 		close(t.cancelCh)
 	}
 	return
@@ -76,7 +76,7 @@ func (t *TaskController) GetScheduledTime() time.Time {
 	return t.t.GetScheduledTime()
 }
 
-func (t *TaskController) Cancel() (alreadyCancelled bool) {
+func (t *TaskController) Cancel() (cancelled bool) {
 	return t.t.Cancel()
 }
 

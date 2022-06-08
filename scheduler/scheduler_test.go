@@ -28,7 +28,7 @@ func TestScheduler(t *testing.T) {
 		}
 
 		for i := 0; i < 10; i++ {
-			s.SchedTask(now.Add(time.Millisecond), taskFunc)
+			s.SchedTask(scheduler.NewTask(now.Add(time.Millisecond), taskFunc))
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -98,8 +98,8 @@ func TestScheduler(t *testing.T) {
 			atomic.AddUint32(&count, 1)
 		}
 
-		s.SchedTask(now.Add(time.Millisecond), taskFunc)
-		s.SchedTask(now.Add(10*time.Millisecond), taskFunc)
+		s.SchedTask(scheduler.NewTask(now.Add(time.Millisecond), taskFunc))
+		s.SchedTask(scheduler.NewTask(now.Add(10*time.Millisecond), taskFunc))
 
 		wg := sync.WaitGroup{}
 		ctx, cancel := context.WithCancel(context.Background())
