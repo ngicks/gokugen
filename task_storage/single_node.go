@@ -44,32 +44,63 @@ func NewSingleNodeTaskStorage(
 
 func (ts *SingleNodeTaskStorage) paramLoad(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-		taskStorage, ok := ctx.(*taskStorageCtx)
+		taskId, err := GetTaskId(ctx)
+		if err != nil {
+			return nil, err
+		}
+		workId, err := GetWorkId(ctx)
+		if err != nil {
+			return nil, err
+		}
+		workWithParam, ok := ts.workRegistry.Load(workId)
 		if !ok {
-			return nil, fmt.Errorf("%w: paramLoad must be right after storeTask.", ErrMiddlewareOrder)
+			return nil, fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, workId)
 		}
 
-		taskId, _ := GetTaskId(taskStorage)
-		workWithParam, ok := ts.workRegistry.Load(taskStorage.workId)
-		if !ok {
-			return nil, fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, taskStorage.workId)
-
+		var parentCtx gokugen.SchedulerContext
+		parentCtx = ctx
+		for {
+			if !isTaskStorageCtx(parentCtx) {
+				break
+			}
+			if unwrappable, ok := parentCtx.(interface {
+				Unwrap() gokugen.SchedulerContext
+			}); ok {
+				parentCtx = unwrappable.Unwrap()
+			}
 		}
-		paramLoadable := newtaskStorageParamLoadableCtx(
-			taskStorage,
-			func() (any, error) {
+
+		loadable := &paramLoadableCtx{
+			SchedulerContext: &baseCtx{
+				SchedulerContext: parentCtx,
+				taskId:           taskId,
+				workId:           workId,
+			},
+			paramLoader: func() (any, error) {
 				info, err := ts.repo.GetById(taskId)
 				if err != nil {
 					return nil, err
 				}
 				return info.Param, nil
 			},
-			workWithParam,
-			func(err error) {
-				markDoneTask(err, ts, taskId)
+		}
+
+		fnWrapped := &fnWrapperCtx{
+			SchedulerContext: loadable,
+			wrapper: func(workFn WorkFn) WorkFn {
+				return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+					param, err := GetParam(loadable)
+					if err != nil {
+						return err
+					}
+					err = workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
+					markDoneTask(err, ts, taskId)
+					return err
+				}
 			},
-		)
-		return handler(paramLoadable)
+		}
+
+		return handler(fnWrapped)
 	}
 }
 
@@ -100,24 +131,25 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 			return
 		}
 
-		ok = setWork(ctx, func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
-			err := workRaw(ctxCancelCh, taskCancelCh, scheduled, param)
-			markDoneTask(err, ts, taskId)
-			if err != nil {
-				return err
-			}
-			return nil
-		})
-		if !ok {
-			panic("SingleNodeTaskStorage: implementation error. setWork returned false")
+		fnWrapped := &fnWrapperCtx{
+			SchedulerContext: &baseCtx{
+				SchedulerContext: ctx,
+				taskId:           taskId,
+				workId:           workId,
+			},
+			wrapper: func(WorkFn) WorkFn {
+				return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+					err := workRaw(ctxCancelCh, taskCancelCh, scheduled, param)
+					markDoneTask(err, ts, taskId)
+					if err != nil {
+						return err
+					}
+					return nil
+				}
+			},
 		}
 
-		ok = setTaskId(ctx, taskId)
-		if !ok {
-			panic("SingleNodeTaskStorage: implementation error. setTaskId returned false")
-		}
-
-		task, err = handler(ctx)
+		task, err = handler(fnWrapped)
 		if err != nil {
 			return
 		}
@@ -151,7 +183,9 @@ func (ts *SingleNodeTaskStorage) Middleware(freeParam bool) []gokugen.Middleware
 	return []gokugen.MiddlewareFunc{ts.storeTask}
 }
 
-func (s *SingleNodeTaskStorage) Sync(schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error)) (restored bool, rescheduled map[string]gokugen.Task, err error) {
+func (s *SingleNodeTaskStorage) Sync(
+	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+) (restored bool, rescheduled map[string]gokugen.Task, err error) {
 	fetchedIds, err := s.repo.GetAll()
 	if err != nil {
 		return
@@ -170,11 +204,18 @@ func (s *SingleNodeTaskStorage) Sync(schedule func(ctx gokugen.SchedulerContext)
 			continue
 		}
 
-		ctx := newTaskStorageCtx(
-			gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
-			fetched.WorkId,
-			fetched.Param,
-		)
+		schedTime := fetched.ScheduledTime
+		workId := fetched.WorkId
+		param := fetched.Param
+		ctx := &paramLoadableCtx{
+			SchedulerContext: &baseCtx{
+				SchedulerContext: gokugen.NewPlainContext(schedTime, nil, make(map[any]any)),
+				workId:           workId,
+			},
+			paramLoader: func() (any, error) {
+				return param, nil
+			},
+		}
 		var task gokugen.Task
 		task, err = schedule(ctx)
 		if err != nil {
@@ -214,28 +255,20 @@ func (s *SingleNodeTaskStorage) RetryMarking() (allRemoved bool) {
 	return s.failedIds.Len() == 0
 }
 
-type repoCancellableTaskWrapper struct {
-	gokugen.Task
-	id        string
-	repo      Repository
-	failedIds *SyncStateStore
-}
-
-func (tw *repoCancellableTaskWrapper) Cancel() (cancelled bool) {
-	cancelled = tw.Task.Cancel()
-	if cancelled && !tw.IsDone() {
-		_, err := tw.repo.MarkAsCancelled(tw.id)
-		if err != nil {
-			tw.failedIds.Put(tw.id, Cancelled)
-		}
-	}
-	return
-}
-
-func wrapCancel(repo Repository, failedIds *SyncStateStore, id string, t gokugen.Task) *repoCancellableTaskWrapper {
-	return &repoCancellableTaskWrapper{
-		id:   id,
-		repo: repo,
-		Task: t,
+func wrapCancel(repo Repository, failedIds *SyncStateStore, id string, t gokugen.Task) gokugen.Task {
+	return &taskWrapper{
+		base: t,
+		cancel: func(baseCanceller func() (cancelled bool)) func() (cancelled bool) {
+			return func() (cancelled bool) {
+				cancelled = baseCanceller()
+				if cancelled && !t.IsDone() {
+					_, err := repo.MarkAsCancelled(id)
+					if err != nil {
+						failedIds.Put(id, Cancelled)
+					}
+				}
+				return
+			}
+		},
 	}
 }

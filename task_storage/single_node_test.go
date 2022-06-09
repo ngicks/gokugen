@@ -29,21 +29,36 @@ func (t *fakeTask) IsDone() (done bool) {
 	return
 }
 
-func prepare(freeParam bool) (
-	ts *taskstorage.SingleNodeTaskStorage,
+func buildTaskStorage() (
+	singleNode *taskstorage.SingleNodeTaskStorage,
+	multiNode *taskstorage.MultiNodeTaskStorage,
 	repo *taskstorage.InMemoryRepo,
 	registry *gokugen.WorkRegistry,
-	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
-	doAllTasks func(),
 ) {
 	repo = taskstorage.NewInMemoryRepo()
 	registry = gokugen.NewWorkRegistry()
-	ts = taskstorage.NewSingleNodeTaskStorage(
+	singleNode = taskstorage.NewSingleNodeTaskStorage(
 		repo,
 		func(ti taskstorage.TaskInfo) bool { return true },
 		registry,
 	)
+	multiNode = taskstorage.NewMultiNodeTaskStorage(
+		repo,
+		func(ti taskstorage.TaskInfo) bool { return true },
+		registry,
+	)
+	return
+}
 
+func prepare(
+	ts interface {
+		Middleware(freeParam bool) []gokugen.MiddlewareFunc
+	},
+	freeParam bool,
+) (
+	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+	doAllTasks func(),
+) {
 	mws := ts.Middleware(freeParam)
 
 	workMu := sync.Mutex{}
@@ -67,13 +82,32 @@ func prepare(freeParam bool) (
 	for i := len(mws) - 1; i >= 0; i-- {
 		sched = mws[i](sched)
 	}
-
 	return
 }
 
-var storageTestSet = func(t *testing.T, freeParam bool) {
+func prepareSingle(freeParam bool) (
+	ts *taskstorage.SingleNodeTaskStorage,
+	repo *taskstorage.InMemoryRepo,
+	registry *gokugen.WorkRegistry,
+	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+	doAllTasks func(),
+) {
+	singleNode, _, repo, registry := buildTaskStorage()
+	sched, doAllTasks = prepare(singleNode, freeParam)
+	return
+}
+
+func storageTestSet(
+	t *testing.T,
+	prepare func() (
+		repo *taskstorage.InMemoryRepo,
+		registry *gokugen.WorkRegistry,
+		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+		doAllTasks func(),
+	),
+) {
 	t.Run("basic usage", func(t *testing.T) {
-		_, repo, registry, sched, doAllTasks := prepare(freeParam)
+		repo, registry, sched, doAllTasks := prepare()
 
 		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 			return nil
@@ -119,7 +153,7 @@ var storageTestSet = func(t *testing.T, freeParam bool) {
 	})
 
 	t.Run("cancel marks data as cancelled inside repository", func(t *testing.T) {
-		_, repo, registry, sched, _ := prepare(freeParam)
+		repo, registry, sched, _ := prepare()
 
 		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 			return nil
@@ -137,7 +171,7 @@ var storageTestSet = func(t *testing.T, freeParam bool) {
 	})
 
 	t.Run("failed marks data as failed inside repository", func(t *testing.T) {
-		_, repo, registry, sched, doAllTasks := prepare(freeParam)
+		repo, registry, sched, doAllTasks := prepare()
 
 		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 			return errors.New("mock error")
@@ -157,11 +191,28 @@ var storageTestSet = func(t *testing.T, freeParam bool) {
 }
 
 func TestSingleNode(t *testing.T) {
+	prep := func(paramLoad bool) func() (
+		repo *taskstorage.InMemoryRepo,
+		registry *gokugen.WorkRegistry,
+		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+		doAllTasks func(),
+	) {
+		return func() (
+			repo *taskstorage.InMemoryRepo,
+			registry *gokugen.WorkRegistry,
+			sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+			doAllTasks func(),
+		) {
+			_, repo, registry, sched, doAllTasks = prepareSingle(paramLoad)
+			return
+		}
+	}
+
 	t.Run("no param load", func(t *testing.T) {
-		storageTestSet(t, false)
+		storageTestSet(t, prep(false))
 	})
 
 	t.Run("param load", func(t *testing.T) {
-		storageTestSet(t, true)
+		storageTestSet(t, prep(true))
 	})
 }

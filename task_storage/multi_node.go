@@ -1,6 +1,9 @@
 package taskstorage
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/ngicks/gokugen"
 )
 
@@ -31,6 +34,32 @@ func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) go
 		if err != nil {
 			return nil, err
 		}
-		return handler(newtaskStorageMarkingWorkingCtx(ctx, taskId, m.repo))
+
+		return handler(
+			&fnWrapperCtx{
+				SchedulerContext: ctx,
+				wrapper: func(workFn WorkFn) WorkFn {
+					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+						swapped, err := m.repo.UpdateState(taskId, Initialized, Working)
+						if err != nil {
+							return err
+						}
+						if !swapped {
+							return fmt.Errorf("%w: task id = %s", ErrOtherNodeWorkingOnTheTask, taskId)
+						}
+						return workFn(ctxCancelCh, taskCancelCh, scheduled)
+					}
+				},
+			})
 	}
+}
+
+func (m *MultiNodeTaskStorage) Middleware(freeParam bool) []gokugen.MiddlewareFunc {
+	return append([]gokugen.MiddlewareFunc{m.markWorking}, m.sns.Middleware(freeParam)...)
+}
+
+func (m *MultiNodeTaskStorage) Sync(
+	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+) (restored bool, rescheduled map[string]gokugen.Task, err error) {
+	return m.sns.Sync(schedule)
 }
