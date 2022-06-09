@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrNoEnt = errors.New("no ent")
+	ErrNoEnt             = errors.New("no ent")
+	ErrNotUpdatableState = errors.New("not updatable")
 )
 
 var _ RepositoryUpdater = &InMemoryRepo{}
@@ -106,6 +107,36 @@ func updateState(store *sync.Map, id string, state TaskState) (bool, error) {
 	}
 	entry := val.(*ent)
 	return entry.Update(state, isUpdatable), nil
+}
+
+func (r *InMemoryRepo) Update(id string, diff UpdateDiff) error {
+	val, ok := r.store.Load(id)
+	if !ok {
+		return fmt.Errorf("%w: no such id [%s]", ErrNoEnt, id)
+	}
+
+	entry := val.(*ent)
+
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+
+	if !isUpdatable(entry.info.State) {
+		return fmt.Errorf("%w: is now %s", ErrNotUpdatableState, entry.info.State)
+	}
+
+	if diff.WorkId != nil {
+		entry.info.WorkId = *diff.WorkId
+	}
+	if diff.Param != nil {
+		entry.info.Param = *diff.Param
+	}
+	if diff.ScheduledTime != nil {
+		entry.info.ScheduledTime = *diff.ScheduledTime
+	}
+	if diff.State != nil {
+		entry.info.State = *diff.State
+	}
+	return nil
 }
 
 func isUpdatable(state TaskState) bool {

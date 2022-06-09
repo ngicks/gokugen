@@ -10,7 +10,7 @@ type StateUpdater interface {
 }
 
 type Updater interface {
-	Update(taskId string, diff UpdateDiff)
+	Update(taskId string, diff UpdateDiff) (err error)
 }
 
 type Repository interface {
@@ -64,7 +64,7 @@ type TaskInfo struct {
 
 type UpdateDiff struct {
 	WorkId        *string
-	Params        *any
+	Param         *any
 	ScheduledTime *time.Time
 	State         *TaskState
 }

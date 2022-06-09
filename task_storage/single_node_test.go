@@ -2,7 +2,9 @@ package taskstorage_test
 
 import (
 	"errors"
+	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -214,5 +216,51 @@ func TestSingleNode(t *testing.T) {
 
 	t.Run("param load", func(t *testing.T) {
 		storageTestSet(t, prep(true))
+	})
+
+	t.Run("param is freed after task storage if freeParam is set to true", func(t *testing.T) {
+		_, repo, registry, sched, doAllTasks := prepareSingle(true)
+
+		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
+			return nil
+		})
+
+		type exampleParam struct {
+			Foo string
+			Bar int
+		}
+		paramUsedInSched := new(exampleParam)
+		paramStoredInRepo := new(exampleParam)
+
+		var called int64
+		runtime.SetFinalizer(paramUsedInSched, func(*exampleParam) {
+			atomic.AddInt64(&called, 1)
+		})
+
+		_, _ = sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(time.Now(), nil, nil), "foobar", paramUsedInSched))
+		stored, _ := repo.GetAll()
+		taskId := stored[0].Id
+		anyParam := any(paramStoredInRepo)
+		repo.Update(taskId, taskstorage.UpdateDiff{
+			Param: &anyParam,
+		})
+
+		doAllTasks()
+
+		for i := 0; i < 100; i++ {
+			runtime.GC()
+			if atomic.LoadInt64(&called) == 1 {
+				break
+			}
+		}
+
+		if atomic.LoadInt64(&called) != 1 {
+			t.Fatalf("param is not dropped.")
+		}
+		// Comment-in this line to see `paramUsedInSched` is now determine to be not reachable.
+		// At least, the case fails.
+		//
+		// runtime.KeepAlive(paramUsedInSched)
+		runtime.KeepAlive(paramStoredInRepo)
 	})
 }
