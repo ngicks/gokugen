@@ -66,11 +66,11 @@ func (ctx *baseCtx) Unwrap() gokugen.SchedulerContext {
 
 type fnWrapperCtx struct {
 	gokugen.SchedulerContext
-	wrapper func(workFn WorkFn) WorkFn
+	wrapper func(self gokugen.SchedulerContext, workFn WorkFn) WorkFn
 }
 
 func (ctx *fnWrapperCtx) Work() WorkFn {
-	return ctx.wrapper(ctx.SchedulerContext.Work())
+	return ctx.wrapper(ctx, ctx.SchedulerContext.Work())
 }
 
 func (ctx *fnWrapperCtx) Unwrap() gokugen.SchedulerContext {

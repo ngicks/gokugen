@@ -38,7 +38,7 @@ func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) go
 		return handler(
 			&fnWrapperCtx{
 				SchedulerContext: ctx,
-				wrapper: func(workFn WorkFn) WorkFn {
+				wrapper: func(_ gokugen.SchedulerContext, workFn WorkFn) WorkFn {
 					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
 						swapped, err := m.repo.UpdateState(taskId, Initialized, Working)
 						if err != nil {
