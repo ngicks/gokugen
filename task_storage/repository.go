@@ -18,9 +18,7 @@ type Repository interface {
 	// The id of passed TaskInfo will be ignored.
 	// Insert returns a newly created id.
 	Insert(TaskInfo) (taskId string, err error)
-	// GetAll returns many models stored in the repository.
-	// Implementation may or may not limit number of models.
-	GetAll() ([]TaskInfo, error)
+	GetUpdatedSince(time.Time) ([]TaskInfo, error)
 	GetById(id string) (TaskInfo, error)
 	MarkAsDone(id string) (ok bool, err error)
 	MarkAsCancelled(id string) (ok bool, err error)

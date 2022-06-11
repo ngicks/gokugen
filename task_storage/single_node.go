@@ -3,9 +3,11 @@ package taskstorage
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ngicks/gokugen"
+	"github.com/ngicks/gokugen/common"
 )
 
 var (
@@ -26,6 +28,9 @@ type SingleNodeTaskStorage struct {
 	shouldRestore func(TaskInfo) bool
 	workRegistry  WorkRegistry
 	taskMap       *TaskMap
+	mu            sync.Mutex
+	getNow        common.GetNow // this field can be swapped out in test codes.
+	lastSynced    time.Time
 }
 
 func NewSingleNodeTaskStorage(
@@ -39,6 +44,7 @@ func NewSingleNodeTaskStorage(
 		failedIds:     NewSyncStateStore(),
 		workRegistry:  workRegistry,
 		taskMap:       NewTaskMap(),
+		getNow:        common.GetNowImpl{},
 	}
 }
 
@@ -174,7 +180,10 @@ func (ts *SingleNodeTaskStorage) Middleware(freeParam bool) []gokugen.Middleware
 func (s *SingleNodeTaskStorage) Sync(
 	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 ) (restored bool, rescheduled map[string]gokugen.Task, err error) {
-	fetchedIds, err := s.repo.GetAll()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	fetchedIds, err := s.repo.GetUpdatedSince(s.lastSynced)
 	if err != nil {
 		return
 	}
@@ -217,6 +226,8 @@ func (s *SingleNodeTaskStorage) Sync(
 	for _, id := range removedIds {
 		s.taskMap.Delete(id)
 	}
+
+	s.lastSynced = s.getNow.GetNow()
 	return
 }
 
