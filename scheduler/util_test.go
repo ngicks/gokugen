@@ -3,10 +3,11 @@ package scheduler_test
 import (
 	"time"
 
+	"github.com/ngicks/gokugen/common"
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-var _ scheduler.GetNow = new(getNowDummyImpl)
+var _ common.GetNow = new(getNowDummyImpl)
 var _ scheduler.ITimer = new(timerDummyImpl)
 
 type getNowDummyImpl struct {

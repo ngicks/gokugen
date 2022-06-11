@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/ngicks/gokugen/common"
 )
 
 type ITimer interface {
@@ -34,7 +36,7 @@ type TaskFeeder struct {
 	workingState
 	mu     sync.Mutex
 	q      TaskQueue
-	getNow GetNow
+	getNow common.GetNow
 	timer  ITimer
 }
 
@@ -42,7 +44,7 @@ type TaskFeeder struct {
 // queueMax is max for tasks. Passing zero sets it unlimited.
 //
 // panic: If getNow or timerImpl is nil.
-func NewTaskFeeder(queueMax uint, getNow GetNow, timerImpl ITimer) *TaskFeeder {
+func NewTaskFeeder(queueMax uint, getNow common.GetNow, timerImpl ITimer) *TaskFeeder {
 	if getNow == nil || timerImpl == nil {
 		panic(
 			fmt.Errorf(

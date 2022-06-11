@@ -3,6 +3,8 @@ package scheduler
 import (
 	"context"
 	"fmt"
+
+	"github.com/ngicks/gokugen/common"
 )
 
 // DispatchLoop waits for a Feeder to emit the timer signal,
@@ -11,13 +13,13 @@ import (
 // Multiple calls of Start is ok. But performance benefits are questionable.
 type DispatchLoop struct {
 	feeder *TaskFeeder
-	getNow GetNow
+	getNow common.GetNow
 }
 
 // NewDispatchLoop creates DispatchLoop.
 //
 // panic: when one or more of arguments is nil.
-func NewDispatchLoop(feeder *TaskFeeder, getNow GetNow) *DispatchLoop {
+func NewDispatchLoop(feeder *TaskFeeder, getNow common.GetNow) *DispatchLoop {
 	if feeder == nil || getNow == nil {
 		panic(fmt.Errorf(
 			"%w: one or more of aruguments is nil. feeder is nil=[%t], getNow is nil=[%t]",

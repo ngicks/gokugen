@@ -6,6 +6,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ngicks/gokugen/common"
 )
 
 // Scheduler is an in-memory scheduler backed by min heap.
@@ -22,7 +24,7 @@ type Scheduler struct {
 	taskCh          chan *Task
 }
 
-func NewScheduler(initialWorkerNum, queueMax uint, getNow GetNow) *Scheduler {
+func NewScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Scheduler {
 	taskCh := make(chan *Task)
 	feeder := NewTaskFeeder(queueMax, getNow, NewTimerImpl())
 	var activeWorkerNum int64

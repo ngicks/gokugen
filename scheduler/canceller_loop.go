@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/ngicks/gokugen/common"
 )
 
 // CancellerLoop requests Feeder to remove cancelled element at a given interval.
@@ -11,14 +13,14 @@ import (
 type CancellerLoop struct {
 	workingState
 	feeder   *TaskFeeder
-	getNow   GetNow
+	getNow   common.GetNow
 	interval time.Duration
 }
 
 // NewCancellerLoop creates a CancellerLoop.
 //
 // panic: when one or more of arguments is nil or zero-vakue.
-func NewCancellerLoop(feeder *TaskFeeder, getNow GetNow, interval time.Duration) *CancellerLoop {
+func NewCancellerLoop(feeder *TaskFeeder, getNow common.GetNow, interval time.Duration) *CancellerLoop {
 	if feeder == nil || getNow == nil || interval <= 0 {
 		panic(fmt.Errorf(
 			"%w: one or more of aruguments is nil or zero-value. feeder is nil=[%t], getNow is nil=[%t], interval is zero=[%t]",
@@ -65,7 +67,7 @@ loop:
 	return nil
 }
 
-func removeCancelled(feeder *TaskFeeder, getNow GetNow) (removed bool) {
+func removeCancelled(feeder *TaskFeeder, getNow common.GetNow) (removed bool) {
 	p := feeder.Peek()
 	if p != nil && p.scheduledTime.Sub(getNow.GetNow()) > time.Second {
 		// Racy Push may add min element in between previous Peek and this RemoveCancelled.
