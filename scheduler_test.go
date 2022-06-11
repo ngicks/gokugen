@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen"
+	"github.com/ngicks/gokugen/common"
 	"github.com/ngicks/gokugen/scheduler"
 )
 
@@ -24,7 +25,7 @@ func mockMw(hook func(ctx gokugen.SchedulerContext) gokugen.SchedulerContext) go
 
 func TestScheduler(t *testing.T) {
 	t.Run("Use order is mw application order", func(t *testing.T) {
-		innerScheduler := scheduler.NewScheduler(1, 0, &scheduler.GetNowImpl{})
+		innerScheduler := scheduler.NewScheduler(1, 0, &common.GetNowImpl{})
 		schduler := gokugen.NewScheduler(innerScheduler)
 
 		orderMu := sync.Mutex{}
