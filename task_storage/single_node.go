@@ -114,14 +114,21 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 			return
 		}
 
-		taskId, err := ts.repo.Insert(TaskInfo{
-			WorkId:        workId,
-			Param:         param,
-			ScheduledTime: scheduledTime,
-			State:         Initialized,
-		})
+		taskId, err := GetTaskId(ctx)
 		if err != nil {
 			return
+		}
+
+		if taskId == "" {
+			taskId, err = ts.repo.Insert(TaskInfo{
+				WorkId:        workId,
+				Param:         param,
+				ScheduledTime: scheduledTime,
+				State:         Initialized,
+			})
+			if err != nil {
+				return
+			}
 		}
 
 		fnWrapped := &fnWrapperCtx{
@@ -233,22 +240,21 @@ func (s *SingleNodeTaskStorage) Sync(
 
 func (s *SingleNodeTaskStorage) RetryMarking() (allRemoved bool) {
 	for _, set := range s.failedIds.GetAll() {
-		if !s.failedIds.Has(set.Key) {
+		if !s.failedIds.Remove(set.Key) {
 			continue
 		}
-		var noop bool
 		var err error
 		switch set.Value {
 		case Done:
-			noop, err = s.repo.MarkAsDone(set.Key)
+			_, err = s.repo.MarkAsDone(set.Key)
 		case Cancelled:
-			noop, err = s.repo.MarkAsCancelled(set.Key)
+			_, err = s.repo.MarkAsCancelled(set.Key)
 		case Failed:
-			noop, err = s.repo.MarkAsFailed(set.Key)
+			_, err = s.repo.MarkAsFailed(set.Key)
 		}
 
-		if noop || err == nil {
-			s.failedIds.Remove(set.Key)
+		if err != nil {
+			s.failedIds.Put(set.Key, set.Value)
 		}
 	}
 	return s.failedIds.Len() == 0
