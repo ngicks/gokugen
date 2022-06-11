@@ -9,6 +9,6 @@ type GetNow interface {
 type GetNowImpl struct {
 }
 
-func (g *GetNowImpl) GetNow() time.Time {
+func (g GetNowImpl) GetNow() time.Time {
 	return time.Now()
 }
