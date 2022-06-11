@@ -60,18 +60,28 @@ func prepare(
 ) (
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
+	getTaskResults func() []error,
 ) {
 	mws := ts.Middleware(freeParam)
 
 	workMu := sync.Mutex{}
 	works := make([]taskstorage.WorkFn, 0)
 
+	taskResults := make([]error, 0)
 	doAllTasks = func() {
 		workMu.Lock()
 		defer workMu.Unlock()
 		for _, v := range works {
-			v(make(<-chan struct{}), make(<-chan struct{}), time.Now())
+			result := v(make(<-chan struct{}), make(<-chan struct{}), time.Now())
+			taskResults = append(taskResults, result)
 		}
+	}
+	getTaskResults = func() []error {
+		workMu.Lock()
+		defer workMu.Unlock()
+		cloned := make([]error, len(taskResults))
+		copy(cloned, taskResults)
+		return cloned
 	}
 	sched = func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
 		workMu.Lock()
@@ -93,9 +103,10 @@ func prepareSingle(freeParam bool) (
 	registry *gokugen.WorkRegistry,
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
+	getTaskResults func() []error,
 ) {
 	singleNode, _, repo, registry := buildTaskStorage()
-	sched, doAllTasks = prepare(singleNode, freeParam)
+	sched, doAllTasks, getTaskResults = prepare(singleNode, freeParam)
 	return
 }
 
@@ -106,10 +117,11 @@ func storageTestSet(
 		registry *gokugen.WorkRegistry,
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
+		getTaskResults func() []error,
 	),
 ) {
 	t.Run("basic usage", func(t *testing.T) {
-		repo, registry, sched, doAllTasks := prepare()
+		repo, registry, sched, doAllTasks, _ := prepare()
 
 		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 			return nil
@@ -155,7 +167,7 @@ func storageTestSet(
 	})
 
 	t.Run("cancel marks data as cancelled inside repository", func(t *testing.T) {
-		repo, registry, sched, _ := prepare()
+		repo, registry, sched, _, _ := prepare()
 
 		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 			return nil
@@ -173,7 +185,7 @@ func storageTestSet(
 	})
 
 	t.Run("failed marks data as failed inside repository", func(t *testing.T) {
-		repo, registry, sched, doAllTasks := prepare()
+		repo, registry, sched, doAllTasks, _ := prepare()
 
 		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 			return errors.New("mock error")
@@ -198,14 +210,16 @@ func TestSingleNode(t *testing.T) {
 		registry *gokugen.WorkRegistry,
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
+		getTaskResults func() []error,
 	) {
 		return func() (
 			repo *taskstorage.InMemoryRepo,
 			registry *gokugen.WorkRegistry,
 			sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 			doAllTasks func(),
+			getTaskResults func() []error,
 		) {
-			_, repo, registry, sched, doAllTasks = prepareSingle(paramLoad)
+			_, repo, registry, sched, doAllTasks, getTaskResults = prepareSingle(paramLoad)
 			return
 		}
 	}
@@ -219,7 +233,7 @@ func TestSingleNode(t *testing.T) {
 	})
 
 	t.Run("param is freed after task storage if freeParam is set to true", func(t *testing.T) {
-		_, repo, registry, sched, doAllTasks := prepareSingle(true)
+		_, repo, registry, sched, doAllTasks, _ := prepareSingle(true)
 
 		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 			return nil

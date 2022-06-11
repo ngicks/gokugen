@@ -1,7 +1,10 @@
 package taskstorage_test
 
 import (
+	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/ngicks/gokugen"
 	taskstorage "github.com/ngicks/gokugen/task_storage"
@@ -13,9 +16,10 @@ func prepareMulti(freeParam bool) (
 	registry *gokugen.WorkRegistry,
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
+	getTaskResults func() []error,
 ) {
 	_, multiNode, repo, registry := buildTaskStorage()
-	sched, doAllTasks = prepare(multiNode, freeParam)
+	sched, doAllTasks, getTaskResults = prepare(multiNode, freeParam)
 	return
 }
 
@@ -25,14 +29,16 @@ func TestMultiNode(t *testing.T) {
 		registry *gokugen.WorkRegistry,
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
+		getTaskResults func() []error,
 	) {
 		return func() (
 			repo *taskstorage.InMemoryRepo,
 			registry *gokugen.WorkRegistry,
 			sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 			doAllTasks func(),
+			getTaskResults func() []error,
 		) {
-			_, repo, registry, sched, doAllTasks = prepareMulti(paramLoad)
+			_, repo, registry, sched, doAllTasks, getTaskResults = prepareMulti(paramLoad)
 			return
 		}
 	}
@@ -43,5 +49,43 @@ func TestMultiNode(t *testing.T) {
 
 	t.Run("param load", func(t *testing.T) {
 		storageTestSet(t, prep(true))
+	})
+
+	t.Run("error if already marked as working", func(t *testing.T) {
+		_, repo, registry, sched, doAllTasks, getTaskResults := prepareMulti(false)
+
+		var count int64
+		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
+			atomic.AddInt64(&count, 1)
+			return nil
+		})
+
+		sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(time.Now(), nil, nil), "foobar", nil))
+
+		storedTasks, _ := repo.GetAll()
+		task := storedTasks[0]
+
+		err := repo.Update(task.Id, taskstorage.UpdateDiff{
+			UpdateKey: taskstorage.UpdateKey{
+				State: true,
+			},
+			Diff: taskstorage.TaskInfo{
+				State: taskstorage.Working,
+			},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		doAllTasks()
+
+		results := getTaskResults()
+
+		if !errors.Is(results[0], taskstorage.ErrOtherNodeWorkingOnTheTask) {
+			t.Fatalf("wrong error type: %v", results[0])
+		}
+		if atomic.LoadInt64(&count) != 0 {
+			t.Fatalf("internal work is called")
+		}
 	})
 }

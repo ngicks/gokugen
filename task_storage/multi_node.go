@@ -55,7 +55,7 @@ func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) go
 }
 
 func (m *MultiNodeTaskStorage) Middleware(freeParam bool) []gokugen.MiddlewareFunc {
-	return append([]gokugen.MiddlewareFunc{m.markWorking}, m.sns.Middleware(freeParam)...)
+	return append(m.sns.Middleware(freeParam), m.markWorking)
 }
 
 func (m *MultiNodeTaskStorage) Sync(
