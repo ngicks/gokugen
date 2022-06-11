@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/ngicks/gokugen/common"
 )
 
 var (
@@ -23,25 +25,53 @@ type ent struct {
 	info TaskInfo
 }
 
-func (e *ent) Update(new TaskState, updateIf func(old TaskState) bool) bool {
+func (e *ent) Update(new TaskState, updateIf func(old TaskState) bool, getNow common.GetNow) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if updateIf(e.info.State) {
 		e.info.State = new
+		e.info.LastModified = getNow.GetNow()
 		return true
 	}
 	return false
 }
 
+func (e *ent) UpdateByDiff(diff UpdateDiff, getNow common.GetNow) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if !isUpdatable(e.info.State) {
+		return false
+	}
+
+	e.info.LastModified = getNow.GetNow()
+
+	if diff.UpdateKey.WorkId {
+		e.info.WorkId = diff.Diff.WorkId
+	}
+	if diff.UpdateKey.Param {
+		e.info.Param = diff.Diff.Param
+	}
+	if diff.UpdateKey.ScheduledTime {
+		e.info.ScheduledTime = diff.Diff.ScheduledTime
+	}
+	if diff.UpdateKey.State {
+		e.info.State = diff.Diff.State
+	}
+	return true
+}
+
 type InMemoryRepo struct {
 	randomStr *RandStringGenerator
 	store     *sync.Map
+	getNow    common.GetNow
 }
 
 func NewInMemoryRepo() *InMemoryRepo {
 	return &InMemoryRepo{
 		randomStr: NewRandStringGenerator(int64(time.Now().Nanosecond()), 32, hex.NewEncoder),
 		store:     new(sync.Map),
+		getNow:    common.GetNowImpl{},
 	}
 }
 
@@ -53,6 +83,7 @@ func (r *InMemoryRepo) Insert(taskInfo TaskInfo) (taskId string, err error) {
 		}
 
 		taskInfo.Id = taskId
+		taskInfo.LastModified = r.getNow.GetNow()
 
 		_, loaded := r.store.LoadOrStore(taskId, &ent{info: taskInfo})
 
@@ -82,13 +113,13 @@ func (r *InMemoryRepo) GetById(taskId string) (TaskInfo, error) {
 }
 
 func (r *InMemoryRepo) MarkAsDone(id string) (ok bool, err error) {
-	return updateState(r.store, id, Done)
+	return updateState(r.store, id, Done, r.getNow)
 }
 func (r *InMemoryRepo) MarkAsCancelled(id string) (ok bool, err error) {
-	return updateState(r.store, id, Cancelled)
+	return updateState(r.store, id, Cancelled, r.getNow)
 }
 func (r *InMemoryRepo) MarkAsFailed(id string) (ok bool, err error) {
-	return updateState(r.store, id, Failed)
+	return updateState(r.store, id, Failed, r.getNow)
 }
 
 func (r *InMemoryRepo) UpdateState(id string, old, new TaskState) (swapped bool, err error) {
@@ -97,16 +128,16 @@ func (r *InMemoryRepo) UpdateState(id string, old, new TaskState) (swapped bool,
 		return false, fmt.Errorf("%w: no such id [%s]", ErrNoEnt, id)
 	}
 	entry := val.(*ent)
-	return entry.Update(new, func(old_ TaskState) bool { return old_ == old }), nil
+	return entry.Update(new, func(old_ TaskState) bool { return old_ == old }, r.getNow), nil
 }
 
-func updateState(store *sync.Map, id string, state TaskState) (bool, error) {
+func updateState(store *sync.Map, id string, state TaskState, getNow common.GetNow) (bool, error) {
 	val, ok := store.Load(id)
 	if !ok {
 		return false, fmt.Errorf("%w: no such id [%s]", ErrNoEnt, id)
 	}
 	entry := val.(*ent)
-	return entry.Update(state, isUpdatable), nil
+	return entry.Update(state, isUpdatable, getNow), nil
 }
 
 func (r *InMemoryRepo) Update(id string, diff UpdateDiff) error {
@@ -115,27 +146,10 @@ func (r *InMemoryRepo) Update(id string, diff UpdateDiff) error {
 		return fmt.Errorf("%w: no such id [%s]", ErrNoEnt, id)
 	}
 
-	entry := val.(*ent)
+	if !val.(*ent).UpdateByDiff(diff, r.getNow) {
 
-	entry.mu.Lock()
-	defer entry.mu.Unlock()
-
-	if !isUpdatable(entry.info.State) {
-		return fmt.Errorf("%w: is now %s", ErrNotUpdatableState, entry.info.State)
 	}
 
-	if diff.WorkId != nil {
-		entry.info.WorkId = *diff.WorkId
-	}
-	if diff.Param != nil {
-		entry.info.Param = *diff.Param
-	}
-	if diff.ScheduledTime != nil {
-		entry.info.ScheduledTime = *diff.ScheduledTime
-	}
-	if diff.State != nil {
-		entry.info.State = *diff.State
-	}
 	return nil
 }
 

@@ -60,11 +60,17 @@ type TaskInfo struct {
 	Param         any
 	ScheduledTime time.Time
 	State         TaskState
+	LastModified  time.Time
+}
+
+type UpdateKey struct {
+	WorkId        bool
+	Param         bool
+	ScheduledTime bool
+	State         bool
 }
 
 type UpdateDiff struct {
-	WorkId        *string
-	Param         *any
-	ScheduledTime *time.Time
-	State         *TaskState
+	UpdateKey UpdateKey
+	Diff      TaskInfo
 }

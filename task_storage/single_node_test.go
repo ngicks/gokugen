@@ -240,9 +240,16 @@ func TestSingleNode(t *testing.T) {
 		_, _ = sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(time.Now(), nil, nil), "foobar", paramUsedInSched))
 		stored, _ := repo.GetAll()
 		taskId := stored[0].Id
-		anyParam := any(paramStoredInRepo)
+		// see comment below.
+		//
+		// paramInRepo := stored[0].Param
 		repo.Update(taskId, taskstorage.UpdateDiff{
-			Param: &anyParam,
+			UpdateKey: taskstorage.UpdateKey{
+				Param: true,
+			},
+			Diff: taskstorage.TaskInfo{
+				Param: paramStoredInRepo,
+			},
 		})
 
 		doAllTasks()
@@ -257,10 +264,11 @@ func TestSingleNode(t *testing.T) {
 		if atomic.LoadInt64(&called) != 1 {
 			t.Fatalf("param is not dropped.")
 		}
-		// Comment-in this line to see `paramUsedInSched` is now determine to be not reachable.
-		// At least, the case fails.
+		// Comment-in these lines to see `paramUsedInSched` | `paramInRepo` is now determine to be not reachable.
+		// At least, the case fails if they are kept alive.
 		//
 		// runtime.KeepAlive(paramUsedInSched)
+		// runtime.KeepAlive(paramInRepo)
 		runtime.KeepAlive(paramStoredInRepo)
 	})
 }
