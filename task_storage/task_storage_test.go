@@ -27,7 +27,7 @@ func storageTestSet(
 			return nil
 		})
 		now := time.Now()
-		task, err := sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(now, nil, nil), "foobar", nil))
+		task, err := sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
 		if err != nil {
 			t.Fatalf("must not be non nil error: %v", err)
 		}
@@ -73,7 +73,7 @@ func storageTestSet(
 			return nil
 		})
 		now := time.Now()
-		task, _ := sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(now, nil, nil), "foobar", nil))
+		task, _ := sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
 		task.Cancel()
 
 		stored, _ := repo.GetAll()
@@ -91,7 +91,7 @@ func storageTestSet(
 			return errors.New("mock error")
 		})
 		now := time.Now()
-		sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(now, nil, nil), "foobar", nil))
+		sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
 
 		doAllTasks()
 
@@ -151,9 +151,9 @@ func testSync(t *testing.T, mode testMode) {
 		return nil
 	})
 
-	sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(time.Now(), nil, nil), "foobar", nil))
-	sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(time.Now(), nil, nil), "foobar", nil))
-	sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(time.Now(), nil, nil), "foobar", nil))
+	sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
+	sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
+	sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
 
 	task1, task2, task3 := func() (taskstorage.TaskInfo, taskstorage.TaskInfo, taskstorage.TaskInfo) {
 		tasks, err := repo.GetAll()

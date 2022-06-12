@@ -8,12 +8,19 @@ import (
 )
 
 type taskIdKeyTy string
-type workIdKeyTy string
+
+func (s taskIdKeyTy) String() string {
+	return "taskIdKeyTy"
+}
+
 type paramKeyTy string
+
+func (s paramKeyTy) String() string {
+	return "paramKeyTy"
+}
 
 var (
 	taskIdKey *taskIdKeyTy = new(taskIdKeyTy)
-	workIdKey *workIdKeyTy = new(workIdKeyTy)
 	paramKey  *paramKeyTy  = new(paramKeyTy)
 )
 
@@ -21,15 +28,12 @@ var (
 	ErrOtherNodeWorkingOnTheTask = errors.New("other node is already working on the task")
 )
 
-func WithWorkIdAndParam(parent gokugen.SchedulerContext, workId string, param any) gokugen.SchedulerContext {
-	base := baseCtx{
-		SchedulerContext: parent,
-		workId:           workId,
-	}
-
+func WithParam(parent gokugen.SchedulerContext, param any) gokugen.SchedulerContext {
 	loader := paramLoadableCtx{
-		SchedulerContext: &base,
-		paramLoader:      func() (any, error) { return param, nil },
+		SchedulerContext: &baseCtx{
+			SchedulerContext: parent,
+		},
+		paramLoader: func() (any, error) { return param, nil },
 	}
 
 	return &loader
@@ -38,7 +42,6 @@ func WithWorkIdAndParam(parent gokugen.SchedulerContext, workId string, param an
 type baseCtx struct {
 	gokugen.SchedulerContext
 	taskId string
-	workId string
 	work   WorkFn
 }
 
@@ -51,17 +54,10 @@ func (ctx *baseCtx) Work() WorkFn {
 }
 
 func (ctx *baseCtx) Value(key any) (any, error) {
-	switch key {
-	case taskIdKey:
+	if key == taskIdKey {
 		return ctx.taskId, nil
-	case workIdKey:
-		return ctx.workId, nil
 	}
 	return ctx.SchedulerContext.Value(key)
-}
-
-func (ctx *baseCtx) Unwrap() gokugen.SchedulerContext {
-	return ctx.SchedulerContext
 }
 
 type fnWrapperCtx struct {
@@ -71,10 +67,6 @@ type fnWrapperCtx struct {
 
 func (ctx *fnWrapperCtx) Work() WorkFn {
 	return ctx.wrapper(ctx, ctx.SchedulerContext.Work())
-}
-
-func (ctx *fnWrapperCtx) Unwrap() gokugen.SchedulerContext {
-	return ctx.SchedulerContext
 }
 
 type paramLoadableCtx struct {
@@ -110,18 +102,7 @@ func GetTaskId(ctx gokugen.SchedulerContext) (string, error) {
 		return "", err
 	}
 	if id == nil {
-		return "", fmt.Errorf("%w: key=%v", gokugen.ErrValueNotFound, workIdKey)
-	}
-	return id.(string), nil
-}
-
-func GetWorkId(ctx gokugen.SchedulerContext) (string, error) {
-	id, err := ctx.Value(workIdKey)
-	if err != nil {
-		return "", err
-	}
-	if id == nil {
-		return "", fmt.Errorf("%w: key=%v", gokugen.ErrValueNotFound, workIdKey)
+		return "", fmt.Errorf("%w: key=%s", gokugen.ErrValueNotFound, taskIdKey)
 	}
 	return id.(string), nil
 }

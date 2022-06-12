@@ -66,7 +66,7 @@ func (ts *SingleNodeTaskStorage) paramLoad(handler gokugen.ScheduleHandlerFn) go
 		if err != nil {
 			return nil, err
 		}
-		workId, err := GetWorkId(ctx)
+		workId, err := gokugen.GetWorkId(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -79,7 +79,6 @@ func (ts *SingleNodeTaskStorage) paramLoad(handler gokugen.ScheduleHandlerFn) go
 			SchedulerContext: &baseCtx{
 				SchedulerContext: ctx,
 				taskId:           taskId,
-				workId:           workId,
 			},
 			paramLoader: func() (any, error) {
 				info, err := ts.repo.GetById(taskId)
@@ -115,7 +114,7 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 		if err != nil {
 			return
 		}
-		workId, err := GetWorkId(ctx)
+		workId, err := gokugen.GetWorkId(ctx)
 		if err != nil {
 			return
 		}
@@ -147,7 +146,6 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 			SchedulerContext: &baseCtx{
 				SchedulerContext: ctx,
 				taskId:           taskId,
-				workId:           workId,
 			},
 			wrapper: func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
 				return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
@@ -245,11 +243,13 @@ func (ts *SingleNodeTaskStorage) Sync(
 
 		param := fetched.Param
 		var ctx gokugen.SchedulerContext = &paramLoadableCtx{
-			SchedulerContext: &baseCtx{
-				SchedulerContext: gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
-				taskId:           fetched.Id,
-				workId:           fetched.WorkId,
-			},
+			SchedulerContext: gokugen.WithWorkId(
+				&baseCtx{
+					SchedulerContext: gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
+					taskId:           fetched.Id,
+				},
+				fetched.WorkId,
+			),
 			paramLoader: func() (any, error) {
 				return param, nil
 			},
