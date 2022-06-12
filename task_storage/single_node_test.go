@@ -163,7 +163,7 @@ func TestSingleNode(t *testing.T) {
 			atomic.AddInt64(&called, 1)
 		})
 
-		_, _ = sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), paramUsedInSched), "foobar"))
+		_, _ = sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), paramUsedInSched), "foobar"))
 		stored, _ := repo.GetAll()
 		taskId := stored[0].Id
 		// see comment below.

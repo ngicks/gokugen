@@ -62,55 +62,28 @@ func NewSingleNodeTaskStorage(
 
 func (ts *SingleNodeTaskStorage) paramLoad(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-		taskId, err := GetTaskId(ctx)
+		taskId, err := gokugen.GetTaskId(ctx)
 		if err != nil {
 			return nil, err
 		}
-		workId, err := gokugen.GetWorkId(ctx)
-		if err != nil {
-			return nil, err
-		}
-		workWithParam, ok := ts.workRegistry.Load(workId)
-		if !ok {
-			return nil, fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, workId)
-		}
-
-		loadable := &paramLoadableCtx{
-			SchedulerContext: &baseCtx{
-				SchedulerContext: ctx,
-				taskId:           taskId,
-			},
-			paramLoader: func() (any, error) {
+		loadable := gokugen.WithParamLoader(
+			ctx,
+			func() (any, error) {
 				info, err := ts.repo.GetById(taskId)
 				if err != nil {
 					return nil, err
 				}
 				return info.Param, nil
 			},
-		}
+		)
 
-		fnWrapped := &fnWrapperCtx{
-			SchedulerContext: loadable,
-			wrapper: func(self gokugen.SchedulerContext, workFn WorkFn) WorkFn {
-				return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
-					param, err := GetParam(self)
-					if err != nil {
-						return err
-					}
-					err = workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
-					markDoneTask(err, ts, taskId)
-					return err
-				}
-			},
-		}
-
-		return handler(fnWrapped)
+		return handler(loadable)
 	}
 }
 
 func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (task gokugen.Task, err error) {
-		param, err := GetParam(ctx)
+		param, err := gokugen.GetParam(ctx)
 		if err != nil {
 			return
 		}
@@ -119,13 +92,13 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 			return
 		}
 		scheduledTime := ctx.ScheduledTime()
-		workRaw, ok := ts.workRegistry.Load(workId)
+		workWithParam, ok := ts.workRegistry.Load(workId)
 		if !ok {
 			err = fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, workId)
 			return
 		}
 
-		taskId, err := GetTaskId(ctx)
+		taskId, err := gokugen.GetTaskId(ctx)
 		if err != nil {
 			return
 		}
@@ -142,23 +115,23 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 			}
 		}
 
-		fnWrapped := &fnWrapperCtx{
-			SchedulerContext: &baseCtx{
-				SchedulerContext: ctx,
-				taskId:           taskId,
-			},
-			wrapper: func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
+		fnWrapped := gokugen.WithWorkFnWrapper(
+			gokugen.WithTaskId(
+				ctx,
+				taskId,
+			),
+			func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
 				return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
-					param, err := GetParam(self)
+					param, err := gokugen.GetParam(self)
 					if err != nil {
 						return err
 					}
-					err = workRaw(ctxCancelCh, taskCancelCh, scheduled, param)
+					err = workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
 					markDoneTask(err, ts, taskId)
 					return err
 				}
 			},
-		}
+		)
 
 		task, err = handler(fnWrapped)
 		if err != nil {
@@ -242,18 +215,17 @@ func (ts *SingleNodeTaskStorage) Sync(
 		}
 
 		param := fetched.Param
-		var ctx gokugen.SchedulerContext = &paramLoadableCtx{
-			SchedulerContext: gokugen.WithWorkId(
-				&baseCtx{
-					SchedulerContext: gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
-					taskId:           fetched.Id,
-				},
+		var ctx gokugen.SchedulerContext = gokugen.WithParam(
+			gokugen.WithWorkId(
+				gokugen.WithTaskId(
+					gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
+					fetched.Id,
+				),
 				fetched.WorkId,
 			),
-			paramLoader: func() (any, error) {
-				return param, nil
-			},
-		}
+			param,
+		)
+
 		if ts.syncCtxWrapper != nil {
 			ctx = ts.syncCtxWrapper(ctx)
 		}

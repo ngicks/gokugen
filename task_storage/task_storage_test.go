@@ -27,7 +27,7 @@ func storageTestSet(
 			return nil
 		})
 		now := time.Now()
-		task, err := sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
+		task, err := sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
 		if err != nil {
 			t.Fatalf("must not be non nil error: %v", err)
 		}
@@ -73,7 +73,7 @@ func storageTestSet(
 			return nil
 		})
 		now := time.Now()
-		task, _ := sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
+		task, _ := sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
 		task.Cancel()
 
 		stored, _ := repo.GetAll()
@@ -91,7 +91,7 @@ func storageTestSet(
 			return errors.New("mock error")
 		})
 		now := time.Now()
-		sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
+		sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
 
 		doAllTasks()
 
@@ -99,7 +99,7 @@ func storageTestSet(
 		storedTask := stored[0]
 
 		if storedTask.State != taskstorage.Failed {
-			t.Fatalf("wrong state: must be cancelled, but is %s", storedTask.State)
+			t.Fatalf("wrong state: must be failed, but is %s", storedTask.State)
 		}
 	})
 }
@@ -151,9 +151,9 @@ func testSync(t *testing.T, mode testMode) {
 		return nil
 	})
 
-	sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
-	sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
-	sched(gokugen.WithWorkId(taskstorage.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
+	sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
+	sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
+	sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
 
 	task1, task2, task3 := func() (taskstorage.TaskInfo, taskstorage.TaskInfo, taskstorage.TaskInfo) {
 		tasks, err := repo.GetAll()
@@ -256,7 +256,7 @@ func testSync(t *testing.T, mode testMode) {
 	}
 }
 
-func TestSingleNodeSync(t *testing.T) {
+func TestTaskStorageSync(t *testing.T) {
 	t.Run("Sync: single node", func(t *testing.T) {
 		testSync(t, singleNodeMode)
 	})

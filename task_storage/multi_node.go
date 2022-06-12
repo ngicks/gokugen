@@ -1,10 +1,15 @@
 package taskstorage
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ngicks/gokugen"
+)
+
+var (
+	ErrOtherNodeWorkingOnTheTask = errors.New("other node is already working on the task")
 )
 
 type RepositoryUpdater interface {
@@ -30,16 +35,15 @@ func NewMultiNodeTaskStorage(
 
 func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-		taskId, err := GetTaskId(ctx)
-		if err != nil {
-			return nil, err
-		}
-
 		return handler(
-			&fnWrapperCtx{
-				SchedulerContext: ctx,
-				wrapper: func(_ gokugen.SchedulerContext, workFn WorkFn) WorkFn {
+			gokugen.WithWorkFnWrapper(
+				ctx,
+				func(self gokugen.SchedulerContext, workFn WorkFn) WorkFn {
 					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+						taskId, err := gokugen.GetTaskId(self)
+						if err != nil {
+							return err
+						}
 						swapped, err := m.repo.UpdateState(taskId, Initialized, Working)
 						if err != nil {
 							return err
@@ -50,7 +54,8 @@ func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) go
 						return workFn(ctxCancelCh, taskCancelCh, scheduled)
 					}
 				},
-			})
+			),
+		)
 	}
 }
 

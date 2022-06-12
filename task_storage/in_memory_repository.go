@@ -69,7 +69,7 @@ type InMemoryRepo struct {
 
 func NewInMemoryRepo() *InMemoryRepo {
 	return &InMemoryRepo{
-		randomStr: NewRandStringGenerator(int64(time.Now().Nanosecond()), 32, hex.NewEncoder),
+		randomStr: NewRandStringGenerator(int64(time.Now().Nanosecond()), 16, hex.NewEncoder),
 		store:     new(sync.Map),
 		getNow:    common.GetNowImpl{},
 	}
@@ -188,7 +188,9 @@ func NewRandStringGenerator(seed int64, byteLen uint, encoderFactory func(r io.W
 		byteLen: byteLen,
 		bufPool: sync.Pool{
 			New: func() any {
-				return bytes.NewBuffer(make([]byte, 32))
+				buf := bytes.NewBuffer(make([]byte, 32))
+				buf.Reset()
+				return buf
 			},
 		},
 		encoderFactory: encoderFactory,
