@@ -47,10 +47,8 @@ func (ctx *workIdCtx) Value(key any) (any, error) {
 
 func WithParam(parent SchedulerContext, param any) SchedulerContext {
 	return &paramLoadableCtx{
-		SchedulerContext: &taskIdCtx{
-			SchedulerContext: parent,
-		},
-		paramLoader: func() (any, error) { return param, nil },
+		SchedulerContext: parent,
+		paramLoader:      func() (any, error) { return param, nil },
 	}
 }
 
