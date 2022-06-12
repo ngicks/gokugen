@@ -1,7 +1,6 @@
 package taskstorage_test
 
 import (
-	"errors"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -115,100 +114,6 @@ func prepareSingle(freeParam bool) (
 	ts, _, repo, registry = buildTaskStorage()
 	sched, doAllTasks, getTaskResults = prepare(ts, freeParam)
 	return
-}
-
-func storageTestSet(
-	t *testing.T,
-	prepare func() (
-		repo *taskstorage.InMemoryRepo,
-		registry *gokugen.WorkRegistry,
-		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
-		doAllTasks func(),
-		getTaskResults func() []error,
-	),
-) {
-	t.Run("basic usage", func(t *testing.T) {
-		repo, registry, sched, doAllTasks, _ := prepare()
-
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-			return nil
-		})
-		now := time.Now()
-		task, err := sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(now, nil, nil), "foobar", nil))
-		if err != nil {
-			t.Fatalf("must not be non nil error: %v", err)
-		}
-		if task.GetScheduledTime() != now {
-			t.Fatalf(
-				"scheduled time is modified: now=%s, stored in task=%s",
-				now.Format(time.RFC3339Nano),
-				task.GetScheduledTime().Format(time.RFC3339Nano),
-			)
-		}
-		stored, err := repo.GetAll()
-		if err != nil {
-			t.Fatalf("must not be non nil error: %v", err)
-		}
-		if len(stored) == 0 {
-			t.Fatalf("stored task must not be zero")
-		}
-		storedTask := stored[0]
-		taskId := storedTask.Id
-		if storedTask.WorkId != "foobar" {
-			t.Fatalf("unmatched work id: %s", storedTask.WorkId)
-		}
-		if storedTask.ScheduledTime != now {
-			t.Fatalf("unmatched scheduled time: %s", storedTask.ScheduledTime.Format(time.RFC3339Nano))
-		}
-
-		doAllTasks()
-
-		storedInfoLater, err := repo.GetById(taskId)
-		if err != nil {
-			t.Fatalf("must not be non nil error: %v", err)
-		}
-
-		if storedInfoLater.State != taskstorage.Done {
-			t.Fatalf("incorrect state: %s", storedInfoLater.State)
-		}
-	})
-
-	t.Run("cancel marks data as cancelled inside repository", func(t *testing.T) {
-		repo, registry, sched, _, _ := prepare()
-
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-			return nil
-		})
-		now := time.Now()
-		task, _ := sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(now, nil, nil), "foobar", nil))
-		task.Cancel()
-
-		stored, _ := repo.GetAll()
-		storedTask := stored[0]
-
-		if storedTask.State != taskstorage.Cancelled {
-			t.Fatalf("wrong state: must be cancelled, but is %s", storedTask.State)
-		}
-	})
-
-	t.Run("failed marks data as failed inside repository", func(t *testing.T) {
-		repo, registry, sched, doAllTasks, _ := prepare()
-
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-			return errors.New("mock error")
-		})
-		now := time.Now()
-		sched(taskstorage.WithWorkIdAndParam(gokugen.NewPlainContext(now, nil, nil), "foobar", nil))
-
-		doAllTasks()
-
-		stored, _ := repo.GetAll()
-		storedTask := stored[0]
-
-		if storedTask.State != taskstorage.Failed {
-			t.Fatalf("wrong state: must be cancelled, but is %s", storedTask.State)
-		}
-	})
 }
 
 func TestSingleNode(t *testing.T) {
