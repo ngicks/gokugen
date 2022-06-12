@@ -15,6 +15,15 @@ var (
 	ErrNonexistentWorkId = errors.New("nonexistent work id")
 )
 
+type ExternalStateChangeErr struct {
+	id    string
+	state TaskState
+}
+
+func (e ExternalStateChangeErr) Error() string {
+	return fmt.Sprintf("The state is changed externally: id = %s, state = %s", e.id, e.state)
+}
+
 type WorkFn = gokugen.WorkFn
 type WorkFnWParam = gokugen.WorkFnWParam
 
@@ -23,28 +32,31 @@ type WorkRegistry interface {
 }
 
 type SingleNodeTaskStorage struct {
-	repo          Repository
-	failedIds     *SyncStateStore
-	shouldRestore func(TaskInfo) bool
-	workRegistry  WorkRegistry
-	taskMap       *TaskMap
-	mu            sync.Mutex
-	getNow        common.GetNow // this field can be swapped out in test codes.
-	lastSynced    time.Time
+	repo           Repository
+	failedIds      *SyncStateStore
+	shouldRestore  func(TaskInfo) bool
+	workRegistry   WorkRegistry
+	taskMap        *TaskMap
+	mu             sync.Mutex
+	getNow         common.GetNow // this field can be swapped out in test codes.
+	lastSynced     time.Time
+	syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
 }
 
 func NewSingleNodeTaskStorage(
 	repo Repository,
 	shouldRestore func(TaskInfo) bool,
 	workRegistry WorkRegistry,
+	syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext,
 ) *SingleNodeTaskStorage {
 	return &SingleNodeTaskStorage{
-		repo:          repo,
-		shouldRestore: shouldRestore,
-		failedIds:     NewSyncStateStore(),
-		workRegistry:  workRegistry,
-		taskMap:       NewTaskMap(),
-		getNow:        common.GetNowImpl{},
+		repo:           repo,
+		shouldRestore:  shouldRestore,
+		failedIds:      NewSyncStateStore(),
+		workRegistry:   workRegistry,
+		taskMap:        NewTaskMap(),
+		getNow:         common.GetNowImpl{},
+		syncCtxWrapper: syncCtxWrapper,
 	}
 }
 
@@ -110,7 +122,7 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 		scheduledTime := ctx.ScheduledTime()
 		workRaw, ok := ts.workRegistry.Load(workId)
 		if !ok {
-			err = ErrNonexistentWorkId
+			err = fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, workId)
 			return
 		}
 
@@ -154,7 +166,7 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 		if err != nil {
 			return
 		}
-		task = wrapCancel(ts.repo, ts.failedIds, taskId, task)
+		task = wrapCancel(ts.repo, ts.failedIds, ts.taskMap, taskId, task)
 		ts.taskMap.LoadOrStore(taskId, task)
 		return
 	}
@@ -184,57 +196,79 @@ func (ts *SingleNodeTaskStorage) Middleware(freeParam bool) []gokugen.Middleware
 	return []gokugen.MiddlewareFunc{ts.storeTask}
 }
 
-func (s *SingleNodeTaskStorage) Sync(
+func (ts *SingleNodeTaskStorage) Sync(
 	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
-) (restored bool, rescheduled map[string]gokugen.Task, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+) (rescheduled map[string]gokugen.Task, schedulingErr map[string]error, err error) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
 
-	fetchedIds, err := s.repo.GetUpdatedSince(s.lastSynced)
+	syncedAt := ts.getNow.GetNow()
+	fetchedIds, err := ts.repo.GetUpdatedSince(ts.lastSynced)
 	if err != nil {
 		return
 	}
+
 	rescheduled = make(map[string]gokugen.Task)
-	knownIds := s.taskMap.Clone()
+	schedulingErr = make(map[string]error)
+
 	for _, fetched := range fetchedIds {
-		had := knownIds.Delete(fetched.Id)
-		if had || !s.shouldRestore(fetched) {
-			continue
+		if fetched.LastModified.After(syncedAt) {
+			// Most recent time of fetched tasks is next last-synced time.
+			// We do want set it correctly to avoid doubly syncing that.
+			syncedAt = fetched.LastModified
 		}
 
-		_, ok := s.workRegistry.Load(fetched.WorkId)
+		_, ok := ts.workRegistry.Load(fetched.WorkId)
 		if !ok {
-			// log? return err?
+			schedulingErr[fetched.Id] = fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, fetched.WorkId)
 			continue
 		}
 
-		schedTime := fetched.ScheduledTime
-		workId := fetched.WorkId
+		switch fetched.State {
+		case Working, Done, Cancelled, Failed:
+			if inTaskMap, loaded := ts.taskMap.LoadAndDelete(fetched.Id); loaded {
+				inTaskMap.CancelWithReason(ExternalStateChangeErr{
+					id:    fetched.Id,
+					state: fetched.State,
+				})
+			}
+			continue
+		default:
+			if ts.taskMap.Has(fetched.Id) {
+				continue
+			}
+		}
+
+		if !ts.shouldRestore(fetched) {
+			continue
+		}
+
 		param := fetched.Param
-		ctx := &paramLoadableCtx{
+		var ctx gokugen.SchedulerContext = &paramLoadableCtx{
 			SchedulerContext: &baseCtx{
-				SchedulerContext: gokugen.NewPlainContext(schedTime, nil, make(map[any]any)),
-				workId:           workId,
+				SchedulerContext: gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
+				taskId:           fetched.Id,
+				workId:           fetched.WorkId,
 			},
 			paramLoader: func() (any, error) {
 				return param, nil
 			},
 		}
+		if ts.syncCtxWrapper != nil {
+			ctx = ts.syncCtxWrapper(ctx)
+		}
+
 		var task gokugen.Task
 		task, err = schedule(ctx)
 		if err != nil {
-			return
+			schedulingErr[fetched.Id] = err
+			continue
 		}
-		restored = true
 		rescheduled[fetched.Id] = task
-		s.taskMap.LoadOrStore(fetched.Id, task)
-	}
-	removedIds := knownIds.AllIds()
-	for _, id := range removedIds {
-		s.taskMap.Delete(id)
+		ts.taskMap.LoadOrStore(fetched.Id, task)
 	}
 
-	s.lastSynced = s.getNow.GetNow()
+	ts.lastSynced = syncedAt
 	return
 }
 
@@ -260,13 +294,19 @@ func (s *SingleNodeTaskStorage) RetryMarking() (allRemoved bool) {
 	return s.failedIds.Len() == 0
 }
 
-func wrapCancel(repo Repository, failedIds *SyncStateStore, id string, t gokugen.Task) gokugen.Task {
+func wrapCancel(repo Repository, failedIds *SyncStateStore, taskMap *TaskMap, id string, t gokugen.Task) gokugen.Task {
 	return &taskWrapper{
-		base: t,
-		cancel: func(baseCanceller func() (cancelled bool)) func() (cancelled bool) {
-			return func() (cancelled bool) {
-				cancelled = baseCanceller()
+		Task: t,
+		cancel: func(baseCanceller func(err error) (cancelled bool)) func(err error) (cancelled bool) {
+			return func(err error) (cancelled bool) {
+				cancelled = baseCanceller(err)
+				taskMap.Delete(id)
+				if _, ok := err.(ExternalStateChangeErr); ok {
+					// no marking is needed since it is already changed by external source!
+					return
+				}
 				if cancelled && !t.IsDone() {
+					// if it's done, we dont want to call heavy marking method.
 					_, err := repo.MarkAsCancelled(id)
 					if err != nil {
 						failedIds.Put(id, Cancelled)

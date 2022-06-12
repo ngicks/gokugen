@@ -21,6 +21,11 @@ type fakeTask struct {
 func (t *fakeTask) Cancel() (cancelled bool) {
 	return true
 }
+
+func (t *fakeTask) CancelWithReason(err error) (cancelled bool) {
+	return true
+}
+
 func (t *fakeTask) GetScheduledTime() time.Time {
 	return t.ctx.ScheduledTime()
 }
@@ -43,6 +48,7 @@ func buildTaskStorage() (
 		repo,
 		func(ti taskstorage.TaskInfo) bool { return true },
 		registry,
+		nil,
 	)
 	multiNode = taskstorage.NewMultiNodeTaskStorage(
 		repo,
@@ -97,6 +103,7 @@ func prepare(
 	return
 }
 
+// parepare SingleNodeTaskStorage and other instances.
 func prepareSingle(freeParam bool) (
 	ts *taskstorage.SingleNodeTaskStorage,
 	repo *taskstorage.InMemoryRepo,
@@ -105,8 +112,8 @@ func prepareSingle(freeParam bool) (
 	doAllTasks func(),
 	getTaskResults func() []error,
 ) {
-	singleNode, _, repo, registry := buildTaskStorage()
-	sched, doAllTasks, getTaskResults = prepare(singleNode, freeParam)
+	ts, _, repo, registry = buildTaskStorage()
+	sched, doAllTasks, getTaskResults = prepare(ts, freeParam)
 	return
 }
 

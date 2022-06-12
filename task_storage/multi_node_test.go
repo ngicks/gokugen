@@ -18,8 +18,8 @@ func prepareMulti(freeParam bool) (
 	doAllTasks func(),
 	getTaskResults func() []error,
 ) {
-	_, multiNode, repo, registry := buildTaskStorage()
-	sched, doAllTasks, getTaskResults = prepare(multiNode, freeParam)
+	_, ts, repo, registry = buildTaskStorage()
+	sched, doAllTasks, getTaskResults = prepare(ts, freeParam)
 	return
 }
 

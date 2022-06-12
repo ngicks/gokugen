@@ -12,6 +12,7 @@ var _ Task = &scheduler.TaskController{}
 
 type Task interface {
 	Cancel() (cancelled bool)
+	CancelWithReason(err error) (cancelled bool)
 	GetScheduledTime() time.Time
 	IsCancelled() bool
 	IsDone() bool

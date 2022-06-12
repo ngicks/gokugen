@@ -1,27 +1,20 @@
 package taskstorage
 
 import (
-	"time"
-
 	"github.com/ngicks/gokugen"
 )
 
 var _ gokugen.Task = &taskWrapper{}
 
 type taskWrapper struct {
-	base   gokugen.Task
-	cancel func(baseCanceller func() (cancelled bool)) func() (cancelled bool)
+	gokugen.Task
+	cancel func(baseCanceller func(err error) (cancelled bool)) func(err error) (cancelled bool)
 }
 
 func (fw *taskWrapper) Cancel() (cancelled bool) {
-	return fw.cancel(fw.base.Cancel)()
+	return fw.cancel(func(err error) (cancelled bool) { return fw.Task.Cancel() })(nil)
 }
-func (fw *taskWrapper) GetScheduledTime() time.Time {
-	return fw.base.GetScheduledTime()
-}
-func (fw *taskWrapper) IsCancelled() bool {
-	return fw.base.IsCancelled()
-}
-func (fw *taskWrapper) IsDone() bool {
-	return fw.base.IsDone()
+
+func (fw *taskWrapper) CancelWithReason(reason error) (cancelled bool) {
+	return fw.cancel(fw.Task.CancelWithReason)(reason)
 }

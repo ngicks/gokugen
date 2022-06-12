@@ -57,6 +57,10 @@ func (t *Task) Cancel() (cancelled bool) {
 	return
 }
 
+func (t *Task) CancelWithReason(err error) (cancelled bool) {
+	return t.Cancel()
+}
+
 func (t *Task) IsCancelled() bool {
 	return atomic.LoadUint32(&t.cancelled) == 1
 }
@@ -78,6 +82,10 @@ func (t *TaskController) GetScheduledTime() time.Time {
 
 func (t *TaskController) Cancel() (cancelled bool) {
 	return t.t.Cancel()
+}
+
+func (t *TaskController) CancelWithReason(err error) (cancelled bool) {
+	return t.Cancel()
 }
 
 func (t *TaskController) IsCancelled() bool {

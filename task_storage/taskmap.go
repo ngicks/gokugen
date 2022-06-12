@@ -43,6 +43,15 @@ func (m *TaskMap) Clone() *TaskMap {
 	}
 }
 
+func (m *TaskMap) LoadAndDelete(k string) (task gokugen.Task, loaded bool) {
+	v, loaded := m.m.LoadAndDelete(k)
+	if !loaded {
+		return
+	}
+	task = v.(gokugen.Task)
+	return
+}
+
 func (m *TaskMap) Delete(k string) (deleted bool) {
 	_, deleted = m.m.LoadAndDelete(k)
 	return

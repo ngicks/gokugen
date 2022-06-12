@@ -24,7 +24,7 @@ func NewMultiNodeTaskStorage(
 ) *MultiNodeTaskStorage {
 	return &MultiNodeTaskStorage{
 		repo: repo,
-		sns:  NewSingleNodeTaskStorage(repo, shouldRestore, workRegistry),
+		sns:  NewSingleNodeTaskStorage(repo, shouldRestore, workRegistry, nil),
 	}
 }
 
@@ -60,6 +60,6 @@ func (m *MultiNodeTaskStorage) Middleware(freeParam bool) []gokugen.MiddlewareFu
 
 func (m *MultiNodeTaskStorage) Sync(
 	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
-) (restored bool, rescheduled map[string]gokugen.Task, err error) {
+) (rescheduled map[string]gokugen.Task, schedulingErr map[string]error, err error) {
 	return m.sns.Sync(schedule)
 }

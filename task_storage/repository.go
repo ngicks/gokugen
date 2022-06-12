@@ -15,8 +15,7 @@ type Updater interface {
 
 type Repository interface {
 	// Insert inserts the model to the repository.
-	// The id of passed TaskInfo will be ignored.
-	// Insert returns a newly created id.
+	// Id and LastModified field of passed TaskInfo are ignored.
 	Insert(TaskInfo) (taskId string, err error)
 	GetUpdatedSince(time.Time) ([]TaskInfo, error)
 	GetById(id string) (TaskInfo, error)
