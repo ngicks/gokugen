@@ -46,6 +46,9 @@ func (ctx *PlainContext) Work() WorkFn {
 	return ctx.workFn
 }
 func (ctx *PlainContext) Value(key any) (any, error) {
+	if ctx.values == nil {
+		return nil, nil
+	}
 	return ctx.values[key], nil
 }
 
