@@ -74,7 +74,7 @@ func (ctx *paramLoadableCtx) Value(key any) (any, error) {
 func WithWorkFn(parent SchedulerContext, workFn WorkFn) SchedulerContext {
 	return &fnWrapperCtx{
 		SchedulerContext: parent,
-		wrapper: func(self SchedulerContext, workFn WorkFn) WorkFn {
+		wrapper: func(self SchedulerContext, _ WorkFn) WorkFn {
 			return workFn
 		},
 	}
@@ -97,13 +97,6 @@ func (ctx *fnWrapperCtx) Work() WorkFn {
 }
 
 func WithTaskId(parent SchedulerContext, taskId string) SchedulerContext {
-	return &taskIdCtx{
-		SchedulerContext: parent,
-		taskId:           taskId,
-	}
-}
-
-func WithTaskIdAndWork(parent SchedulerContext, taskId string, work WorkFn) SchedulerContext {
 	return &taskIdCtx{
 		SchedulerContext: parent,
 		taskId:           taskId,
