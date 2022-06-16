@@ -1,7 +1,6 @@
 package cron_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -12,7 +11,7 @@ func TestCron(t *testing.T) {
 	t.Run("building cron row", func(t *testing.T) {
 		// Sunday
 		pseudoNow := time.Date(2022, time.April, 10, 0, 0, 0, 0, time.UTC)
-		builder := cron.NewBuilder().Command([]string{"ls"})
+		builder := cron.Builder{}.Command([]string{"ls"})
 
 		t.Run("weekly", func(t *testing.T) {
 			sched, _ := builder.Weekly(time.Monday, 11, 23).Build()
@@ -70,8 +69,8 @@ func TestCron(t *testing.T) {
 	})
 
 	t.Run("invalid range", func(t *testing.T) {
-		b := cron.NewBuilder().Command([]string{"ls"})
-		nilWork, _ := cron.NewBuilder().Yearly(time.April, 1, 1, 1).Build()
+		b := cron.Builder{}.Command([]string{"ls"})
+		nilWork, _ := cron.Builder{}.Yearly(time.April, 1, 1, 1).Build()
 		testCases := []cron.Row{
 			nilWork,
 			b.Month(0).MustBuild(),
@@ -93,7 +92,7 @@ func TestCron(t *testing.T) {
 	})
 
 	t.Run("leap year", func(t *testing.T) {
-		c := cron.NewBuilder().Command([]string{"ls"}).Yearly(time.February, 31, 0, 0).MustBuild()
+		c := cron.Builder{}.Command([]string{"ls"}).Yearly(time.February, 31, 0, 0).MustBuild()
 		for i := 2022; i < 2022+100; i++ {
 			target := time.Date(i, time.January, 1, 0, 0, 0, 0, time.UTC)
 			sched, _ := c.NextSchedule(target)
@@ -113,7 +112,7 @@ func TestCron(t *testing.T) {
 		testMonthly := func(target time.Time, row cron.Row) {
 			for i := 1; i <= 12*4; i++ {
 				added := target.AddDate(0, i, 0)
-				fmt.Println("case:", added.Format(time.RFC3339Nano))
+				// fmt.Println("case:", added.Format(time.RFC3339Nano))
 				sched, _ := row.NextSchedule(added)
 
 				var expectedDayMax int
@@ -149,12 +148,12 @@ func TestCron(t *testing.T) {
 		}
 
 		target := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
-		testMonthly(target, cron.NewBuilder().Command([]string{"ls"}).Monthly(31, 12, 30).MustBuild())
-		testMonthly(target, cron.NewBuilder().Command([]string{"ls"}).Monthly(30, 12, 30).MustBuild())
+		testMonthly(target, cron.Builder{}.Command([]string{"ls"}).Monthly(31, 12, 30).MustBuild())
+		testMonthly(target, cron.Builder{}.Command([]string{"ls"}).Monthly(30, 12, 30).MustBuild())
 	})
 
 	t.Run("multiple value", func(t *testing.T) {
-		b := cron.NewBuilder().Command([]string{"ls"})
+		b := cron.Builder{}.Command([]string{"ls"})
 		pseudoNow := time.Date(2022, time.April, 10, 0, 0, 0, 0, time.UTC)
 
 		row := b.WeekDay(time.Saturday, time.Tuesday, time.Thursday).Hour(0).Minute(0).MustBuild()

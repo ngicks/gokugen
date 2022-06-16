@@ -13,12 +13,6 @@ type Builder struct {
 	cron Row
 }
 
-func NewBuilder() Builder {
-	return Builder{
-		cron: Row{},
-	}
-}
-
 func (b Builder) Minute(in1 uint8, in2 ...uint8) Builder {
 	minutes := Minutes([]Minute{Minute(int(in1))})
 	for _, m := range in2 {
