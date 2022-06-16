@@ -5,9 +5,10 @@ package scheduler
 // It may be in stopped-state where loop is stopped,
 // working-state where looping in goroutine,
 // or ended-state where no way is given to step into working-state again.
-type Worker struct {
+type Worker[T any] struct {
 	workingState
 	endState
+	id           T
 	stopCh       chan struct{}
 	killCh       chan struct{}
 	taskCh       <-chan *Task
@@ -15,7 +16,7 @@ type Worker struct {
 	taskDone     func()
 }
 
-func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker, error) {
+func NewWorker[T any](id T, taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker[T], error) {
 	if taskCh == nil {
 		return nil, ErrInvalidArg
 	}
@@ -27,7 +28,8 @@ func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker, err
 		taskDone = func() {}
 	}
 
-	worker := &Worker{
+	worker := &Worker[T]{
+		id:           id,
 		stopCh:       make(chan struct{}, 1),
 		killCh:       make(chan struct{}),
 		taskCh:       taskCh,
@@ -42,7 +44,7 @@ func NewWorker(taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker, err
 // If worker is already ended, it returns `ErrAlreadyEnded`.
 // If worker is already started, it returns `ErrAlreadyStarted`.
 // If taskCh is closed, Start returns nil, becoming ended-state.
-func (w *Worker) Start() (err error) {
+func (w *Worker[T]) Start() (err error) {
 	if w.IsEnded() {
 		return ErrAlreadyEnded
 	}
@@ -58,34 +60,45 @@ func (w *Worker) Start() (err error) {
 		}
 	}()
 
+	var normalReturn bool
+	defer func() {
+		if !normalReturn {
+			w.setEnded()
+		}
+	}()
+
+LOOP:
 	for {
 		select {
 		case <-w.killCh:
 			// in case of racy kill
-			return
+			break LOOP
 		case <-w.stopCh:
-			return
+			break LOOP
 		default:
 			select {
 			case <-w.stopCh:
-				return
-			case job, ok := <-w.taskCh:
+				break LOOP
+			case task, ok := <-w.taskCh:
 				if !ok {
 					w.setEnded()
-					return
+					break LOOP
 				}
 				w.taskReceived()
-				job.Do(w.killCh)
+				task.Do(w.killCh)
 				w.taskDone()
 			}
 		}
 	}
+	// If task exits abnormally, called runtime.Goexit or panicing, it would not reach this line.
+	normalReturn = true
+	return
 }
 
 // Stop stops an active Start loop.
 // If Start is not in work when Stop is called,
 // it will stops next Start immediately after an invocation of Start.
-func (w *Worker) Stop() {
+func (w *Worker[T]) Stop() {
 	select {
 	case <-w.stopCh:
 	default:
@@ -98,8 +111,13 @@ func (w *Worker) Stop() {
 // If a task is being worked,
 // a channel passed to the task will be closed immediately after an invocation of this method.
 // Kill makes this worker to step into ended state, making it impossible to Start-ed again.
-func (w *Worker) Kill() {
-	w.setEnded()
-	close(w.killCh)
+func (w *Worker[T]) Kill() {
+	if w.setEnded() {
+		close(w.killCh)
+	}
 	w.Stop()
+}
+
+func (w *Worker[T]) Id() T {
+	return w.id
 }

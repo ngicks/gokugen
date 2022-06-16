@@ -38,8 +38,8 @@ func NewScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Schedu
 		feeder:        feeder,
 		cancellerLoop: NewCancellerLoop(feeder, getNow, time.Minute),
 		dispatchLoop:  NewDispatchLoop(feeder, getNow),
-		workerPool: NewWorkerPool(func() *Worker {
-			w, err := NewWorker(taskCh, received, done)
+		workerPool: NewWorkerPool(func(id int) *Worker[int] {
+			w, err := NewWorker(id, taskCh, received, done)
 			if err != nil {
 				panic(err)
 			}
@@ -110,7 +110,7 @@ func (s *Scheduler) AddWorker(delta uint32) (workerNum int) {
 	return int(s.workerPool.Add(delta))
 }
 
-func (s *Scheduler) RemoveWorker(delta uint32) (workerNum int) {
+func (s *Scheduler) RemoveWorker(delta uint32) (aliveWorkerNum int, sleepingWorkerNum int) {
 	return s.workerPool.Remove(delta)
 }
 

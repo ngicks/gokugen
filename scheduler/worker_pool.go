@@ -1,61 +1,125 @@
 package scheduler
 
 import (
+	"errors"
+	"fmt"
+	"runtime/debug"
 	"sync"
 )
 
 // WorkerPool is container for workers.
-// Workers can be created as sleeping state(no active goroutine is assigned).
-// And then, they can be waked (looping in assigned groutine) as many as needed.
 type WorkerPool struct {
 	mu     sync.RWMutex
 	status workingState
 	wg     sync.WaitGroup
 
-	workerConstructor func() *Worker
-	workers           []*Worker
-	sleptWorkers      []*Worker
+	workerConstructor func(id int) *Worker[int]
+	workerIdx         int
+	workers           map[int]*Worker[int]
+	sleepingWorkers   map[int]*Worker[int]
 }
 
-func NewWorkerPool(workerConstructor func() *Worker) *WorkerPool {
+func NewWorkerPool(
+	workerConstructor func(id int) *Worker[int],
+) *WorkerPool {
 	w := WorkerPool{
 		workerConstructor: workerConstructor,
-		workers:           make([]*Worker, 0),
-		sleptWorkers:      make([]*Worker, 0),
+		workers:           make(map[int]*Worker[int], 0),
+		sleepingWorkers:   make(map[int]*Worker[int], 0),
 	}
 	return &w
 }
 
-func (p *WorkerPool) Add(delta uint32) (newLen int) {
-	p.mu.Lock()
+func (p *WorkerPool) Add(delta uint32) (newAliveLen int) {
 	for i := uint32(0); i < delta; i++ {
-		worker := p.workerConstructor()
+		workerId := p.workerIdx
+		p.workerIdx++
+		worker := p.workerConstructor(workerId)
 		p.wg.Add(1)
-		go func() {
-			worker.Start()
-			p.wg.Done()
+		go p.callWorkerStart(worker, true, func(err error) {})
+
+		p.mu.Lock()
+		p.workers[worker.Id()] = worker
+		p.mu.Unlock()
+	}
+	alive, _ := p.Len()
+	return alive
+}
+
+var (
+	errGoexit = errors.New("runtime.Goexit was called")
+)
+
+type panicErr struct {
+	err   interface{}
+	stack []byte
+}
+
+// Error implements error interface.
+func (p *panicErr) Error() string {
+	return fmt.Sprintf("%v\n\n%s", p.err, p.stack)
+}
+
+func (p *WorkerPool) callWorkerStart(worker *Worker[int], shouldRecover bool, abnormalReturnCb func(error)) (workerErr error) {
+	var normalReturn, recovered bool
+	var abnormalReturnErr error
+	// see https://cs.opensource.google/go/x/sync/+/0de741cf:singleflight/singleflight.go;l=138-200;drc=0de741cfad7ff3874b219dfbc1b9195b58c7c490
+	defer func() {
+		// Done will be done right before the exit.
+		defer p.wg.Done()
+		p.mu.Lock()
+		delete(p.workers, worker.Id())
+		delete(p.sleepingWorkers, worker.Id())
+		p.mu.Unlock()
+
+		if !normalReturn && !recovered {
+			abnormalReturnErr = errGoexit
+		}
+		if !normalReturn {
+			abnormalReturnCb(abnormalReturnErr)
+		}
+		if recovered && !shouldRecover {
+			panic(abnormalReturnErr)
+		}
+	}()
+
+	func() {
+		defer func() {
+			if err := recover(); err != nil {
+				abnormalReturnErr = &panicErr{
+					err:   err,
+					stack: debug.Stack(),
+				}
+			}
 		}()
-		p.workers = append(p.workers, worker)
+		workerErr = worker.Start()
+		normalReturn = true
+	}()
+	if !normalReturn {
+		recovered = true
 	}
-	p.mu.Unlock()
-	return p.Len()
+	return
 }
 
-func (p *WorkerPool) Remove(delta uint32) (len int) {
+func (p *WorkerPool) Remove(delta uint32) (alive int, sleeping int) {
 	p.mu.Lock()
-	removed, _ := remove(&p.workers, uint(delta))
-	for _, w := range removed {
-		w.Stop()
-		p.sleptWorkers = append(p.sleptWorkers, w)
+	var count uint32
+	for _, worker := range p.workers {
+		if count < delta {
+			worker.Stop()
+			delete(p.workers, worker.Id())
+			p.sleepingWorkers[worker.Id()] = worker
+		}
+		count++
 	}
 	p.mu.Unlock()
 	return p.Len()
 }
 
-func (p *WorkerPool) Len() int {
+func (p *WorkerPool) Len() (alive int, sleeping int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return len(p.workers)
+	return len(p.workers), len(p.sleepingWorkers)
 }
 
 // Kill kills all worker.
@@ -67,27 +131,10 @@ func (p *WorkerPool) Kill() {
 	for _, w := range p.workers {
 		w.Kill()
 	}
-	p.workers = p.workers[:]
-	for _, w := range p.sleptWorkers {
-		w.Kill()
-	}
-	p.sleptWorkers = p.sleptWorkers[:]
 }
 
 // Wait waits for all workers to stop.
 // Calling this before sleeping or removing all worker may block forever.
 func (p *WorkerPool) Wait() {
 	p.wg.Wait()
-}
-
-func remove(sl *[]*Worker, delta uint) (removed []*Worker, remaining uint) {
-	var roundedDelta uint
-	if delta > uint(len(*sl)) {
-		roundedDelta = uint(len(*sl))
-	} else {
-		roundedDelta = delta
-	}
-	*sl, removed = (*sl)[:uint(len(*sl))-roundedDelta], (*sl)[uint(len(*sl))-roundedDelta:]
-	remaining = delta - uint(len(removed))
-	return
 }
