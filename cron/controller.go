@@ -114,7 +114,7 @@ func (c *CronLikeRescheduler) schedule() error {
 			paramSet,
 			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
 				err := workRaw(ctxCancelCh, taskCancelCh, scheduled, command[1:])
-				if c.shouldReschedule(err, callCount) {
+				if c.shouldReschedule != nil && c.shouldReschedule(err, callCount) {
 					c.schedule()
 				}
 				return err
