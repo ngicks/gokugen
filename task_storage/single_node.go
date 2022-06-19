@@ -102,10 +102,12 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 		if err != nil && !errors.Is(err, gokugen.ErrValueNotFound) {
 			return
 		}
-		// ctx does not contain task id.
-		// needs to create new entry in repository.
 
+		hadTaskId := true
 		if taskId == "" {
+			// ctx does not contain task id.
+			// needs to create new entry in repository.
+			hadTaskId = false
 			taskId, err = ts.repo.Insert(TaskInfo{
 				WorkId:        workId,
 				Param:         param,
@@ -117,25 +119,31 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 			}
 		}
 
-		fnWrapped := gokugen.WithWorkFnWrapper(
-			gokugen.WithTaskId(
+		var newCtx gokugen.SchedulerContext = ctx
+		if !hadTaskId {
+			newCtx = gokugen.WithTaskId(
 				ctx,
 				taskId,
-			),
-			func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
-				return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
-					param, err := gokugen.GetParam(self)
-					if err != nil {
+			)
+		}
+		if workSet := ctx.Work(); workSet == nil {
+			newCtx = gokugen.WithWorkFnWrapper(
+				newCtx,
+				func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
+					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+						param, err := gokugen.GetParam(self)
+						if err != nil {
+							return err
+						}
+						err = workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
+						markDoneTask(err, ts, taskId)
 						return err
 					}
-					err = workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
-					markDoneTask(err, ts, taskId)
-					return err
-				}
-			},
-		)
+				},
+			)
+		}
 
-		task, err = handler(fnWrapped)
+		task, err = handler(newCtx)
 		if err != nil {
 			return
 		}
