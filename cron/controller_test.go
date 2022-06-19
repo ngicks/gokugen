@@ -8,7 +8,7 @@ import (
 
 	"github.com/ngicks/gokugen"
 	"github.com/ngicks/gokugen/cron"
-	sync_ "github.com/ngicks/type-param-common/sync"
+	syncparam "github.com/ngicks/type-param-common/sync-param"
 )
 
 var _ cron.RowLike = fakeRowLike{}
@@ -88,14 +88,14 @@ func prepareController(
 ) (
 	rowLike *fakeRowLike,
 	scheduler *fakeScheduler,
-	registry *sync_.Map[string, gokugen.WorkFnWParam],
+	registry *syncparam.Map[string, gokugen.WorkFnWParam],
 	cronLikeRescheduler *cron.CronLikeRescheduler,
 ) {
 	rowLike = &fakeRowLike{command: []string{"foo", "bar", "baz"}}
 	scheduler = &fakeScheduler{
 		ctxList: list.New(),
 	}
-	registry = new(sync_.Map[string, gokugen.WorkFnWParam])
+	registry = new(syncparam.Map[string, gokugen.WorkFnWParam])
 	registry.LoadOrStore("foo", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
 		return nil
 	})
