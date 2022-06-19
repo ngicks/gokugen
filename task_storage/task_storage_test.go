@@ -229,7 +229,7 @@ func testSync(t *testing.T, mode testMode) {
 		t.Fatalf("rescheduled must be 0: %d", len(rescheduled))
 	}
 	if len(schedErr) != 0 {
-		t.Fatalf("schedErr must be 1: %d", len(schedErr))
+		t.Fatalf("schedErr must be 0: %d", len(schedErr))
 	}
 
 	doAllTasks()

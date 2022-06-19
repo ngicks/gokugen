@@ -175,8 +175,8 @@ func (ts *SingleNodeTaskStorage) Sync(
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
-	syncedAt := ts.getNow.GetNow()
-	fetchedIds, err := ts.repo.GetUpdatedSince(ts.lastSynced)
+	var syncedAt time.Time
+	fetchedIds, err := ts.repo.GetUpdatedAfter(ts.lastSynced)
 	if err != nil {
 		return
 	}
@@ -187,62 +187,77 @@ func (ts *SingleNodeTaskStorage) Sync(
 	for _, fetched := range fetchedIds {
 		if fetched.LastModified.After(syncedAt) {
 			// Most recent time of fetched tasks is next last-synced time.
-			// We do want set it correctly to avoid doubly syncing that.
+			// We do want to set it correctly to avoid doubly syncing same entry.
+			//
+			// And also, GetUpdatedSince implemention may or may not limit the number of fetched entries.
+			// syncedAt must not be time.Now()
 			syncedAt = fetched.LastModified
 		}
 
-		_, ok := ts.workRegistry.Load(fetched.WorkId)
-		if !ok {
-			schedulingErr[fetched.Id] = fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, fetched.WorkId)
-			continue
-		}
-
-		switch fetched.State {
-		case Working, Done, Cancelled, Failed:
-			if inTaskMap, loaded := ts.taskMap.LoadAndDelete(fetched.Id); loaded {
-				inTaskMap.CancelWithReason(ExternalStateChangeErr{
-					id:    fetched.Id,
-					state: fetched.State,
-				})
-			}
-			continue
-		default:
-			if ts.taskMap.Has(fetched.Id) {
-				continue
-			}
-		}
-
-		if !ts.shouldRestore(fetched) {
-			continue
-		}
-
-		param := fetched.Param
-		var ctx gokugen.SchedulerContext = gokugen.WithParam(
-			gokugen.WithWorkId(
-				gokugen.WithTaskId(
-					gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
-					fetched.Id,
-				),
-				fetched.WorkId,
-			),
-			param,
-		)
-
-		if ts.syncCtxWrapper != nil {
-			ctx = ts.syncCtxWrapper(ctx)
-		}
-
-		var task gokugen.Task
-		task, err = schedule(ctx)
+		task, err := ts.sync(schedule, fetched)
 		if err != nil {
 			schedulingErr[fetched.Id] = err
-			continue
+		} else if task != nil {
+			rescheduled[fetched.Id] = task
 		}
-		rescheduled[fetched.Id] = task
-		ts.taskMap.LoadOrStore(fetched.Id, task)
 	}
 
-	ts.lastSynced = syncedAt
+	if syncedAt.After(ts.lastSynced) {
+		ts.lastSynced = syncedAt
+	}
+	return
+}
+
+func (ts *SingleNodeTaskStorage) sync(
+	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
+	fetched TaskInfo,
+) (task gokugen.Task, schedulingErr error) {
+
+	_, ok := ts.workRegistry.Load(fetched.WorkId)
+	if !ok {
+		return nil, fmt.Errorf("%w: unknown work id = %s", ErrNonexistentWorkId, fetched.WorkId)
+	}
+
+	switch fetched.State {
+	case Working, Done, Cancelled, Failed:
+		if inTaskMap, loaded := ts.taskMap.LoadAndDelete(fetched.Id); loaded {
+			inTaskMap.CancelWithReason(ExternalStateChangeErr{
+				id:    fetched.Id,
+				state: fetched.State,
+			})
+		}
+		return
+	default:
+		if ts.taskMap.Has(fetched.Id) {
+			return
+		}
+	}
+
+	if !ts.shouldRestore(fetched) {
+		return
+	}
+
+	param := fetched.Param
+	var ctx gokugen.SchedulerContext = gokugen.WithParam(
+		gokugen.WithWorkId(
+			gokugen.WithTaskId(
+				gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
+				fetched.Id,
+			),
+			fetched.WorkId,
+		),
+		param,
+	)
+
+	if ts.syncCtxWrapper != nil {
+		ctx = ts.syncCtxWrapper(ctx)
+	}
+
+	task, err := schedule(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ts.taskMap.LoadOrStore(fetched.Id, task)
 	return
 }
 

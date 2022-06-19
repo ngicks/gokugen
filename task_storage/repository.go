@@ -17,7 +17,7 @@ type Repository interface {
 	// Insert inserts the model to the repository.
 	// Id and LastModified field of passed TaskInfo are ignored.
 	Insert(TaskInfo) (taskId string, err error)
-	GetUpdatedSince(time.Time) ([]TaskInfo, error)
+	GetUpdatedAfter(time.Time) ([]TaskInfo, error)
 	GetById(id string) (TaskInfo, error)
 	MarkAsDone(id string) (ok bool, err error)
 	MarkAsCancelled(id string) (ok bool, err error)

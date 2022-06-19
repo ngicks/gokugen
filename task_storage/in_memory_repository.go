@@ -104,13 +104,13 @@ func (r *InMemoryRepo) GetAll() ([]TaskInfo, error) {
 	return arr, nil
 }
 
-func (r *InMemoryRepo) GetUpdatedSince(since time.Time) ([]TaskInfo, error) {
+func (r *InMemoryRepo) GetUpdatedAfter(since time.Time) ([]TaskInfo, error) {
 	results := make([]TaskInfo, 0)
 	r.store.Range(func(key, value any) bool {
 		entry := value.(*ent)
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
-		if entry.info.LastModified.After(since) || entry.info.LastModified.Equal(since) {
+		if entry.info.LastModified.After(since) {
 			results = append(results, entry.info)
 		}
 		return true
