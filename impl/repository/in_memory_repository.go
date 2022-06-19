@@ -1,4 +1,4 @@
-package taskstorage
+package repository
 
 import (
 	"bytes"
@@ -10,16 +10,17 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen/common"
+	taskstorage "github.com/ngicks/gokugen/task_storage"
 )
 
-var _ RepositoryUpdater = &InMemoryRepo{}
+var _ taskstorage.RepositoryUpdater = &InMemoryRepo{}
 
 type ent struct {
 	mu   sync.Mutex
-	info TaskInfo
+	info taskstorage.TaskInfo
 }
 
-func (e *ent) Update(new TaskState, updateIf func(old TaskState) bool, getNow common.GetNow) bool {
+func (e *ent) Update(new taskstorage.TaskState, updateIf func(old taskstorage.TaskState) bool, getNow common.GetNow) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if updateIf(e.info.State) {
@@ -30,7 +31,7 @@ func (e *ent) Update(new TaskState, updateIf func(old TaskState) bool, getNow co
 	return false
 }
 
-func (e *ent) UpdateByDiff(diff UpdateDiff, getNow common.GetNow) bool {
+func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow common.GetNow) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -69,7 +70,7 @@ func NewInMemoryRepo() *InMemoryRepo {
 	}
 }
 
-func (r *InMemoryRepo) Insert(taskInfo TaskInfo) (taskId string, err error) {
+func (r *InMemoryRepo) Insert(taskInfo taskstorage.TaskInfo) (taskId string, err error) {
 	for {
 		taskId, err = r.randomStr.Generate()
 		if err != nil {
@@ -88,8 +89,8 @@ func (r *InMemoryRepo) Insert(taskInfo TaskInfo) (taskId string, err error) {
 	return
 }
 
-func (r *InMemoryRepo) GetAll() ([]TaskInfo, error) {
-	arr := make([]TaskInfo, 0)
+func (r *InMemoryRepo) GetAll() ([]taskstorage.TaskInfo, error) {
+	arr := make([]taskstorage.TaskInfo, 0)
 	r.store.Range(func(key, value any) bool {
 		arr = append(arr, value.(*ent).info)
 		return true
@@ -98,8 +99,8 @@ func (r *InMemoryRepo) GetAll() ([]TaskInfo, error) {
 	return arr, nil
 }
 
-func (r *InMemoryRepo) GetUpdatedAfter(since time.Time) ([]TaskInfo, error) {
-	results := make([]TaskInfo, 0)
+func (r *InMemoryRepo) GetUpdatedAfter(since time.Time) ([]taskstorage.TaskInfo, error) {
+	results := make([]taskstorage.TaskInfo, 0)
 	r.store.Range(func(key, value any) bool {
 		entry := value.(*ent)
 		entry.mu.Lock()
@@ -112,46 +113,46 @@ func (r *InMemoryRepo) GetUpdatedAfter(since time.Time) ([]TaskInfo, error) {
 	return results, nil
 }
 
-func (r *InMemoryRepo) GetById(taskId string) (TaskInfo, error) {
+func (r *InMemoryRepo) GetById(taskId string) (taskstorage.TaskInfo, error) {
 	val, ok := r.store.Load(taskId)
 	if !ok {
-		return TaskInfo{}, fmt.Errorf("%w: no such id [%s]", ErrNoEnt, taskId)
+		return taskstorage.TaskInfo{}, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, taskId)
 	}
 	return val.(*ent).info, nil
 }
 
 func (r *InMemoryRepo) MarkAsDone(id string) (ok bool, err error) {
-	return updateState(r.store, id, Done, r.getNow)
+	return updateState(r.store, id, taskstorage.Done, r.getNow)
 }
 func (r *InMemoryRepo) MarkAsCancelled(id string) (ok bool, err error) {
-	return updateState(r.store, id, Cancelled, r.getNow)
+	return updateState(r.store, id, taskstorage.Cancelled, r.getNow)
 }
 func (r *InMemoryRepo) MarkAsFailed(id string) (ok bool, err error) {
-	return updateState(r.store, id, Failed, r.getNow)
+	return updateState(r.store, id, taskstorage.Failed, r.getNow)
 }
 
-func (r *InMemoryRepo) UpdateState(id string, old, new TaskState) (swapped bool, err error) {
+func (r *InMemoryRepo) UpdateState(id string, old, new taskstorage.TaskState) (swapped bool, err error) {
 	val, ok := r.store.Load(id)
 	if !ok {
-		return false, fmt.Errorf("%w: no such id [%s]", ErrNoEnt, id)
+		return false, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)
 	}
 	entry := val.(*ent)
-	return entry.Update(new, func(old_ TaskState) bool { return old_ == old }, r.getNow), nil
+	return entry.Update(new, func(old_ taskstorage.TaskState) bool { return old_ == old }, r.getNow), nil
 }
 
-func updateState(store *sync.Map, id string, state TaskState, getNow common.GetNow) (bool, error) {
+func updateState(store *sync.Map, id string, state taskstorage.TaskState, getNow common.GetNow) (bool, error) {
 	val, ok := store.Load(id)
 	if !ok {
-		return false, fmt.Errorf("%w: no such id [%s]", ErrNoEnt, id)
+		return false, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)
 	}
 	entry := val.(*ent)
 	return entry.Update(state, isUpdatable, getNow), nil
 }
 
-func (r *InMemoryRepo) Update(id string, diff UpdateDiff) error {
+func (r *InMemoryRepo) Update(id string, diff taskstorage.UpdateDiff) error {
 	val, ok := r.store.Load(id)
 	if !ok {
-		return fmt.Errorf("%w: no such id [%s]", ErrNoEnt, id)
+		return fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)
 	}
 
 	if !val.(*ent).UpdateByDiff(diff, r.getNow) {
@@ -161,8 +162,8 @@ func (r *InMemoryRepo) Update(id string, diff UpdateDiff) error {
 	return nil
 }
 
-func isUpdatable(state TaskState) bool {
-	return !(state == Done || state == Cancelled || state == Failed)
+func isUpdatable(state taskstorage.TaskState) bool {
+	return !(state == taskstorage.Done || state == taskstorage.Cancelled || state == taskstorage.Failed)
 }
 
 type RandStringGenerator struct {

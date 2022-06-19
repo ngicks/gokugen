@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen"
+	"github.com/ngicks/gokugen/impl/repository"
 	taskstorage "github.com/ngicks/gokugen/task_storage"
 	syncparam "github.com/ngicks/type-param-common/sync-param"
 )
@@ -14,7 +15,7 @@ import (
 func storageTestSet(
 	t *testing.T,
 	prepare func() (
-		repo *taskstorage.InMemoryRepo,
+		repo *repository.InMemoryRepo,
 		registry *syncparam.Map[string, gokugen.WorkFnWParam],
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
@@ -120,7 +121,7 @@ type syncer interface {
 
 func testSync(t *testing.T, mode testMode) {
 	var ts syncer
-	var repo *taskstorage.InMemoryRepo
+	var repo *repository.InMemoryRepo
 	var registry *syncparam.Map[string, gokugen.WorkFnWParam]
 	var sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error)
 	var doAllTasks func()

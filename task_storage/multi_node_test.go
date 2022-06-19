@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen"
+	"github.com/ngicks/gokugen/impl/repository"
 	taskstorage "github.com/ngicks/gokugen/task_storage"
 	syncparam "github.com/ngicks/type-param-common/sync-param"
 )
 
 func prepareMulti(freeParam bool) (
 	ts *taskstorage.MultiNodeTaskStorage,
-	repo *taskstorage.InMemoryRepo,
+	repo *repository.InMemoryRepo,
 	registry *syncparam.Map[string, gokugen.WorkFnWParam],
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
@@ -26,14 +27,14 @@ func prepareMulti(freeParam bool) (
 
 func TestMultiNode(t *testing.T) {
 	prep := func(paramLoad bool) func() (
-		repo *taskstorage.InMemoryRepo,
+		repo *repository.InMemoryRepo,
 		registry *syncparam.Map[string, gokugen.WorkFnWParam],
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
 		getTaskResults func() []error,
 	) {
 		return func() (
-			repo *taskstorage.InMemoryRepo,
+			repo *repository.InMemoryRepo,
 			registry *syncparam.Map[string, gokugen.WorkFnWParam],
 			sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 			doAllTasks func(),
