@@ -154,7 +154,7 @@ func (r *InMemoryRepo) Update(id string, diff taskstorage.UpdateDiff) error {
 	}
 
 	if !entry.UpdateByDiff(diff, r.getNow) {
-
+		return taskstorage.ErrNotUpdatableState
 	}
 
 	return nil
