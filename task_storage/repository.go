@@ -8,6 +8,7 @@ import (
 
 var (
 	ErrNoEnt             = errors.New("no ent")
+	ErrInvalidEnt        = errors.New("invalid ent")
 	ErrNotUpdatableState = errors.New("not updatable")
 )
 
@@ -55,6 +56,22 @@ const (
 	Cancelled
 	Failed
 )
+
+func NewStateFromString(s string) TaskState {
+	switch s {
+	case "Initialized":
+		return Initialized
+	case "Working":
+		return Working
+	case "Done":
+		return Done
+	case "Cancelled":
+		return Cancelled
+	case "Failed":
+		return Failed
+	}
+	return -1
+}
 
 func (ts TaskState) String() string {
 	switch ts {
