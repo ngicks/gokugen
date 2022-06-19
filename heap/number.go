@@ -1,13 +1,13 @@
 package heap
 
-type Number interface {
-	~int | ~int32 | ~int64 | ~float32 | ~float64
-}
+import typeparamcommon "github.com/ngicks/type-param-common"
 
-func less[T Number](i, j T) bool {
-	return i < j
-}
-
-func NewNumber[T Number]() *gHeap[T] {
-	return NewHeap(less[T])
+func NewNumber[T typeparamcommon.Lessable]() *ExcludableHeap[T] {
+	heapInternal, interfaceInternal := typeparamcommon.MakeMinHeap[T]()
+	h := &ExcludableHeap[T]{
+		HeapWrapper: heapInternal,
+		internal:    interfaceInternal,
+	}
+	h.Init()
+	return h
 }
