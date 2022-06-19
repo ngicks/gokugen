@@ -8,12 +8,13 @@ Wrapping around in-memory shceduler with repository manipulator expected to make
 
 ## TODO
 
-- [ ] Reimplement funtionality
-  - [ ] in-memory shceduler
-  - [ ] single node task storage middleware
-  - [ ] cron-like interface
-- [ ] Implement multi node task storage middleware
-- [ ] Refactoring
+- [x] Reimplement funtionality
+  - [x] in-memory shceduler
+  - [x] single node task storage middleware
+  - [x] cron-like interface
+- [x] Implement multi node task storage middleware
+- [x] Refactoring
+- [ ] example package
 - [ ] Add detailed careful test.
 
 ## Architecture
