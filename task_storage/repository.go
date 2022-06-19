@@ -1,8 +1,14 @@
 package taskstorage
 
 import (
+	"errors"
 	"fmt"
 	"time"
+)
+
+var (
+	ErrNoEnt             = errors.New("no ent")
+	ErrNotUpdatableState = errors.New("not updatable")
 )
 
 type StateUpdater interface {

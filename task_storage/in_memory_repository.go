@@ -3,7 +3,6 @@ package taskstorage
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -11,11 +10,6 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen/common"
-)
-
-var (
-	ErrNoEnt             = errors.New("no ent")
-	ErrNotUpdatableState = errors.New("not updatable")
 )
 
 var _ RepositoryUpdater = &InMemoryRepo{}
