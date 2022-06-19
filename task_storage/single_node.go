@@ -99,9 +99,11 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 		}
 
 		taskId, err := gokugen.GetTaskId(ctx)
-		if err != nil {
+		if err != nil && !errors.Is(err, gokugen.ErrValueNotFound) {
 			return
 		}
+		// ctx does not contain task id.
+		// needs to create new entry in repository.
 
 		if taskId == "" {
 			taskId, err = ts.repo.Insert(TaskInfo{
