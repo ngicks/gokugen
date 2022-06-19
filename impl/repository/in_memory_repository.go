@@ -11,6 +11,7 @@ import (
 
 	"github.com/ngicks/gokugen/common"
 	taskstorage "github.com/ngicks/gokugen/task_storage"
+	syncparam "github.com/ngicks/type-param-common/sync-param"
 )
 
 var _ taskstorage.RepositoryUpdater = &InMemoryRepo{}
@@ -58,14 +59,14 @@ func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow common.GetNow) bo
 
 type InMemoryRepo struct {
 	randomStr *RandStringGenerator
-	store     *sync.Map
+	store     *syncparam.Map[string, *ent]
 	getNow    common.GetNow
 }
 
 func NewInMemoryRepo() *InMemoryRepo {
 	return &InMemoryRepo{
 		randomStr: NewRandStringGenerator(int64(time.Now().Nanosecond()), 16, hex.NewEncoder),
-		store:     new(sync.Map),
+		store:     new(syncparam.Map[string, *ent]),
 		getNow:    common.GetNowImpl{},
 	}
 }
@@ -91,8 +92,8 @@ func (r *InMemoryRepo) Insert(taskInfo taskstorage.TaskInfo) (taskId string, err
 
 func (r *InMemoryRepo) GetAll() ([]taskstorage.TaskInfo, error) {
 	arr := make([]taskstorage.TaskInfo, 0)
-	r.store.Range(func(key, value any) bool {
-		arr = append(arr, value.(*ent).info)
+	r.store.Range(func(key string, value *ent) bool {
+		arr = append(arr, value.info)
 		return true
 	})
 
@@ -101,8 +102,7 @@ func (r *InMemoryRepo) GetAll() ([]taskstorage.TaskInfo, error) {
 
 func (r *InMemoryRepo) GetUpdatedAfter(since time.Time) ([]taskstorage.TaskInfo, error) {
 	results := make([]taskstorage.TaskInfo, 0)
-	r.store.Range(func(key, value any) bool {
-		entry := value.(*ent)
+	r.store.Range(func(key string, entry *ent) bool {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
 		if entry.info.LastModified.After(since) {
@@ -118,7 +118,7 @@ func (r *InMemoryRepo) GetById(taskId string) (taskstorage.TaskInfo, error) {
 	if !ok {
 		return taskstorage.TaskInfo{}, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, taskId)
 	}
-	return val.(*ent).info, nil
+	return val.info, nil
 }
 
 func (r *InMemoryRepo) MarkAsDone(id string) (ok bool, err error) {
@@ -132,30 +132,28 @@ func (r *InMemoryRepo) MarkAsFailed(id string) (ok bool, err error) {
 }
 
 func (r *InMemoryRepo) UpdateState(id string, old, new taskstorage.TaskState) (swapped bool, err error) {
-	val, ok := r.store.Load(id)
+	entry, ok := r.store.Load(id)
 	if !ok {
 		return false, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)
 	}
-	entry := val.(*ent)
 	return entry.Update(new, func(old_ taskstorage.TaskState) bool { return old_ == old }, r.getNow), nil
 }
 
-func updateState(store *sync.Map, id string, state taskstorage.TaskState, getNow common.GetNow) (bool, error) {
-	val, ok := store.Load(id)
+func updateState(store *syncparam.Map[string, *ent], id string, state taskstorage.TaskState, getNow common.GetNow) (bool, error) {
+	entry, ok := store.Load(id)
 	if !ok {
 		return false, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)
 	}
-	entry := val.(*ent)
 	return entry.Update(state, isUpdatable, getNow), nil
 }
 
 func (r *InMemoryRepo) Update(id string, diff taskstorage.UpdateDiff) error {
-	val, ok := r.store.Load(id)
+	entry, ok := r.store.Load(id)
 	if !ok {
 		return fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)
 	}
 
-	if !val.(*ent).UpdateByDiff(diff, r.getNow) {
+	if !entry.UpdateByDiff(diff, r.getNow) {
 
 	}
 
