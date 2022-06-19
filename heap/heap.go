@@ -1,78 +1,64 @@
 package heap
 
 import (
-	"container/heap"
+	typeparamcommon "github.com/ngicks/type-param-common"
 )
 
-// Internal generic heap
-type gHeap[T any] struct {
-	hi *heapInterface[T]
+type ExcludableHeap[T any] struct {
+	*typeparamcommon.HeapWrapper[T]
+	internal *typeparamcommon.SliceInterface[T]
 }
 
-func NewHeap[T any](less func(i, j T) bool) *gHeap[T] {
+func NewHeap[T any](less func(i, j T) bool) *ExcludableHeap[T] {
 	if less == nil {
 		return nil
 	}
-	h := &gHeap[T]{
-		hi: NewInterface(less),
+	heapInternal, interfaceInternal := typeparamcommon.MakeHeap(less)
+	h := &ExcludableHeap[T]{
+		HeapWrapper: heapInternal,
+		internal:    interfaceInternal,
 	}
-	h.init()
+	h.Init()
 	return h
 }
 
-func (h *gHeap[T]) init() {
-	heap.Init(h.hi)
+func (exh *ExcludableHeap[T]) Len() int {
+	return exh.internal.Len()
 }
-
-func (h *gHeap[T]) Len() int {
-	return h.hi.Len()
-}
-
-func (h *gHeap[T]) Push(ele T) {
-	heap.Push(h.hi, ele)
-}
-
-func (h *gHeap[T]) Pop() T {
-	c, ok := heap.Pop(h.hi).(T)
-	if !ok {
-		panic("invariant violated")
-	}
-	return c
-}
-
-func (h *gHeap[T]) Remove(i int) T {
-	c, ok := heap.Remove(h.hi, i).(T)
-	if !ok {
-		panic("invariant violated")
-	}
-	return c
-}
-
-func (h *gHeap[T]) Fix(i int) {
-	heap.Fix(h.hi, i)
-}
-
-func (h *gHeap[T]) Peek() (p T) {
-	c, ok := h.hi.Peek().(T)
-	if !ok {
+func (exh *ExcludableHeap[T]) Exclude(filter func(ent T) bool, start, end int) (removed []T) {
+	if filter == nil {
 		return
 	}
-	return c
+
+	if start < 0 {
+		start = 0
+	} else if start >= len(exh.internal.Inner) {
+		return
+	}
+	if end > len(exh.internal.Inner) {
+		end = len(exh.internal.Inner)
+	}
+
+	if start > end {
+		return
+	}
+
+	for i := start; i < end; i++ {
+		if filter(exh.internal.Inner[i]) {
+			removed = append(removed, exh.internal.Inner[i])
+			exh.internal.Inner = append(exh.internal.Inner[:i], exh.internal.Inner[i+1:]...)
+			end--
+			i--
+		}
+	}
+
+	exh.Init()
+	return removed
 }
 
-// Exclude excludes elements from underlying heap if filter returns true.
-// Heap is scanned in given range, namely [start,end).
-// If filter func is nil, Exclude is no-op.
-// The complexity of execlusion is O(n) where n = end-start,
-// and restoration of heap invariants is O(m) where m = new len.
-func (s *gHeap[T]) Exclude(filter func(ent T) bool, start, end int) (removed []T) {
-	r := s.hi.Exclude(func(ent any) bool {
-		return filter(ent.(T))
-	}, start, end)
-
-	for i := range r {
-		removed = append(removed, r[i].(T))
+func (h *ExcludableHeap[T]) Peek() (p T) {
+	if len(h.internal.Inner) == 0 {
+		return
 	}
-	s.init()
-	return
+	return h.internal.Inner[0]
 }

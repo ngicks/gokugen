@@ -4,7 +4,10 @@ go 1.18
 
 replace github.com/ngicks/gokugen => ./
 
-require go.uber.org/goleak v1.1.12
+require (
+	github.com/ngicks/type-param-common v0.0.1
+	go.uber.org/goleak v1.1.12
+)
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect

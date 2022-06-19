@@ -84,9 +84,11 @@ LOOP:
 					w.setEnded()
 					break LOOP
 				}
-				w.taskReceived()
-				task.Do(w.killCh)
-				w.taskDone()
+				func() {
+					w.taskReceived()
+					defer w.taskDone()
+					task.Do(w.killCh)
+				}()
 			}
 		}
 	}

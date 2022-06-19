@@ -9,6 +9,7 @@ import (
 
 	"github.com/ngicks/gokugen"
 	taskstorage "github.com/ngicks/gokugen/task_storage"
+	sync_ "github.com/ngicks/type-param-common/sync"
 )
 
 var _ gokugen.Task = &fakeTask{}
@@ -39,10 +40,10 @@ func buildTaskStorage() (
 	singleNode *taskstorage.SingleNodeTaskStorage,
 	multiNode *taskstorage.MultiNodeTaskStorage,
 	repo *taskstorage.InMemoryRepo,
-	registry *gokugen.WorkRegistry,
+	registry *sync_.Map[string, gokugen.WorkFnWParam],
 ) {
 	repo = taskstorage.NewInMemoryRepo()
-	registry = gokugen.NewWorkRegistry()
+	registry = new(sync_.Map[string, gokugen.WorkFnWParam])
 	singleNode = taskstorage.NewSingleNodeTaskStorage(
 		repo,
 		func(ti taskstorage.TaskInfo) bool { return true },
@@ -106,7 +107,7 @@ func prepare(
 func prepareSingle(freeParam bool) (
 	ts *taskstorage.SingleNodeTaskStorage,
 	repo *taskstorage.InMemoryRepo,
-	registry *gokugen.WorkRegistry,
+	registry *sync_.Map[string, gokugen.WorkFnWParam],
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
 	getTaskResults func() []error,
@@ -119,14 +120,14 @@ func prepareSingle(freeParam bool) (
 func TestSingleNode(t *testing.T) {
 	prep := func(paramLoad bool) func() (
 		repo *taskstorage.InMemoryRepo,
-		registry *gokugen.WorkRegistry,
+		registry *sync_.Map[string, gokugen.WorkFnWParam],
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
 		getTaskResults func() []error,
 	) {
 		return func() (
 			repo *taskstorage.InMemoryRepo,
-			registry *gokugen.WorkRegistry,
+			registry *sync_.Map[string, gokugen.WorkFnWParam],
 			sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 			doAllTasks func(),
 			getTaskResults func() []error,
