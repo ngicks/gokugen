@@ -41,6 +41,62 @@ INSERT INTO taskInfo(
 ) VALUES(?,?,?,?,?)
 `
 
+type sqlite3TaskInfo struct {
+	Id               string
+	Work_id          string
+	Param            []byte
+	Scheduled_time   int64
+	State            string
+	Inserted_at      int64
+	Last_modified_at int64
+}
+
+func fromHighLevel(
+	taskId string,
+	taskInfo taskstorage.TaskInfo,
+) (lowTaskInfo sqlite3TaskInfo, err error) {
+	// Implementation detail: param must be json marshalable
+	var paramMarshaled []byte
+	if taskInfo.Param != nil {
+		paramMarshaled, err = json.Marshal(taskInfo.Param)
+		if err != nil {
+			return
+		}
+	}
+
+	return sqlite3TaskInfo{
+		Id:             taskId,
+		Work_id:        taskInfo.WorkId,
+		Param:          paramMarshaled,
+		Scheduled_time: taskInfo.ScheduledTime.UnixMilli(),
+		State:          taskInfo.State.String(),
+	}, nil
+}
+
+func (ti sqlite3TaskInfo) toHighLevel() (taskInfo taskstorage.TaskInfo, err error) {
+	var param any
+	if ti.Param != nil && len(ti.Param) != 0 {
+		err = json.Unmarshal(ti.Param, &param)
+		if err != nil {
+			return
+		}
+	}
+	state := taskstorage.NewStateFromString(ti.State)
+	if state < 0 {
+		err = taskstorage.ErrInvalidEnt
+		return
+	}
+	taskInfo = taskstorage.TaskInfo{
+		Id:            ti.Id,
+		WorkId:        ti.Work_id,
+		Param:         param,
+		ScheduledTime: time.UnixMilli(ti.Scheduled_time),
+		State:         state,
+		LastModified:  time.UnixMilli(ti.Last_modified_at),
+	}
+	return
+}
+
 type Sqlite3Repo struct {
 	randomStr *RandStringGenerator
 	mu        sync.RWMutex
@@ -99,17 +155,12 @@ func (r *Sqlite3Repo) Close() error {
 func (r *Sqlite3Repo) Insert(taskInfo taskstorage.TaskInfo) (taskId string, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	// Implementation detail: param must be json marshalable
-	var paramMarshaled []byte
-	if taskInfo.Param != nil {
-		paramMarshaled, err = json.Marshal(taskInfo.Param)
-		if err != nil {
-			return
-		}
+	taskId, err = r.randomStr.Generate()
+	if err != nil {
+		return
 	}
 
-	taskId, err = r.randomStr.Generate()
+	lowlevel, err := fromHighLevel(taskId, taskInfo)
 	if err != nil {
 		return
 	}
@@ -121,11 +172,11 @@ func (r *Sqlite3Repo) Insert(taskInfo taskstorage.TaskInfo) (taskId string, err 
 	defer stmt.Close()
 
 	_, err = stmt.Exec(
-		taskId,
-		taskInfo.WorkId,
-		paramMarshaled,
-		taskInfo.ScheduledTime.UnixMilli(),
-		taskInfo.State.String(),
+		lowlevel.Id,
+		lowlevel.Work_id,
+		lowlevel.Param,
+		lowlevel.Scheduled_time,
+		lowlevel.State,
 	)
 
 	if err != nil {
@@ -151,41 +202,25 @@ func (r *Sqlite3Repo) fetchAllForQuery(query string, exec ...any) (taskInfos []t
 	defer rows.Close()
 
 	for rows.Next() {
-		var taskId, workId, stateRaw string
-		var paramMarshaled []byte
-		var scheduledTime, insertedAt, lastModifiedAt int64
+		lowlevel := sqlite3TaskInfo{}
 		err = rows.Scan(
-			&taskId,
-			&workId,
-			&paramMarshaled,
-			&scheduledTime,
-			&stateRaw,
-			&insertedAt, // this is unused. TODO: change `select *`` to like `select all but inserted_at` query.
-			&lastModifiedAt,
+			&lowlevel.Id,
+			&lowlevel.Work_id,
+			&lowlevel.Param,
+			&lowlevel.Scheduled_time,
+			&lowlevel.State,
+			&lowlevel.Inserted_at, // this is unused. TODO: change `select *`` to like `select all but inserted_at` query.
+			&lowlevel.Last_modified_at,
 		)
 		if err != nil {
 			return
 		}
-		var param any
-		if paramMarshaled != nil && len(paramMarshaled) != 0 {
-			err = json.Unmarshal(paramMarshaled, &param)
-			if err != nil {
-				return
-			}
+		var taskInfo taskstorage.TaskInfo
+		taskInfo, err = lowlevel.toHighLevel()
+		if err != nil {
+			return
 		}
-		state := taskstorage.NewStateFromString(stateRaw)
-		if state < 0 {
-			return nil, taskstorage.ErrInvalidEnt
-		}
-		ent := taskstorage.TaskInfo{
-			Id:            taskId,
-			WorkId:        workId,
-			Param:         param,
-			ScheduledTime: time.UnixMilli(scheduledTime),
-			State:         state,
-			LastModified:  time.UnixMilli(lastModifiedAt),
-		}
-		taskInfos = append(taskInfos, ent)
+		taskInfos = append(taskInfos, taskInfo)
 	}
 	return
 }
@@ -199,7 +234,7 @@ func (r *Sqlite3Repo) GetUpdatedSince(since time.Time) ([]taskstorage.TaskInfo, 
 }
 
 func (r *Sqlite3Repo) GetById(taskId string) (taskInfo taskstorage.TaskInfo, err error) {
-	infos, err := r.fetchAllForQuery("SELECT * FROM taskInfo WHERE id=?", taskId)
+	infos, err := r.fetchAllForQuery("SELECT * FROM taskInfo WHERE id = ?", taskId)
 	if err != nil {
 		return
 	}
@@ -269,28 +304,25 @@ func (r *Sqlite3Repo) Update(id string, diff taskstorage.UpdateDiff) (err error)
 	args := make([]any, 0)
 
 	setter := make([]string, 0)
+	lowlevel, err := fromHighLevel(id, diff.Diff)
+	if err != nil {
+		return
+	}
 	if diff.UpdateKey.WorkId {
 		setter = append(setter, "work_id = ?")
-		args = append(args, diff.Diff.WorkId)
+		args = append(args, lowlevel.Work_id)
 	}
 	if diff.UpdateKey.Param {
 		setter = append(setter, "param = ?")
-		var paramMarshaled []byte
-		if diff.Diff.Param != nil {
-			paramMarshaled, err = json.Marshal(diff.Diff.Param)
-			if err != nil {
-				return
-			}
-		}
-		args = append(args, paramMarshaled)
+		args = append(args, lowlevel.Param)
 	}
 	if diff.UpdateKey.ScheduledTime {
 		setter = append(setter, "scheduled_time = ?")
-		args = append(args, diff.Diff.ScheduledTime.UnixMilli())
+		args = append(args, lowlevel.Scheduled_time)
 	}
 	if diff.UpdateKey.State {
 		setter = append(setter, "state = ?")
-		args = append(args, diff.Diff.State.String())
+		args = append(args, lowlevel.State)
 	}
 
 	if len(args) == 0 {
