@@ -102,7 +102,7 @@ func TestSqlite3Repo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	taskInfos, err = db.GetUpdatedAfter(lastUpdated.Add(time.Millisecond))
+	taskInfos, err = db.GetUpdatedSince(lastUpdated.Add(time.Millisecond))
 	if err != nil {
 		t.Fatal(err)
 	}

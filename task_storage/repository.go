@@ -29,9 +29,9 @@ type Repository interface {
 	// Insert inserts the model to the repository.
 	// Id and LastModified field of passed TaskInfo are ignored and will be newly created.
 	Insert(TaskInfo) (taskId string, err error)
-	// GetUpdatedAfter fetches all elements modified after t.
+	// GetUpdatedSince fetches all elements modified after or equal to t.
 	// Implementation may limit the number of fetched elements.
-	GetUpdatedAfter(t time.Time) ([]TaskInfo, error)
+	GetUpdatedSince(t time.Time) ([]TaskInfo, error)
 	// GetById fetches an element associated with the id.
 	// If the id does not exist in the repository,
 	// GetById reports it by returning wrapped  or unwrapped ErrNoEnt error.

@@ -97,12 +97,12 @@ func (r *InMemoryRepo) GetAll() ([]taskstorage.TaskInfo, error) {
 	return arr, nil
 }
 
-func (r *InMemoryRepo) GetUpdatedAfter(since time.Time) ([]taskstorage.TaskInfo, error) {
+func (r *InMemoryRepo) GetUpdatedSince(since time.Time) ([]taskstorage.TaskInfo, error) {
 	results := make([]taskstorage.TaskInfo, 0)
 	r.store.Range(func(key string, entry *ent) bool {
 		entry.mu.Lock()
 		defer entry.mu.Unlock()
-		if entry.info.LastModified.After(since) {
+		if entry.info.LastModified.After(since) || entry.info.LastModified.Equal(since) {
 			results = append(results, entry.info)
 		}
 		return true

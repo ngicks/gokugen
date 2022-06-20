@@ -8,6 +8,7 @@ import (
 
 	"github.com/ngicks/gokugen"
 	"github.com/ngicks/gokugen/common"
+	"github.com/ngicks/type-param-common/set"
 )
 
 var (
@@ -40,6 +41,7 @@ type SingleNodeTaskStorage struct {
 	mu             sync.Mutex
 	getNow         common.GetNow // this field can be swapped out in test codes.
 	lastSynced     time.Time
+	knownIdForTime set.Set[string]
 	syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
 }
 
@@ -56,6 +58,7 @@ func NewSingleNodeTaskStorage(
 		workRegistry:   workRegistry,
 		taskMap:        NewTaskMap(),
 		getNow:         common.GetNowImpl{},
+		knownIdForTime: set.Set[string]{},
 		syncCtxWrapper: syncCtxWrapper,
 	}
 }
@@ -183,8 +186,8 @@ func (ts *SingleNodeTaskStorage) Sync(
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 
-	var syncedAt time.Time
-	fetchedIds, err := ts.repo.GetUpdatedAfter(ts.lastSynced)
+	syncedAt := ts.lastSynced
+	fetchedIds, err := ts.repo.GetUpdatedSince(ts.lastSynced)
 	if err != nil {
 		return
 	}
@@ -200,6 +203,20 @@ func (ts *SingleNodeTaskStorage) Sync(
 			// And also, GetUpdatedSince implemention may or may not limit the number of fetched entries.
 			// syncedAt must not be time.Now()
 			syncedAt = fetched.LastModified
+			// Also clear knownId for that time.
+			// knowId storage is needed to avoid doubly syncing.
+			// Racy clients may add tasks for same second after this agent fetched lastly.
+			//
+			// Some of database support only one second presicion.
+			// (e.g. strftime('%s') of sqlite3. you can also use `strftime('%s','now') || substr(strftime('%f','now'),4)`
+			//   to enable milli second precision. But there could still be race conditions.)
+			ts.knownIdForTime.Clear()
+		}
+
+		if ts.knownIdForTime.Has(fetched.Id) {
+			continue
+		} else {
+			ts.knownIdForTime.Add(fetched.Id)
 		}
 
 		task, err := ts.sync(schedule, fetched)

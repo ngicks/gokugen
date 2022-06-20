@@ -194,7 +194,7 @@ func (r *Sqlite3Repo) GetAll() (taskInfos []taskstorage.TaskInfo, err error) {
 	return r.fetchAllForQuery("SELECT * FROM taskInfo")
 }
 
-func (r *Sqlite3Repo) GetUpdatedAfter(since time.Time) ([]taskstorage.TaskInfo, error) {
+func (r *Sqlite3Repo) GetUpdatedSince(since time.Time) ([]taskstorage.TaskInfo, error) {
 	return r.fetchAllForQuery("SELECT * FROM taskInfo WHERE last_modified_at >= ?", since.UnixMilli())
 }
 
