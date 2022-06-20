@@ -30,6 +30,7 @@ type Repository interface {
 	// Id and LastModified field of passed TaskInfo are ignored and will be newly created.
 	Insert(TaskInfo) (taskId string, err error)
 	// GetUpdatedSince fetches all elements modified after or equal to t.
+	// Result must be ordered by LastModified in ascending order.
 	// Implementation may limit the number of fetched elements.
 	GetUpdatedSince(t time.Time) ([]TaskInfo, error)
 	// GetById fetches an element associated with the id.

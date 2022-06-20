@@ -191,11 +191,11 @@ func (r *Sqlite3Repo) fetchAllForQuery(query string, exec ...any) (taskInfos []t
 }
 
 func (r *Sqlite3Repo) GetAll() (taskInfos []taskstorage.TaskInfo, err error) {
-	return r.fetchAllForQuery("SELECT * FROM taskInfo")
+	return r.fetchAllForQuery("SELECT * FROM taskInfo ORDER BY last_modified_at ASC")
 }
 
 func (r *Sqlite3Repo) GetUpdatedSince(since time.Time) ([]taskstorage.TaskInfo, error) {
-	return r.fetchAllForQuery("SELECT * FROM taskInfo WHERE last_modified_at >= ?", since.UnixMilli())
+	return r.fetchAllForQuery("SELECT * FROM taskInfo WHERE last_modified_at >= ? ORDER BY last_modified_at ASC", since.UnixMilli())
 }
 
 func (r *Sqlite3Repo) GetById(taskId string) (taskInfo taskstorage.TaskInfo, err error) {

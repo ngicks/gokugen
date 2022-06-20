@@ -119,3 +119,56 @@ func TestSqlite3Repo(t *testing.T) {
 		t.Fatalf("%s != %s", lastUpdated.Format(time.RFC3339Nano), taskInfo.ScheduledTime.Format(time.RFC3339Nano))
 	}
 }
+
+func TestSqlite3RepoSearchResultOrder(t *testing.T) {
+	var err error
+
+	db, err := repository.NewSql3Repo(newDbFilename())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	_, err = db.Insert(taskstorage.TaskInfo{
+		WorkId:        "0",
+		Param:         nil,
+		ScheduledTime: time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Microsecond)
+	_, err = db.Insert(taskstorage.TaskInfo{
+		WorkId:        "1",
+		Param:         nil,
+		ScheduledTime: time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Microsecond)
+	_, err = db.Insert(taskstorage.TaskInfo{
+		WorkId:        "2",
+		Param:         nil,
+		ScheduledTime: time.Now(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	all, err := db.GetAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !(all[0].WorkId == "0" && all[1].WorkId == "1" && all[2].WorkId == "2") {
+		t.Fatalf("wrong query: %v", all)
+	}
+
+	updatedSince, err := db.GetUpdatedSince(all[1].LastModified)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !(updatedSince[0].WorkId == "1" && updatedSince[1].WorkId == "2") {
+		t.Fatalf("wrong query: %v", updatedSince)
+	}
+}
