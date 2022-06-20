@@ -17,6 +17,7 @@ func TestMain(m *testing.M) {
 }
 func TestScheduler(t *testing.T) {
 	t.Run("scheduler basic usage", func(t *testing.T) {
+		// TODO: change test or internal structure to remove flakiness.
 		workerNum := int64(5)
 		s := scheduler.NewScheduler(uint(workerNum), 0, &common.GetNowImpl{})
 		now := time.Now()

@@ -79,9 +79,31 @@ func mockTaskFactory() *mockTaskSet {
 	return testSet
 }
 
+func exhaustSelectChan(ch <-chan struct{}) {
+	timer := time.NewTimer(time.Millisecond)
+loop:
+	for {
+		select {
+		case <-timer.C:
+			break loop
+		default:
+			{
+				select {
+				case <-timer.C:
+					break loop
+				case <-ch:
+				default:
+				}
+			}
+		}
+	}
+}
+
 func TestTask(t *testing.T) {
 	t.Run("cancel", func(t *testing.T) {
 		taskSet := mockTaskFactory()
+		defer exhaustSelectChan(taskSet.GetSelectCh())
+
 		task := taskSet.Task()
 
 		if task.IsCancelled() {
@@ -108,6 +130,7 @@ func TestTask(t *testing.T) {
 
 	t.Run("do and cancel", func(t *testing.T) {
 		taskSet := mockTaskFactory()
+		defer exhaustSelectChan(taskSet.GetSelectCh())
 		task := taskSet.Task()
 
 		if taskSet.WorkCallCount() != 0 {
@@ -155,8 +178,9 @@ func TestTask(t *testing.T) {
 	})
 
 	t.Run("passing already closed chan to Do", func(t *testing.T) {
-		testSet := mockTaskFactory()
-		task := testSet.Task()
+		taskSet := mockTaskFactory()
+		defer exhaustSelectChan(taskSet.GetSelectCh())
+		task := taskSet.Task()
 
 		if task.IsDone() {
 			t.Fatalf("IsDone must be false")
@@ -172,8 +196,9 @@ func TestTask(t *testing.T) {
 	})
 
 	t.Run("cancelling task and closing chan passed to Do", func(t *testing.T) {
-		testSet := mockTaskFactory()
-		task := testSet.Task()
+		taskSet := mockTaskFactory()
+		defer exhaustSelectChan(taskSet.GetSelectCh())
+		task := taskSet.Task()
 
 		ctxCancelCh := make(chan struct{})
 		wg := sync.WaitGroup{}
@@ -183,14 +208,14 @@ func TestTask(t *testing.T) {
 			wg.Done()
 		}()
 
-		if testSet.IsContextCancelled() {
+		if taskSet.IsContextCancelled() {
 			t.Fatalf("ctx must NOT be cancelled at this point")
 		}
-		if testSet.IsTaskCancelled() {
+		if taskSet.IsTaskCancelled() {
 			t.Fatalf("task must NOT be cancelled at this point")
 		}
 
-		selectCh := testSet.GetSelectCh()
+		selectCh := taskSet.GetSelectCh()
 		// waiting for Do to start
 		<-selectCh
 
@@ -198,10 +223,10 @@ func TestTask(t *testing.T) {
 			task.Cancel()
 		}()
 		<-selectCh
-		if !testSet.IsTaskCancelled() {
+		if !taskSet.IsTaskCancelled() {
 			t.Fatalf("task must be cancelled")
 		}
-		if testSet.IsContextCancelled() {
+		if taskSet.IsContextCancelled() {
 			t.Fatalf("ctx must NOT be cancelled")
 		}
 
@@ -210,14 +235,14 @@ func TestTask(t *testing.T) {
 		}()
 		<-selectCh
 
-		if !testSet.IsTaskCancelled() {
+		if !taskSet.IsTaskCancelled() {
 			t.Fatalf("task must be cancelled")
 		}
-		if !testSet.IsContextCancelled() {
+		if !taskSet.IsContextCancelled() {
 			t.Fatalf("ctx must be cancelled")
 		}
 
-		testSet.Close()
+		taskSet.Close()
 		wg.Wait()
 	})
 
