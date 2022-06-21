@@ -92,7 +92,7 @@ LOOP:
 			}
 		}
 	}
-	// If task exits abnormally, called runtime.Goexit or panicing, it would not reach this line.
+	// If task exits abnormally, called runtime.Goexit or panicking, it would not reach this line.
 	normalReturn = true
 	return
 }
