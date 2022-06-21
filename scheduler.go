@@ -77,7 +77,7 @@ func NewScheduler(sched *scheduler.Scheduler) *Scheduler {
 
 func (s *Scheduler) Schedule(ctx SchedulerContext) (Task, error) {
 	schedule := s.apply(func(ctx SchedulerContext) (Task, error) {
-		return s.inner.SchedTask(
+		return s.inner.Schedule(
 			scheduler.NewTask(
 				ctx.ScheduledTime(),
 				func(

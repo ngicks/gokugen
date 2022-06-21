@@ -50,7 +50,7 @@ func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Schedu
 	return s
 }
 
-func (s *Scheduler) SchedTask(task *Task) (*TaskController, error) {
+func (s *Scheduler) Schedule(task *Task) (*TaskController, error) {
 	if s.IsEnded() {
 		return nil, ErrAlreadyEnded
 	}
