@@ -39,16 +39,10 @@ func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Schedu
 		atomic.AddInt64(&activeWorkerNum, -1)
 	}
 	s := &Scheduler{
-		feeder:        feeder,
-		cancellerLoop: NewCancellerLoop(feeder, getNow, time.Minute),
-		dispatchLoop:  NewDispatchLoop(feeder, getNow),
-		workerPool: NewWorkerPool(func(id int) *Worker[int] {
-			w, err := NewWorker(id, taskCh, received, done)
-			if err != nil {
-				panic(err)
-			}
-			return w
-		}),
+		feeder:          feeder,
+		cancellerLoop:   NewCancellerLoop(feeder, getNow, time.Minute),
+		dispatchLoop:    NewDispatchLoop(feeder, getNow),
+		workerPool:      NewWorkerPool(BuildWorkerConstructor(taskCh, received, done)),
 		activeWorkerNum: &activeWorkerNum,
 		taskCh:          taskCh,
 	}

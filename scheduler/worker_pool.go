@@ -7,20 +7,32 @@ import (
 	"sync"
 )
 
+type WorkerConstructor = func(id int) *Worker[int]
+
+func BuildWorkerConstructor(taskCh <-chan *Task, onTaskReceived func(), onTaskDone func()) WorkerConstructor {
+	return func(id int) *Worker[int] {
+		w, err := NewWorker(id, taskCh, onTaskReceived, onTaskDone)
+		if err != nil {
+			panic(err)
+		}
+		return w
+	}
+}
+
 // WorkerPool is container for workers.
 type WorkerPool struct {
 	mu     sync.RWMutex
 	status workingState
 	wg     sync.WaitGroup
 
-	workerConstructor func(id int) *Worker[int]
+	workerConstructor WorkerConstructor
 	workerIdx         int
 	workers           map[int]*Worker[int]
 	sleepingWorkers   map[int]*Worker[int]
 }
 
 func NewWorkerPool(
-	workerConstructor func(id int) *Worker[int],
+	workerConstructor WorkerConstructor,
 ) *WorkerPool {
 	w := WorkerPool{
 		workerConstructor: workerConstructor,
@@ -31,6 +43,7 @@ func NewWorkerPool(
 }
 
 func (p *WorkerPool) Add(delta uint32) (newAliveLen int) {
+	p.mu.Lock()
 	for i := uint32(0); i < delta; i++ {
 		workerId := p.workerIdx
 		p.workerIdx++
@@ -38,10 +51,9 @@ func (p *WorkerPool) Add(delta uint32) (newAliveLen int) {
 		p.wg.Add(1)
 		go p.callWorkerStart(worker, true, func(err error) {})
 
-		p.mu.Lock()
 		p.workers[worker.Id()] = worker
-		p.mu.Unlock()
 	}
+	p.mu.Unlock()
 	alive, _ := p.Len()
 	return alive
 }
