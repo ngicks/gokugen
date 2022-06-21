@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ngicks/gokugen"
@@ -12,6 +13,7 @@ import (
 var (
 	ErrOnceTask          = errors.New("task returned same schedule time")
 	ErrNonexistentWorkId = errors.New("nonexistent work id")
+	ErrStillWorking      = errors.New("task is still working")
 	ErrAlreadyScheduled  = errors.New("task is already scheduled")
 )
 
@@ -36,6 +38,7 @@ type CronLikeRescheduler struct {
 	row              RowLike
 	state            *ScheduleState
 	scheduled        bool
+	isWorking        int64
 	ongoingTask      gokugen.Task
 	shouldReschedule func(workErr error, callCount int) bool
 	workRegistry     WorkRegistry
@@ -63,6 +66,12 @@ func (c *CronLikeRescheduler) Schedule() error {
 
 	if c.err != nil {
 		return c.err
+	}
+
+	if atomic.LoadInt64(&c.isWorking) == 1 {
+		// Schedule right after Cancel may lead to this state.
+		// Overlapping scheduling is not allowed.
+		return ErrStillWorking
 	}
 
 	if c.ongoingTask != nil || c.scheduled {
@@ -113,6 +122,9 @@ func (c *CronLikeRescheduler) schedule() error {
 		gokugen.WithWorkFn(
 			paramSet,
 			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+				atomic.StoreInt64(&c.isWorking, 1)
+				defer atomic.StoreInt64(&c.isWorking, 0)
+
 				err := workRaw(ctxCancelCh, taskCancelCh, scheduled, command[1:])
 				if c.shouldReschedule != nil && c.shouldReschedule(err, callCount) {
 					c.schedule()

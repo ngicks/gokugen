@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/ngicks/type-param-common/slice"
 )
 
 var (
@@ -16,17 +18,19 @@ type WorkFn = func(targeted, current time.Time, repeat int) (any, error)
 
 type CronTab []Row
 
+var _ RowLike = Row{}
+
 // Row is representation of a crontab row. It may behave differently, but it should do similarly.
 // If each of time field has no value set (set to nil) or empty slice, the field is treated as wildcard.
 //
 // Command corresponds to a work of the row.
 // Command[0] is used as command. Rest are treated as arguments for the command.
 type Row struct {
-	Minute  *Minutes  `json:"minute"`
-	Hour    *Hours    `json:"hour"`
-	Day     *Days     `json:"day"`
-	Month   *Months   `json:"month"`
-	Weekday *Weekdays `json:"weekday"`
+	Minute  *Minutes  `json:"minute,omitempty"`
+	Hour    *Hours    `json:"hour,omitempty"`
+	Day     *Days     `json:"day,omitempty"`
+	Month   *Months   `json:"month,omitempty"`
+	Weekday *Weekdays `json:"weekday,omitempty"`
 	Command []string  `json:"command"`
 }
 
@@ -51,7 +55,7 @@ func (r Row) IsHourly() bool {
 }
 
 func (r Row) IsReboot() bool {
-	return r.Weekday.IsZero() && r.Month.IsZero() && r.Day.IsZero() && r.Hour.IsZero() && r.Minute.IsZero()
+	return r.Weekday == nil && r.Month == nil && r.Day == nil && r.Hour == nil && r.Minute == nil
 }
 
 func (r Row) IsValid() (ok bool, reason []string) {
@@ -108,13 +112,18 @@ func (r Row) NextSchedule(now time.Time) (time.Time, error) {
 							// Maybe leap year.
 							next = lastDayOfMonth(next.AddDate(0, -1, 0))
 						}
-						if next.After(now) && weekdayContain(next.Weekday(), weekdays) {
+						if next.After(now) && slice.Has(weekdays, next.Weekday()) {
 							return next, nil
 						}
 						sub := now.Sub(next)
 						switch {
 						case sub > 365*24*time.Hour:
-							break monthLoop
+							isLeapYear := isLeapYear(next)
+							if !isLeapYear {
+								break monthLoop
+							} else if isLeapYear && sub > 366*24*time.Hour {
+								break monthLoop
+							}
 						case sub > 31*24*time.Hour:
 							break dayLoop
 						case sub > 24*time.Hour:
@@ -154,11 +163,7 @@ func lastDayOfMonth(t time.Time) time.Time {
 	).AddDate(0, 1, -1)
 }
 
-func weekdayContain(target time.Weekday, sl []time.Weekday) bool {
-	for _, w := range sl {
-		if target == w {
-			return true
-		}
-	}
-	return false
+func isLeapYear(t time.Time) bool {
+	year := time.Date(t.Year(), time.December, 31, 0, 0, 0, 0, time.UTC)
+	return year.YearDay() == 366
 }
