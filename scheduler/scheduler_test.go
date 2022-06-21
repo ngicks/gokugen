@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ngicks/gokugen/common"
 	"github.com/ngicks/gokugen/scheduler"
 	"go.uber.org/goleak"
 )
@@ -19,7 +18,7 @@ func TestScheduler(t *testing.T) {
 	t.Run("scheduler basic usage", func(t *testing.T) {
 		// TODO: change test or internal structure to remove flakiness.
 		workerNum := int64(5)
-		s := scheduler.NewScheduler(uint(workerNum), 0, &common.GetNowImpl{})
+		s := scheduler.NewScheduler(uint(workerNum), 0)
 		now := time.Now()
 
 		taskTicker := make(chan struct{}, 5)
@@ -83,7 +82,7 @@ func TestScheduler(t *testing.T) {
 	})
 
 	t.Run("ended scheduler can not be started again.", func(t *testing.T) {
-		s := scheduler.NewScheduler(5, 0, &common.GetNowImpl{})
+		s := scheduler.NewScheduler(5, 0)
 		s.End()
 
 		if err := s.Start(context.TODO()); err != scheduler.ErrAlreadyEnded {
@@ -92,7 +91,7 @@ func TestScheduler(t *testing.T) {
 	})
 
 	t.Run("restart", func(t *testing.T) {
-		s := scheduler.NewScheduler(5, 0, &common.GetNowImpl{})
+		s := scheduler.NewScheduler(5, 0)
 
 		now := time.Now()
 		var count uint32

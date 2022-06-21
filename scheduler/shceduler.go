@@ -24,7 +24,11 @@ type Scheduler struct {
 	taskCh          chan *Task
 }
 
-func NewScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Scheduler {
+func NewScheduler(initialWorkerNum, queueMax uint) *Scheduler {
+	return newScheduler(initialWorkerNum, queueMax, common.GetNowImpl{})
+}
+
+func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Scheduler {
 	taskCh := make(chan *Task)
 	feeder := NewTaskFeeder(queueMax, getNow, NewTimerImpl())
 	var activeWorkerNum int64
