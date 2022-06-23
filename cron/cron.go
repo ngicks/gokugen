@@ -34,26 +34,7 @@ type Row struct {
 	Command []string  `json:"command"`
 }
 
-func (r Row) IsWeekly() bool {
-	return !r.Weekday.IsZero()
-}
-
-func (r Row) IsYearly() bool {
-	return r.Weekday.IsZero() && !r.Month.IsZero()
-}
-
-func (r Row) IsMonthly() bool {
-	return r.Weekday.IsZero() && r.Month.IsZero() && !r.Day.IsZero()
-}
-
-func (r Row) IsDaily() bool {
-	return r.Weekday.IsZero() && r.Month.IsZero() && r.Day.IsZero() && !r.Hour.IsZero()
-}
-
-func (r Row) IsHourly() bool {
-	return r.Weekday.IsZero() && r.Month.IsZero() && r.Day.IsZero() && r.Hour.IsZero() && !r.Minute.IsZero()
-}
-
+// IsReboot returns true only if all 5 time fields are nil.
 func (r Row) IsReboot() bool {
 	return r.Weekday == nil && r.Month == nil && r.Day == nil && r.Hour == nil && r.Minute == nil
 }
