@@ -207,19 +207,19 @@ func main() {
 	innerScheduler := scheduler.NewScheduler(5, 0)
 	scheduler := gokugen.NewScheduler(innerScheduler)
 
-  // Repository interface.
-  // External data storage is manipulated through this interface.
+	// Repository interface.
+	// External data storage is manipulated through this interface.
 	var repository taskstorage.RepositoryUpdater
-  // When Sync-ing, this cb is used to determine task should be restored and re-scheduled in internal scheduler.
-  // (e.g. ignore tasks if they are too old and overdue.)
+	// When Sync-ing, this cb is used to determine task should be restored and re-scheduled in internal scheduler.
+	// (e.g. ignore tasks if they are too old and overdue.)
 	var shouldRestore func(taskstorage.TaskInfo) bool
-  // workRegistry is used to retrieve work function associated to WorkId.
+	// workRegistry is used to retrieve work function associated to WorkId.
 	var workRegisry interface {
 		Load(key string) (value taskstorage.WorkFnWParam, ok bool)
 	}
-  // Context wrapper applicator function used in Sync.
-  // In Sync newly created ctx is used to reschedule.
-  // So without this function context wrapper that should be applied in upper user code is totally ignored.
+	// Context wrapper applicator function used in Sync.
+	// In Sync newly created ctx is used to reschedule.
+	// So without this function context wrapper that should be applied in upper user code is totally ignored.
 	var syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
 
 	taskStorage := taskstorage.NewSingleNodeTaskStorage(
@@ -229,12 +229,12 @@ func main() {
 		syncCtxWrapper,
 	)
 
-  // Correct usage is as middleware.
+	// Correct usage is as middleware.
 	scheduler.Use(taskStorage.Middleware(true)...)
 
-  // Sync syncs itnernal state with external.
-  // Normally TaskStorage does it reversely through middlewares, mirroring internal state to external data storage.
-  // But after rebooting system, or repository is changed externally, Sync is needed to fetch back external data.
+	// Sync syncs itnernal state with external.
+	// Normally TaskStorage does it reversely through middlewares, mirroring internal state to external data storage.
+	// But after rebooting system, or repository is changed externally, Sync is needed to fetch back external data.
 	rescheduled, schedulingErr, err := taskStorage.Sync(scheduler.Schedule)
 	if err != nil {
 		panic(err)
@@ -252,8 +252,8 @@ func main() {
 
 	var scheduleTarget time.Time
 	task, err := scheduler.Schedule(
-    // To store correct data to external repository,
-    // WorkId, Param is additionally needed.
+		// To store correct data to external repository,
+		// WorkId, Param is additionally needed.
 		gokugen.WithParam(
 			gokugen.WithWorkId(
 				gokugen.NewPlainContext(scheduleTarget, nil, nil),
@@ -271,7 +271,7 @@ func main() {
 
 	// some time later...
 
-  // cancel ctx and tear down scheduler.
+	// cancel ctx and tear down scheduler.
 	cancel()
 	innerScheduler.End()
 }
