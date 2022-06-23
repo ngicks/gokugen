@@ -19,14 +19,14 @@ func storageTestSet(
 		registry *syncparam.Map[string, gokugen.WorkFnWParam],
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
-		getTaskResults func() []error,
+		getTaskResults func() []resultSet,
 	),
 ) {
 	t.Run("basic usage", func(t *testing.T) {
 		repo, registry, sched, doAllTasks, _ := prepare()
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-			return nil
+		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+			return nil, nil
 		})
 		now := time.Now()
 		task, err := sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
@@ -71,8 +71,8 @@ func storageTestSet(
 	t.Run("cancel marks data as cancelled inside repository", func(t *testing.T) {
 		repo, registry, sched, _, _ := prepare()
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-			return nil
+		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+			return nil, nil
 		})
 		now := time.Now()
 		task, _ := sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
@@ -89,8 +89,8 @@ func storageTestSet(
 	t.Run("failed marks data as failed inside repository", func(t *testing.T) {
 		repo, registry, sched, doAllTasks, _ := prepare()
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-			return errors.New("mock error")
+		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+			return nil, errors.New("mock error")
 		})
 		now := time.Now()
 		sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
@@ -144,13 +144,13 @@ func testSync(t *testing.T, mode testMode) {
 	}
 
 	var called int64
-	registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
+	registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
 		atomic.AddInt64(&called, 1)
-		return nil
+		return nil, nil
 	})
-	registry.Store("external", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
+	registry.Store("external", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
 		atomic.AddInt64(&called, 1)
-		return nil
+		return nil, nil
 	})
 
 	sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))

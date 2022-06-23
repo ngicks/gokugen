@@ -68,7 +68,7 @@ func (s *fakeScheduler) runAllTasks() (results []error) {
 	}
 	for i := 0; i < prevLen-s.idx; i++ {
 		ctx := cur.Value.(gokugen.SchedulerContext)
-		err := ctx.Work()(make(<-chan struct{}), make(<-chan struct{}), ctx.ScheduledTime())
+		_, err := ctx.Work()(make(<-chan struct{}), make(<-chan struct{}), ctx.ScheduledTime())
 		results = append(results, err)
 
 		cur = cur.Next()
@@ -96,8 +96,8 @@ func prepareController(
 		ctxList: list.New(),
 	}
 	registry = new(syncparam.Map[string, gokugen.WorkFnWParam])
-	registry.LoadOrStore("foo", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-		return nil
+	registry.LoadOrStore("foo", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+		return nil, nil
 	})
 
 	cronLikeRescheduler = cron.NewCronLikeRescheduler(

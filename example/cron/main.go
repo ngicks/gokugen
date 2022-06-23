@@ -22,7 +22,7 @@ func main() {
 }
 
 func printNowWithId(workId string) gokugen.WorkFnWParam {
-	return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
+	return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
 		now := time.Now()
 		var isCtxCancelled, isTaskCancelled bool
 		select {
@@ -46,7 +46,7 @@ func printNowWithId(workId string) gokugen.WorkFnWParam {
 			param,
 		)
 
-		return nil
+		return nil, nil
 	}
 }
 

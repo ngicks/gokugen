@@ -44,17 +44,17 @@ func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) go
 			gokugen.WithWorkFnWrapper(
 				ctx,
 				func(self gokugen.SchedulerContext, workFn WorkFn) WorkFn {
-					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
 						taskId, err := gokugen.GetTaskId(self)
 						if err != nil {
-							return err
+							return nil, err
 						}
 						swapped, err := m.repo.UpdateState(taskId, Initialized, Working)
 						if err != nil {
-							return err
+							return nil, err
 						}
 						if !swapped {
-							return fmt.Errorf("%w: task id = %s", ErrOtherNodeWorkingOnTheTask, taskId)
+							return nil, fmt.Errorf("%w: task id = %s", ErrOtherNodeWorkingOnTheTask, taskId)
 						}
 						return workFn(ctxCancelCh, taskCancelCh, scheduled)
 					}

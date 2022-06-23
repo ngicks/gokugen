@@ -140,15 +140,15 @@ func (c *CronLikeRescheduler) schedule() error {
 	task, err := c.scheduler.Schedule(
 		gokugen.WithWorkFn(
 			paramSet,
-			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
 				atomic.StoreInt64(&c.isWorking, 1)
 				defer atomic.StoreInt64(&c.isWorking, 0)
 
-				err := workRaw(ctxCancelCh, taskCancelCh, scheduled, command[1:])
+				ret, err := workRaw(ctxCancelCh, taskCancelCh, scheduled, command[1:])
 				if c.shouldReschedule != nil && c.shouldReschedule(err, callCount) {
 					c.schedule()
 				}
-				return err
+				return ret, err
 			},
 		),
 	)

@@ -48,7 +48,7 @@ func TestScheduler(t *testing.T) {
 
 		schduler.Schedule(gokugen.NewPlainContext(
 			time.Now(),
-			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error { return nil },
+			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) { return nil, nil },
 			nil,
 		))
 

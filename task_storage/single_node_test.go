@@ -59,6 +59,11 @@ func buildTaskStorage() (
 	return
 }
 
+type resultSet struct {
+	retVal any
+	err    error
+}
+
 func prepare(
 	ts interface {
 		Middleware(freeParam bool) []gokugen.MiddlewareFunc
@@ -67,26 +72,26 @@ func prepare(
 ) (
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
-	getTaskResults func() []error,
+	getTaskResults func() []resultSet,
 ) {
 	mws := ts.Middleware(freeParam)
 
 	workMu := sync.Mutex{}
 	works := make([]taskstorage.WorkFn, 0)
 
-	taskResults := make([]error, 0)
+	taskResults := make([]resultSet, 0)
 	doAllTasks = func() {
 		workMu.Lock()
 		defer workMu.Unlock()
 		for _, v := range works {
-			result := v(make(<-chan struct{}), make(<-chan struct{}), time.Now())
-			taskResults = append(taskResults, result)
+			ret, err := v(make(<-chan struct{}), make(<-chan struct{}), time.Now())
+			taskResults = append(taskResults, resultSet{retVal: ret, err: err})
 		}
 	}
-	getTaskResults = func() []error {
+	getTaskResults = func() []resultSet {
 		workMu.Lock()
 		defer workMu.Unlock()
-		cloned := make([]error, len(taskResults))
+		cloned := make([]resultSet, len(taskResults))
 		copy(cloned, taskResults)
 		return cloned
 	}
@@ -111,7 +116,7 @@ func prepareSingle(freeParam bool) (
 	registry *syncparam.Map[string, gokugen.WorkFnWParam],
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
-	getTaskResults func() []error,
+	getTaskResults func() []resultSet,
 ) {
 	ts, _, repo, registry = buildTaskStorage()
 	sched, doAllTasks, getTaskResults = prepare(ts, freeParam)
@@ -124,14 +129,14 @@ func TestSingleNode(t *testing.T) {
 		registry *syncparam.Map[string, gokugen.WorkFnWParam],
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
-		getTaskResults func() []error,
+		getTaskResults func() []resultSet,
 	) {
 		return func() (
 			repo *repository.InMemoryRepo,
 			registry *syncparam.Map[string, gokugen.WorkFnWParam],
 			sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 			doAllTasks func(),
-			getTaskResults func() []error,
+			getTaskResults func() []resultSet,
 		) {
 			_, repo, registry, sched, doAllTasks, getTaskResults = prepareSingle(paramLoad)
 			return
@@ -149,8 +154,8 @@ func TestSingleNode(t *testing.T) {
 	t.Run("param is freed after task storage if freeParam is set to true", func(t *testing.T) {
 		_, repo, registry, sched, doAllTasks, _ := prepareSingle(true)
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
-			return nil
+		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+			return nil, nil
 		})
 
 		type exampleParam struct {

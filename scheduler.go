@@ -18,8 +18,8 @@ type Task interface {
 	IsDone() bool
 }
 
-type WorkFn = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error
-type WorkFnWParam = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error
+type WorkFn = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error)
+type WorkFnWParam = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error)
 
 var (
 	ErrValueNotFound = errors.New("value not found")

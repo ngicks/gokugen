@@ -18,7 +18,7 @@ func prepareMulti(freeParam bool) (
 	registry *syncparam.Map[string, gokugen.WorkFnWParam],
 	sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 	doAllTasks func(),
-	getTaskResults func() []error,
+	getTaskResults func() []resultSet,
 ) {
 	_, ts, repo, registry = buildTaskStorage()
 	sched, doAllTasks, getTaskResults = prepare(ts, freeParam)
@@ -31,14 +31,14 @@ func TestMultiNode(t *testing.T) {
 		registry *syncparam.Map[string, gokugen.WorkFnWParam],
 		sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 		doAllTasks func(),
-		getTaskResults func() []error,
+		getTaskResults func() []resultSet,
 	) {
 		return func() (
 			repo *repository.InMemoryRepo,
 			registry *syncparam.Map[string, gokugen.WorkFnWParam],
 			sched func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 			doAllTasks func(),
-			getTaskResults func() []error,
+			getTaskResults func() []resultSet,
 		) {
 			_, repo, registry, sched, doAllTasks, getTaskResults = prepareMulti(paramLoad)
 			return
@@ -57,9 +57,9 @@ func TestMultiNode(t *testing.T) {
 		_, repo, registry, sched, doAllTasks, getTaskResults := prepareMulti(false)
 
 		var count int64
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) error {
+		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
 			atomic.AddInt64(&count, 1)
-			return nil
+			return nil, nil
 		})
 
 		sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
@@ -83,7 +83,7 @@ func TestMultiNode(t *testing.T) {
 
 		results := getTaskResults()
 
-		if !errors.Is(results[0], taskstorage.ErrOtherNodeWorkingOnTheTask) {
+		if !errors.Is(results[0].err, taskstorage.ErrOtherNodeWorkingOnTheTask) {
 			t.Fatalf("wrong error type: %v", results[0])
 		}
 		if atomic.LoadInt64(&count) != 0 {

@@ -147,14 +147,14 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 			newCtx = gokugen.WithWorkFnWrapper(
 				newCtx,
 				func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
-					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) error {
+					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
 						param, err := gokugen.GetParam(self)
 						if err != nil {
-							return err
+							return nil, err
 						}
-						err = workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
+						ret, err := workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
 						markDoneTask(err, ts, taskId)
-						return err
+						return ret, err
 					}
 				},
 			)
