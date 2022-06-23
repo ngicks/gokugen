@@ -143,15 +143,15 @@ func (c *CronLikeRescheduler) schedule() error {
 	return nil
 }
 
-func (c *CronLikeRescheduler) Cancel() (alreadyCancelled bool) {
+func (c *CronLikeRescheduler) Cancel() (cancelled bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.scheduled = false
 	if c.ongoingTask != nil {
-		alreadyCancelled := c.ongoingTask.Cancel()
+		cancelled := c.ongoingTask.Cancel()
 		c.ongoingTask = nil
-		return alreadyCancelled
+		return cancelled
 	}
-	return true
+	return
 }
