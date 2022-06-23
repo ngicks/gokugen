@@ -16,7 +16,7 @@ The idea is based on [this article](https://qiita.com/kawasin73/items/7af6766c78
 
 - It removes cancelled tasks from min-heap at every one minute.
 - It passes 2 channels to task that would be closed if scheduler is ended and the task is cancelled respectively.
-- It has countermeasure for abnormally-returned work (i.e. calling runtime.Goexit or panicking). But not tested yet!
+- It has countermeasurement for abnormally-returned work (i.e. calling runtime.Goexit or panicking). But not tested yet!
 - Task cancellations are controlled by Cancel method of struct instance returned from Schedule.
 - Cancellation of scheduler is controlled by context.Context.
 
@@ -45,71 +45,234 @@ simplified architecture.
 
 ### ./scheduler
 
-See `./example/simple/main.go ` for exmpale usage.
-
 Scheduler is in-memory scheduler.
 
-#### Task
+With WorkerPool, scheduler limits how many tasks are being concurrently worked on.
+And with min-heap backed TaskQueue, task retrieval complexity is O(log n) where n is number of scheduled task.
 
-It defines `Task` as a minimum set of data relevant to shceduling, dispatching and executing. `Task` has scheduled-time and work, which is function to be executed on scheduled time, and some internal state like cancelled or done.
+See `./example/simple/main.go ` for exmpale usage.
 
-`Task` will be stored in min-heap.
+#### Usage
 
-#### Min-heap
+```go
+package main
 
-Scheduler stores tasks to the min-heap. It is a priority queue that prioritize less scheduled time, meaning earlist is most. It relies on [std container/heap](https://pkg.go.dev/container/heap@go1.18.3) implementation, which means element addition and retrival is O(log n) where n = len of elements.
+import (
+	"context"
+	"fmt"
+	"time"
 
-#### TaskFeeder
+	"github.com/ngicks/gokugen/scheduler"
+)
 
-TaskFeeder is wrapper of min-heap.
+func main() {
+	// 1st arg is worker num inittially created
+	// 2nd arg is max of internal min-heap. 0 is unlimited.
+	var initialWorkerNun, queueMax uint
+	sched := scheduler.NewScheduler(initialWorkerNun, queueMax)
 
-It sets timer to min element when task push / pop.
+	ctx, cancel := context.WithCancel(context.Background())
+	// Start starts scheduler.
+	go sched.Start(ctx)
 
-Popped tasks are sent to Worker-s via a channel.
+	var then time.Time
+	var work scheduler.WorkFn
+	task := scheduler.NewTask(then, work)
+	controller, err := sched.Schedule(task)
+	if err != nil {
+		// scheduling failed.
+		// Queue max or trying to schedule after scheduler already ended.
+		panic(err)
+	}
 
-#### Workers and WorkerPool
+	// You can check if task is cancelled
+	controller.IsCancelled()
+	// You can check if task is done
+	controller.IsDone()
+	// You can cancel
+	cancelled := controller.Cancel()
+	if !cancelled {
+		fmt.Println("task is already cancelled")
+	}
 
-Worker is executor of tasks. Does work on single task at a time.
+	// You can check how many workers are actively working on task.
+	fmt.Println(sched.ActiveWorkerNum())
+	// You can increase the number of Workers in WorkerPool
+	sched.AddWorker(5)
+	// You can decrease the number of Workers in WorkerPool.
+	sched.RemoveWorker(5)
 
-WorkerPool is, as its name says, a pool of Worker. It provides a way to dynamically increase and decrease workers. That number limits how many tasks can be worked on concurrently. Zero worker = no task can be sent on channel. So it should be at least 1.
+	// some time later...
 
-#### Needed Goroutines
-
-Scheduler needs 2+n goroutines, 1 for dispatch loop 1 for canceller loop and n for workers.
-
-#### Execution Delay
-
-The delay between scheduled time and actual work invocation time is typically under 30 milli secs. But you do want to do your own benchmark at your own setup.
+	// cancel ctx before calling End.
+	cancel()
+	// Call End to tear down scheduler and all internal objects.
+	// and to wait until all goroutines terminate.
+	sched.End()
+}
+```
 
 ### ./heap
 
 Min-heap with added Exclude and Peek method.
 
+Used in scheduler as TaskQueue.
+
 ### ./cron
+
+Cron package contains Row, cron row like struct, and rescheduler for Row.
 
 See `./example/cron/main.go ` for exmpale usage.
 
-Cron-tab-row-like struct and cron-like rescheduler.
+#### Usage
 
-A row will never be scheduled twice or more simultaneously. Single row must be rescheduled after corresponding work is done.
+```go
+package main
 
-- Use cron.Row to schedule task at every `n` minutes, or ever `n` day of `m` month, or alike.
-- Use cron.Builder to build cron.Row easily.
-- Use cron.Duration to simply schedule task at every specific interval.
+import (
+	"context"
+	"time"
+
+	"github.com/ngicks/gokugen"
+	"github.com/ngicks/gokugen/cron"
+	"github.com/ngicks/gokugen/scheduler"
+)
+
+func main() {
+	innerScheduler := scheduler.NewScheduler(5, 0)
+	scheduler := gokugen.NewScheduler(innerScheduler)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer func() {
+		cancel()
+		innerScheduler.End()
+	}()
+	go innerScheduler.Start(ctx)
+
+	// Do command every year, Jan, Feb, Mar, every day, 12:30.
+	row := cron.Builder{}.Month(1, 2, 3).Day().Hour(12).Minute(30).Command([]string{"command"}).Build()
+	// whence is time when scheduling target starts from.
+	var whence time.Time
+	// reshedule occurs if shouldReschedule returns true.
+	var shouldReschedule func(workErr error, callCount int) bool
+	// workRegistry is used to retrieve work function associated to command
+	var workRegisry interface {
+		Load(key string) (value cron.WorkFnWParam, ok bool)
+	}
+	controller := cron.NewCronLikeRescheduler(
+		row,
+		whence,
+		shouldReschedule,
+		scheduler,
+		workRegisry,
+	)
+
+	// Scheduling starts.
+	// After task is done, row will be recheduled for next time matched to row's configuration.
+	err := controller.Schedule()
+	if err != nil {
+		// somehow Schedule error
+		panic(err)
+	}
+
+	// some time later...
+
+	// Cancell cancells current task and rescheduling.
+	controller.Cancel()
+}
+```
 
 ### ./task_storage
 
+TaskStorage provides middlewares that stores task information to external persistent data storage.
+
 See `./example/persistent_shceduler/main.go` for example usage.
 
-TaskStorage make scheduled tasks persistent.
+#### Usage
 
-TaskStorage is middleware and sync-controller.
+```go
+package main
 
-New(Single|Multi)TaskStorage.Middleware() returns middleware and those are pluggable part of gokugen.Scheduler.
-These middlewares stores relevant information to persistent data storage by using struct implementing Repository, which is passed to New(Single|Multi)TaskStorage.
+import (
+	"context"
+	"fmt"
+	"time"
 
-See `impl/repository` for example reposoitry implementations (in-memory for tests. sqlite3 for simple usage.)
+	"github.com/ngicks/gokugen"
+	"github.com/ngicks/gokugen/scheduler"
+	taskstorage "github.com/ngicks/gokugen/task_storage"
+)
 
-Call `Sync()` after reboot of system or at interval. It will synchronize internal state with external repository. Scheduled tasks will be restored and continued. External cancel or whatever will remove correspoding task and infromation. Externally added tasks also will be scheduled internally.
+func main() {
+	innerScheduler := scheduler.NewScheduler(5, 0)
+	scheduler := gokugen.NewScheduler(innerScheduler)
 
-Passing `true` to Middleware() enables param free feature. It let those middlewares to forget param until needed. This will surely adds overhead to tasks, but will reduce memory comsumption. If your workloads are expected to be heavy and needs to handle large number of tasks, this option might be helpful, especially when param is super big.
+  // Repository interface.
+  // External data storage is manipulated through this interface.
+	var repository taskstorage.RepositoryUpdater
+  // When Sync-ing, this cb is used to determine task should be restored and re-scheduled in internal scheduler.
+  // (e.g. ignore tasks if they are too old and overdue.)
+	var shouldRestore func(taskstorage.TaskInfo) bool
+  // workRegistry is used to retrieve work function associated to WorkId.
+	var workRegisry interface {
+		Load(key string) (value taskstorage.WorkFnWParam, ok bool)
+	}
+  // Context wrapper applicator function used in Sync.
+  // In Sync newly created ctx is used to reschedule.
+  // So without this function context wrapper that should be applied in upper user code is totally ignored.
+	var syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
+
+	taskStorage := taskstorage.NewSingleNodeTaskStorage(
+		repository,
+		shouldRestore,
+		workRegisry,
+		syncCtxWrapper,
+	)
+
+  // Correct usage is as middleware.
+	scheduler.Use(taskStorage.Middleware(true)...)
+
+  // Sync syncs itnernal state with external.
+  // Normally TaskStorage does it reversely through middlewares, mirroring internal state to external data storage.
+  // But after rebooting system, or repository is changed externally, Sync is needed to fetch back external data.
+	rescheduled, schedulingErr, err := taskStorage.Sync(scheduler.Schedule)
+	if err != nil {
+		panic(err)
+	}
+
+	for taskId, taskController := range rescheduled {
+		fmt.Printf("id = %s, is scheduled for = %s\n", taskId, taskController.GetScheduledTime().Format(time.RFC3339Nano))
+	}
+	for taskId, schedulingErr := range schedulingErr {
+		fmt.Printf("id = %s, err = %s\n", taskId, schedulingErr)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go innerScheduler.Start(ctx)
+
+	var scheduleTarget time.Time
+	task, err := scheduler.Schedule(
+    // To store correct data to external repository,
+    // WorkId, Param is additionally needed.
+		gokugen.WithParam(
+			gokugen.WithWorkId(
+				gokugen.NewPlainContext(scheduleTarget, nil, nil),
+				"func1",
+			),
+			[]string{"param", "param"},
+		),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	// This is wrapped scheduler.TaskController.
+	task.IsCancelled()
+
+	// some time later...
+
+  // cancel ctx and tear down scheduler.
+	cancel()
+	innerScheduler.End()
+}
+```

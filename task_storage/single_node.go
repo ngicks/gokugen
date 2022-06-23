@@ -28,10 +28,12 @@ func (e ExternalStateChangeErr) Error() string {
 type WorkFn = gokugen.WorkFn
 type WorkFnWParam = gokugen.WorkFnWParam
 
+// WorkRegistry is used to retrieve work function by workId.
 type WorkRegistry interface {
 	Load(key string) (value WorkFnWParam, ok bool)
 }
 
+// SingleNodeTaskStorage provides ability to store task information to, and restore them from persistent data storage.
 type SingleNodeTaskStorage struct {
 	repo           Repository
 	failedIds      *SyncStateStore
@@ -45,6 +47,18 @@ type SingleNodeTaskStorage struct {
 	syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
 }
 
+// NewSingleNodeTaskStorage creates new SingleNodeTaskStorage instance.
+//
+// repo is Repository, interface to manipulate persistent data storage.
+//
+// shouldRestore is used in Sync, to decide if task should be restored and re-scheduled in internal scheduler.
+// (e.g. ignore tasks if they are too old and overdue.)
+//
+// workRegistry is used to retrieve work function associated to workId.
+// User must register functions to registry beforehand.
+//
+// syncCtxWrapper is used in Sync. Sync tries to schedule newly craeted context.
+// this context will be wrapped with syncCtxWrapper if non nil.
 func NewSingleNodeTaskStorage(
 	repo Repository,
 	shouldRestore func(TaskInfo) bool,
@@ -173,6 +187,12 @@ func markDoneTask(result error, ts *SingleNodeTaskStorage, taskId string) {
 	}
 }
 
+// Middleware returns slice of gokugen.MiddlewareFunc. Order must maintained.
+// Though these middleware, task context info is stored in external persistent data storage.
+//
+// If freeParam is true, param free up functionality is enabled.
+// It let those middlewares to forget param until needed. This adds one middleware
+// that load up param from repository right before execution.
 func (ts *SingleNodeTaskStorage) Middleware(freeParam bool) []gokugen.MiddlewareFunc {
 	if freeParam {
 		return []gokugen.MiddlewareFunc{ts.storeTask, ts.paramLoad}
@@ -180,6 +200,9 @@ func (ts *SingleNodeTaskStorage) Middleware(freeParam bool) []gokugen.Middleware
 	return []gokugen.MiddlewareFunc{ts.storeTask}
 }
 
+// Sync syncs itnernal state with external data storage.
+// Normally TaskStorage does it reversely through middlewares, mirroring internal state to external data storage.
+// But after rebooting system, or repository is changed externally, Sync is needed to fetch back external data.
 func (ts *SingleNodeTaskStorage) Sync(
 	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 ) (rescheduled map[string]gokugen.Task, schedulingErr map[string]error, err error) {
@@ -197,15 +220,15 @@ func (ts *SingleNodeTaskStorage) Sync(
 
 	for _, fetched := range fetchedIds {
 		if fetched.LastModified.After(syncedAt) {
-			// Most recent time of fetched tasks is next last-synced time.
+			// Latest time of fetched tasks is next last-synced time.
 			// We do want to set it correctly to avoid doubly syncing same entry.
 			//
-			// And also, GetUpdatedSince implemention may or may not limit the number of fetched entries.
-			// syncedAt must not be time.Now()
+			// And also, GetUpdatedSince implemention may limit the number of fetched entries.
+			// There could still be non-synced tasks that is modified at same time as syncedAt.
 			syncedAt = fetched.LastModified
-			// Also clear knownId for that time.
+			// Also clear knownId for this time.
 			// knowId storage is needed to avoid doubly syncing.
-			// Racy clients may add tasks for same second after this agent fetched lastly.
+			// Racy clients may add or modify tasks for same second after this agent fetched lastly.
 			//
 			// Some of database support only one second presicion.
 			// (e.g. strftime('%s') of sqlite3. you can also use `strftime('%s','now') || substr(strftime('%f','now'),4)`

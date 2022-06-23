@@ -7,10 +7,29 @@ import (
 	"sync"
 )
 
-type WorkerConstructor = func(id int) *Worker[int]
+type WorkerConstructor = func(id int, onTaskReceived func(), onTaskDone func()) *Worker[int]
 
-func BuildWorkerConstructor(taskCh <-chan *Task, onTaskReceived func(), onTaskDone func()) WorkerConstructor {
-	return func(id int) *Worker[int] {
+// TODO: Change invariants where onTaskReceived_ and onTaskDone_ must not be nil, to
+//  onTaskReceived__ and onTaskDone__ must no be nil
+func BuildWorkerConstructor(taskCh <-chan *Task, onTaskReceived_ func(), onTaskDone_ func()) WorkerConstructor {
+	return func(id int, onTaskReceived__ func(), onTaskDone__ func()) *Worker[int] {
+		var onTaskReceived, onTaskDone func()
+		if onTaskReceived__ != nil {
+			onTaskReceived = func() {
+				onTaskReceived_()
+				onTaskReceived__()
+			}
+		} else {
+			onTaskReceived = onTaskReceived_
+		}
+		if onTaskDone__ != nil {
+			onTaskDone = func() {
+				onTaskDone_()
+				onTaskDone__()
+			}
+		} else {
+			onTaskDone = onTaskDone_
+		}
 		w, err := NewWorker(id, taskCh, onTaskReceived, onTaskDone)
 		if err != nil {
 			panic(err)
@@ -47,7 +66,7 @@ func (p *WorkerPool) Add(delta uint32) (newAliveLen int) {
 	for i := uint32(0); i < delta; i++ {
 		workerId := p.workerIdx
 		p.workerIdx++
-		worker := p.workerConstructor(workerId)
+		worker := p.workerConstructor(workerId, nil, nil)
 		p.wg.Add(1)
 		go p.callWorkerStart(worker, true, func(err error) {})
 
@@ -121,8 +140,10 @@ func (p *WorkerPool) Remove(delta uint32) (alive int, sleeping int) {
 			worker.Stop()
 			delete(p.workers, worker.Id())
 			p.sleepingWorkers[worker.Id()] = worker
+			count++
+		} else {
+			break
 		}
-		count++
 	}
 	p.mu.Unlock()
 	return p.Len()

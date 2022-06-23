@@ -17,6 +17,11 @@ type RepositoryUpdater interface {
 	StateUpdater
 }
 
+// MultiNodeTaskStorage is almost same as SingleNodeTaskStorage but has one additional behavior.
+// MultiNodeTaskStorage tries to mark tasks as Working state right before task is being worked on.
+// If task is already marked, it fails to do task.
+// Multiple nodes can be synced to same data storage through RepositoryUpdater interface
+// And only one node will do task.
 type MultiNodeTaskStorage struct {
 	repo RepositoryUpdater
 	sns  *SingleNodeTaskStorage
