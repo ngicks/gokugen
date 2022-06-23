@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ngicks/gokugen/common"
@@ -16,12 +15,11 @@ type Scheduler struct {
 	endState
 	wg sync.WaitGroup
 
-	taskTimer       *TaskTimer
-	cancellerLoop   *CancellerLoop
-	dispatchLoop    *DispatchLoop
-	workerPool      *WorkerPool
-	activeWorkerNum *int64
-	taskCh          chan *Task
+	taskTimer     *TaskTimer
+	cancellerLoop *CancellerLoop
+	dispatchLoop  *DispatchLoop
+	workerPool    *WorkerPool
+	taskCh        chan *Task
 }
 
 func NewScheduler(initialWorkerNum, queueMax uint) *Scheduler {
@@ -31,20 +29,13 @@ func NewScheduler(initialWorkerNum, queueMax uint) *Scheduler {
 func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Scheduler {
 	taskCh := make(chan *Task)
 	taskTimer := NewTaskTimer(queueMax, getNow, common.NewTimerImpl())
-	var activeWorkerNum int64
-	received := func() {
-		atomic.AddInt64(&activeWorkerNum, 1)
-	}
-	done := func() {
-		atomic.AddInt64(&activeWorkerNum, -1)
-	}
+
 	s := &Scheduler{
-		taskTimer:       taskTimer,
-		cancellerLoop:   NewCancellerLoop(taskTimer, getNow, time.Minute),
-		dispatchLoop:    NewDispatchLoop(taskTimer, getNow),
-		workerPool:      NewWorkerPool(BuildWorkerConstructor(taskCh, received, done)),
-		activeWorkerNum: &activeWorkerNum,
-		taskCh:          taskCh,
+		taskTimer:     taskTimer,
+		cancellerLoop: NewCancellerLoop(taskTimer, getNow, time.Minute),
+		dispatchLoop:  NewDispatchLoop(taskTimer, getNow),
+		workerPool:    NewWorkerPool(BuildWorkerConstructor(taskCh, nil, nil)),
+		taskCh:        taskCh,
 	}
 	s.AddWorker(uint32(initialWorkerNum))
 	return s
@@ -113,7 +104,7 @@ func (s *Scheduler) RemoveWorker(delta uint32) (aliveWorkerNum int, sleepingWork
 }
 
 func (s *Scheduler) ActiveWorkerNum() int64 {
-	return atomic.LoadInt64(s.activeWorkerNum)
+	return s.workerPool.ActiveWorkerNum()
 }
 
 // End remove all workers and let this scheduler to step into ended-state where no new Start is allowed.

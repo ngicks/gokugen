@@ -5,30 +5,31 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 )
 
+// id must be, as its name says, unique value.
+// onTaskReceived, onTaskDone must be non nil function called at timing as name suggests.
 type WorkerConstructor = func(id int, onTaskReceived func(), onTaskDone func()) *Worker[int]
 
-// TODO: Change invariants where onTaskReceived_ and onTaskDone_ must not be nil, to
-//  onTaskReceived__ and onTaskDone__ must no be nil
+// taskCh must not be nil. onTaskReceived_, onTaskDone_ can be nil.
 func BuildWorkerConstructor(taskCh <-chan *Task, onTaskReceived_ func(), onTaskDone_ func()) WorkerConstructor {
 	return func(id int, onTaskReceived__ func(), onTaskDone__ func()) *Worker[int] {
-		var onTaskReceived, onTaskDone func()
-		if onTaskReceived__ != nil {
-			onTaskReceived = func() {
+		onTaskReceived := func() {
+			if onTaskReceived_ != nil {
 				onTaskReceived_()
+			}
+			if onTaskReceived__ != nil {
 				onTaskReceived__()
 			}
-		} else {
-			onTaskReceived = onTaskReceived_
 		}
-		if onTaskDone__ != nil {
-			onTaskDone = func() {
+		onTaskDone := func() {
+			if onTaskDone_ != nil {
 				onTaskDone_()
+			}
+			if onTaskDone__ != nil {
 				onTaskDone__()
 			}
-		} else {
-			onTaskDone = onTaskDone_
 		}
 		w, err := NewWorker(id, taskCh, onTaskReceived, onTaskDone)
 		if err != nil {
@@ -43,6 +44,8 @@ type WorkerPool struct {
 	mu     sync.RWMutex
 	status workingState
 	wg     sync.WaitGroup
+
+	activeWorkerNum int64
 
 	workerConstructor WorkerConstructor
 	workerIdx         int
@@ -66,7 +69,11 @@ func (p *WorkerPool) Add(delta uint32) (newAliveLen int) {
 	for i := uint32(0); i < delta; i++ {
 		workerId := p.workerIdx
 		p.workerIdx++
-		worker := p.workerConstructor(workerId, nil, nil)
+		worker := p.workerConstructor(
+			workerId,
+			func() { atomic.AddInt64(&p.activeWorkerNum, 1) },
+			func() { atomic.AddInt64(&p.activeWorkerNum, -1) },
+		)
 		p.wg.Add(1)
 		go p.callWorkerStart(worker, true, func(err error) {})
 
@@ -153,6 +160,10 @@ func (p *WorkerPool) Len() (alive int, sleeping int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return len(p.workers), len(p.sleepingWorkers)
+}
+
+func (p *WorkerPool) ActiveWorkerNum() int64 {
+	return atomic.LoadInt64(&p.activeWorkerNum)
 }
 
 // Kill kills all worker.
