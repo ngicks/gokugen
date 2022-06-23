@@ -20,11 +20,25 @@ type CronTab []Row
 
 var _ RowLike = Row{}
 
-// Row is representation of a crontab row. It may behave differently, but it should do similarly.
-// If each of time field has no value set (set to nil) or empty slice, the field is treated as wildcard.
+// Row is crontab row like data structure.
+// Nil or empty time fields are treated as wildcard that matches every value of corresponding field.
+// Row with all nil time fields is `Reboot`. NextSchedule of `Reboot` returns simply passed `now`.
 //
 // Command corresponds to a work of the row.
 // Command[0] is used as command. Rest are treated as arguments for the command.
+//
+// Data range is as below
+//
+// | field   | allowed value                 |
+// | ------- | ----------------------------- |
+// | Minute  | 0-59                          |
+// | Hour    | 0-23                          |
+// | Day     | 1-31                          |
+// | Month   | 1-12                          |
+// | Weekday | 0-6                           |
+// | Command | command name, param, param... |
+//
+// When any of time fields has value out of this range or command is invalid, IsValid() returns (false, non-empty-slice).
 type Row struct {
 	Minute  *Minutes  `json:"minute,omitempty"`
 	Hour    *Hours    `json:"hour,omitempty"`
@@ -39,6 +53,8 @@ func (r Row) IsReboot() bool {
 	return r.Weekday == nil && r.Month == nil && r.Day == nil && r.Hour == nil && r.Minute == nil
 }
 
+// IsValid checks if r is valid. ok is false when any of time fields are out of allowed range
+// or command is invalid. reason string slice is always non nil.
 func (r Row) IsValid() (ok bool, reason []string) {
 	if !r.Minute.IsValid() {
 		reason = append(reason, fmt.Sprintf("invalid minute: %v", *r.Minute))
@@ -62,10 +78,14 @@ func (r Row) IsValid() (ok bool, reason []string) {
 	return len(reason) == 0, reason
 }
 
+// IsCommandValid returns false if Command is nil or empty. returns true otherwise.
 func (r Row) IsCommandValid() bool {
 	return r.Command != nil && len(r.Command) != 0
 }
 
+// NextSchedule returns time matched to r's configuration and most recent but after now.
+// Returned time has same location as one of now.
+// error is non nil if r is invalid.
 func (r Row) NextSchedule(now time.Time) (time.Time, error) {
 	if ok, reason := r.IsValid(); !ok {
 		return time.Time{}, fmt.Errorf("%v: %s", ErrMalformed, strings.Join(reason, ", "))
@@ -117,9 +137,12 @@ func (r Row) NextSchedule(now time.Time) (time.Time, error) {
 			}
 		}
 	}
+	// Could this happen?
 	return now, ErrNoMatch
 }
 
+// GetCommand returns []string if Command is valid, nil otherwise.
+// Behavior after mutating returned slice is undefined.
 func (r Row) GetCommand() []string {
 	if r.IsCommandValid() {
 		return r.Command

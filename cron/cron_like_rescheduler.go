@@ -31,6 +31,7 @@ type RowLike interface {
 	GetCommand() []string
 }
 
+// CronLikeRescheduler schedules command of RowLike according to its configuration.
 type CronLikeRescheduler struct {
 	mu               sync.Mutex
 	err              error
@@ -45,21 +46,39 @@ type CronLikeRescheduler struct {
 }
 
 func NewCronLikeRescheduler(
-	taskAndSchedule RowLike,
+	rowLike RowLike,
 	whence time.Time,
 	shouldReschedule func(workErr error, callCount int) bool,
 	scheduler Scheduler,
 	workRegistry WorkRegistry,
 ) *CronLikeRescheduler {
 	return &CronLikeRescheduler{
-		row:              taskAndSchedule,
-		state:            NewScheduleState(taskAndSchedule, whence),
+		row:              rowLike,
+		state:            NewScheduleState(rowLike, whence),
 		scheduler:        scheduler,
 		shouldReschedule: shouldReschedule,
 		workRegistry:     workRegistry,
 	}
 }
 
+// Schedule starts scheduling.
+// If shouldReschedule is non nil and if it returns true, Rowlike would be rescheduled to its next time.
+//
+// ErrStillWorking is returned if task c created is still being worked on.
+// Schedule right after Cancel may cause this state. No overlapping schedule is not allowed.
+//
+// ErrAlreadyScheduled is returned if second or more call is without preceding Cancel.
+//
+// ErrOnceTask is returned if RowLike is once task.
+// c is returned if command of RowLike is invalid.
+//
+// ErrNonexistentWorkId is returned when command does not exist in WorkRegistry.
+//
+// Scheduler's error is returned when Schedule returns error.
+//
+// ErrOnceTask, ErrOnceTask and Scheduler's error are sticky. Once Schedule returned it, Schedule always return that error.
+//
+// All error may or may not be wrapped. User should use errors.Is() or similar implementation.
 func (c *CronLikeRescheduler) Schedule() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
