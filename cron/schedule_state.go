@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-type ScheduleTime interface {
+type NextScheduler interface {
 	NextSchedule(now time.Time) (time.Time, error)
 }
 
@@ -15,7 +15,7 @@ type ScheduleTime interface {
 // All methods of ScheduleState are not concurrent-safe. Multiple goroutine must not call them directly.
 type ScheduleState struct {
 	prevTime  time.Time
-	schedTime ScheduleTime
+	schedTime NextScheduler
 	callCount int
 }
 

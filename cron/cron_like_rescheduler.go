@@ -27,7 +27,7 @@ type Scheduler interface {
 }
 
 type RowLike interface {
-	NextSchedule(now time.Time) (time.Time, error)
+	NextScheduler
 	GetCommand() []string
 }
 
