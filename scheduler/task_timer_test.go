@@ -4,11 +4,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ngicks/gokugen/common"
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-func TestFeeder(t *testing.T) {
-	t.Run("feeder basic usage", func(t *testing.T) {
+func TestTaskTimer(t *testing.T) {
+	t.Run("TaskTimer basic usage", func(t *testing.T) {
 		now := time.Now()
 		g := getNowDummyImpl{
 			dummy: now,
@@ -25,7 +26,7 @@ func TestFeeder(t *testing.T) {
 			)
 		}
 
-		f := scheduler.NewTaskFeeder(0, &g, scheduler.NewTimerImpl())
+		f := scheduler.NewTaskTimer(0, &g, common.NewTimerImpl())
 
 		var task []*scheduler.Task
 		task = f.GetScheduledTask(now)
@@ -75,9 +76,9 @@ func TestFeeder(t *testing.T) {
 			if !timer.Stop() {
 				<-timer.C
 			}
-			return &timerDummyImpl{timer: timer}
+			return &timerDummyImpl{timer: common.NewTimerImpl()}
 		}()
-		f := scheduler.NewTaskFeeder(0, &g, dummyTimer)
+		f := scheduler.NewTaskTimer(0, &g, dummyTimer)
 
 		f.Push(scheduler.NewTask(
 			now.Add(-2*time.Second),

@@ -11,8 +11,10 @@ var (
 	ErrMax = errors.New("heap size exceeds max limit")
 )
 
+// TaskQueue is priority queue.
+// Task with least scheduled time has most priority.
 type TaskQueue interface {
-	// Len returns number of element stored in underlying heap.
+	// Len returns number of elements stored in underlying heap.
 	// The complexity of typical implementation is O(1)
 	Len() int
 	// Push pushes *Task into heap.

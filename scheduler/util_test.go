@@ -4,11 +4,10 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen/common"
-	"github.com/ngicks/gokugen/scheduler"
 )
 
 var _ common.GetNow = new(getNowDummyImpl)
-var _ scheduler.ITimer = new(timerDummyImpl)
+var _ common.ITimer = new(timerDummyImpl)
 
 type getNowDummyImpl struct {
 	dummy time.Time
@@ -20,17 +19,17 @@ func (g *getNowDummyImpl) GetNow() time.Time {
 
 type timerDummyImpl struct {
 	resetArg []time.Duration
-	timer    *time.Timer
+	timer    *common.TimerImpl
 }
 
 func (t *timerDummyImpl) GetChan() <-chan time.Time {
 	return t.timer.C
 }
 
-func (t *timerDummyImpl) Reset(d time.Duration) bool {
-	t.resetArg = append(t.resetArg, d)
-	return t.timer.Reset(d)
+func (t *timerDummyImpl) Reset(to, now time.Time) {
+	t.resetArg = append(t.resetArg, to.Sub(now))
+	t.timer.Reset(to, now)
 }
-func (t *timerDummyImpl) Stop() bool {
-	return t.timer.Stop()
+func (t *timerDummyImpl) Stop() {
+	t.timer.Stop()
 }

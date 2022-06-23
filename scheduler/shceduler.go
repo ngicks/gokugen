@@ -16,7 +16,7 @@ type Scheduler struct {
 	endState
 	wg sync.WaitGroup
 
-	feeder          *TaskFeeder
+	taskTimer       *TaskTimer
 	cancellerLoop   *CancellerLoop
 	dispatchLoop    *DispatchLoop
 	workerPool      *WorkerPool
@@ -30,7 +30,7 @@ func NewScheduler(initialWorkerNum, queueMax uint) *Scheduler {
 
 func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Scheduler {
 	taskCh := make(chan *Task)
-	feeder := NewTaskFeeder(queueMax, getNow, NewTimerImpl())
+	taskTimer := NewTaskTimer(queueMax, getNow, common.NewTimerImpl())
 	var activeWorkerNum int64
 	received := func() {
 		atomic.AddInt64(&activeWorkerNum, 1)
@@ -39,9 +39,9 @@ func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Schedu
 		atomic.AddInt64(&activeWorkerNum, -1)
 	}
 	s := &Scheduler{
-		feeder:          feeder,
-		cancellerLoop:   NewCancellerLoop(feeder, getNow, time.Minute),
-		dispatchLoop:    NewDispatchLoop(feeder, getNow),
+		taskTimer:       taskTimer,
+		cancellerLoop:   NewCancellerLoop(taskTimer, getNow, time.Minute),
+		dispatchLoop:    NewDispatchLoop(taskTimer, getNow),
 		workerPool:      NewWorkerPool(BuildWorkerConstructor(taskCh, received, done)),
 		activeWorkerNum: &activeWorkerNum,
 		taskCh:          taskCh,
@@ -89,14 +89,14 @@ func (s *Scheduler) Start(ctx context.Context) error {
 
 	err := new(LoopError)
 	s.wg.Add(1)
-	s.feeder.Start()
+	s.taskTimer.Start()
 	go func() {
 		err.cancellerLoopErr = s.cancellerLoop.Start(ctx)
 		s.wg.Done()
 	}()
 	err.dispatchLoopErr = s.dispatchLoop.Start(ctx, s.taskCh)
 	s.wg.Wait()
-	s.feeder.Stop()
+	s.taskTimer.Stop()
 
 	if err.cancellerLoopErr == nil && err.dispatchLoopErr == nil {
 		return nil

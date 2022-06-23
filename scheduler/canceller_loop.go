@@ -8,36 +8,36 @@ import (
 	"github.com/ngicks/gokugen/common"
 )
 
-// CancellerLoop requests Feeder to remove cancelled element at a given interval.
-// This is intended to be only one running instance per a Feeder.
+// CancellerLoop requests TaskTimer to remove cancelled element at a given interval.
+// This is intended to be only one running instance per a TaskTimer.
 type CancellerLoop struct {
 	workingState
-	feeder   *TaskFeeder
-	getNow   common.GetNow
-	interval time.Duration
+	taskTimer *TaskTimer
+	getNow    common.GetNow
+	interval  time.Duration
 }
 
 // NewCancellerLoop creates a CancellerLoop.
 //
 // panic: when one or more of arguments is nil or zero-vakue.
-func NewCancellerLoop(feeder *TaskFeeder, getNow common.GetNow, interval time.Duration) *CancellerLoop {
-	if feeder == nil || getNow == nil || interval <= 0 {
+func NewCancellerLoop(taskTimer *TaskTimer, getNow common.GetNow, interval time.Duration) *CancellerLoop {
+	if taskTimer == nil || getNow == nil || interval <= 0 {
 		panic(fmt.Errorf(
-			"%w: one or more of aruguments is nil or zero-value. feeder is nil=[%t], getNow is nil=[%t], interval is zero=[%t]",
+			"%w: one or more of aruguments is nil or zero-value. taskTimer is nil=[%t], getNow is nil=[%t], interval is zero=[%t]",
 			ErrInvalidArg,
-			feeder == nil,
+			taskTimer == nil,
 			getNow == nil,
 			interval == 0,
 		))
 	}
 	return &CancellerLoop{
-		feeder:   feeder,
-		getNow:   getNow,
-		interval: interval,
+		taskTimer: taskTimer,
+		getNow:    getNow,
+		interval:  interval,
 	}
 }
 
-// Start starts a loop that requests Feeder to remove cancelled tasks at at given interval.
+// Start starts a loop that requests TaskTimer to remove cancelled tasks at at given interval.
 // Cancelling is controlled by ctx.
 //
 // If ctx is nil, Start immediately returns ErrInvalidArg.
@@ -61,19 +61,19 @@ loop:
 		case <-ctx.Done():
 			break loop
 		case <-ticker.C:
-			removeCancelled(l.feeder, l.getNow)
+			removeCancelled(l.taskTimer, l.getNow)
 		}
 	}
 	return nil
 }
 
-func removeCancelled(feeder *TaskFeeder, getNow common.GetNow) (removed bool) {
-	p := feeder.Peek()
+func removeCancelled(taskTimer *TaskTimer, getNow common.GetNow) (removed bool) {
+	p := taskTimer.Peek()
 	if p != nil && p.scheduledTime.Sub(getNow.GetNow()) > time.Second {
 		// Racy Push may add min element in between previous Peek and this RemoveCancelled.
-		// But it is ok because each feeder method is thread safe.
+		// But it is ok because each taskTimer method is thread safe.
 		// Benchmark shows RemoveCancelled takes only a few micro secs.
-		feeder.RemoveCancelled(0, 10_000)
+		taskTimer.RemoveCancelled(0, 10_000)
 		return true
 	}
 	return false

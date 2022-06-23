@@ -7,44 +7,44 @@ import (
 	"github.com/ngicks/gokugen/common"
 )
 
-// DispatchLoop waits for a Feeder to emit the timer signal,
+// DispatchLoop waits for a TaskTimer to emit the timer signal,
 // and then sends received tasks to worker channel.
 //
 // Multiple calls of Start is ok. But performance benefits are questionable.
 type DispatchLoop struct {
-	feeder *TaskFeeder
-	getNow common.GetNow
+	taskTimer *TaskTimer
+	getNow    common.GetNow
 }
 
 // NewDispatchLoop creates DispatchLoop.
 //
 // panic: when one or more of arguments is nil.
-func NewDispatchLoop(feeder *TaskFeeder, getNow common.GetNow) *DispatchLoop {
-	if feeder == nil || getNow == nil {
+func NewDispatchLoop(taskTimer *TaskTimer, getNow common.GetNow) *DispatchLoop {
+	if taskTimer == nil || getNow == nil {
 		panic(fmt.Errorf(
-			"%w: one or more of aruguments is nil. feeder is nil=[%t], getNow is nil=[%t]",
+			"%w: one or more of aruguments is nil. taskTimer is nil=[%t], getNow is nil=[%t]",
 			ErrInvalidArg,
-			feeder == nil,
+			taskTimer == nil,
 			getNow == nil,
 		))
 	}
 	return &DispatchLoop{
-		feeder: feeder,
-		getNow: getNow,
+		taskTimer: taskTimer,
+		getNow:    getNow,
 	}
 }
 
 func (l *DispatchLoop) PushTask(task *Task) error {
-	return l.feeder.Push(task)
+	return l.taskTimer.Push(task)
 }
 
 func (l *DispatchLoop) TaskLen() int {
-	return l.feeder.Len()
+	return l.taskTimer.Len()
 }
 
 // Start starts a dispatch loop.
-// Start does not have reponsibility of starting the Feeder.
-// A caller must ensure that the feeder is started.
+// Start does not have reponsibility of starting the TaskTimer.
+// A caller must ensure that the taskTimer is started.
 // Calling multiple Start in different goroutines is allowed, but performance benefits are questionable.
 // Cancelling ctx will end this Start loop, with returning nil.
 //
@@ -61,8 +61,8 @@ loop:
 		select {
 		case <-ctx.Done():
 			break loop
-		case <-l.feeder.GetTimer():
-			next := l.feeder.GetScheduledTask(l.getNow.GetNow())
+		case <-l.taskTimer.GetTimer():
+			next := l.taskTimer.GetScheduledTask(l.getNow.GetNow())
 			if next == nil {
 				continue
 			}
@@ -70,7 +70,7 @@ loop:
 				if ctx.Err() != nil {
 					// race condition causes deadlock here.
 					// must not send in that case.
-					l.feeder.Push(w, false)
+					l.taskTimer.Push(w, false)
 				} else {
 					taskCh <- w
 				}
