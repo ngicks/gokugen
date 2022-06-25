@@ -25,7 +25,7 @@ func mockMw(hook func(ctx gokugen.SchedulerContext) gokugen.SchedulerContext) go
 func TestScheduler(t *testing.T) {
 	t.Run("Use order is mw application order", func(t *testing.T) {
 		innerScheduler := scheduler.NewScheduler(1, 0)
-		schduler := gokugen.NewScheduler(innerScheduler)
+		schduler := gokugen.NewMiddlewareApplicator(innerScheduler)
 
 		orderMu := sync.Mutex{}
 		order := make([]string, 0)

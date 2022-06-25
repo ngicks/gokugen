@@ -8,6 +8,10 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 )
 
+type Scheduler interface {
+	Schedule(task *scheduler.Task) (*scheduler.TaskController, error)
+}
+
 var _ Task = &scheduler.TaskController{}
 
 type Task interface {
@@ -62,22 +66,22 @@ type ScheduleHandlerFn = func(ctx SchedulerContext) (Task, error)
 
 type MiddlewareFunc = func(ScheduleHandlerFn) ScheduleHandlerFn
 
-type Scheduler struct {
-	inner *scheduler.Scheduler
-	mwMu  sync.Mutex
-	mw    []MiddlewareFunc
+type MiddlewareApplicator[T Scheduler] struct {
+	scheduler T
+	mwMu      sync.Mutex
+	mw        []MiddlewareFunc
 }
 
-func NewScheduler(sched *scheduler.Scheduler) *Scheduler {
-	return &Scheduler{
-		inner: sched,
-		mw:    make([]MiddlewareFunc, 0),
+func NewMiddlewareApplicator[T Scheduler](scheduler T) *MiddlewareApplicator[T] {
+	return &MiddlewareApplicator[T]{
+		scheduler: scheduler,
+		mw:        make([]MiddlewareFunc, 0),
 	}
 }
 
-func (s *Scheduler) Schedule(ctx SchedulerContext) (Task, error) {
+func (s *MiddlewareApplicator[T]) Schedule(ctx SchedulerContext) (Task, error) {
 	schedule := s.apply(func(ctx SchedulerContext) (Task, error) {
-		return s.inner.Schedule(
+		return s.scheduler.Schedule(
 			scheduler.NewTask(
 				ctx.ScheduledTime(),
 				func(
@@ -92,14 +96,18 @@ func (s *Scheduler) Schedule(ctx SchedulerContext) (Task, error) {
 	return schedule(ctx)
 }
 
-func (s *Scheduler) Use(mw ...MiddlewareFunc) {
+func (ma *MiddlewareApplicator[T]) Scheduler() T {
+	return ma.scheduler
+}
+
+func (s *MiddlewareApplicator[T]) Use(mw ...MiddlewareFunc) {
 	s.mwMu.Lock()
 	defer s.mwMu.Unlock()
 
 	s.mw = append(s.mw, mw...)
 }
 
-func (s *Scheduler) apply(schedule ScheduleHandlerFn) ScheduleHandlerFn {
+func (s *MiddlewareApplicator[T]) apply(schedule ScheduleHandlerFn) ScheduleHandlerFn {
 	s.mwMu.Lock()
 	defer s.mwMu.Unlock()
 

@@ -59,8 +59,7 @@ func printNowWithId(workId string) gokugen.WorkFnWParam {
 }
 
 func prepare(dbFilename string) (
-	sched *gokugen.Scheduler,
-	innerScheduler *scheduler.Scheduler,
+	sched *gokugen.MiddlewareApplicator[*scheduler.Scheduler],
 	repo *repository.Sqlite3Repo,
 	workRegistory *syncparam.Map[string, gokugen.WorkFnWParam],
 	taskStorage *taskstorage.SingleNodeTaskStorage,
@@ -75,8 +74,7 @@ func prepare(dbFilename string) (
 	workRegistory.Store("func2", printNowWithId("func2"))
 	workRegistory.Store("func3", printNowWithId("func3"))
 
-	innerScheduler = scheduler.NewScheduler(5, 0)
-	sched = gokugen.NewScheduler(innerScheduler)
+	sched = gokugen.NewMiddlewareApplicator(scheduler.NewScheduler(5, 0))
 
 	taskStorage = taskstorage.NewSingleNodeTaskStorage(
 		repo,
@@ -105,7 +103,7 @@ func _main() (err error) {
 	}
 	dbFilename := filepath.Join(p, "db")
 
-	sched, innerScheduler, repo, _, _, err := prepare(dbFilename)
+	sched, repo, _, _, err := prepare(dbFilename)
 	if err != nil {
 		return err
 	}
@@ -141,9 +139,9 @@ func _main() (err error) {
 	)
 
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(2*time.Second))
-	innerScheduler.Start(ctx)
+	sched.Scheduler().Start(ctx)
 	cancel()
-	innerScheduler.End()
+	sched.Scheduler().End()
 
 	fmt.Println("after 1st teardown: tasks in repository")
 	taskInfos, err := repo.GetAll()
@@ -154,7 +152,7 @@ func _main() (err error) {
 		printJsonIndent(v)
 	}
 
-	sched, innerScheduler, _, _, taskStorage, err := prepare(dbFilename)
+	sched, _, _, taskStorage, err := prepare(dbFilename)
 	if err != nil {
 		return
 	}
@@ -168,9 +166,9 @@ func _main() (err error) {
 	printJsonIndent(schedulingErr)
 
 	ctx, cancel = context.WithDeadline(context.Background(), now.Add(7*time.Second))
-	innerScheduler.Start(ctx)
+	sched.Scheduler().Start(ctx)
 	cancel()
-	innerScheduler.End()
+	sched.Scheduler().End()
 
 	fmt.Println("after 2nd teardown: tasks in repository")
 	taskInfos, err = repo.GetAll()

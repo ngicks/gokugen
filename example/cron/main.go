@@ -89,8 +89,7 @@ func (pr PseudoRegistry) Load(key string) (value gokugen.WorkFnWParam, ok bool) 
 func _main() (err error) {
 	now := time.Now()
 
-	innerScheduler := scheduler.NewScheduler(5, 0)
-	sched := gokugen.NewScheduler(innerScheduler)
+	sched := gokugen.NewMiddlewareApplicator(scheduler.NewScheduler(5, 0))
 
 	rows := make([]cron.RowLike, 0)
 	for _, r := range tab {
@@ -110,7 +109,7 @@ func _main() (err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go innerScheduler.Start(ctx)
+	go sched.Scheduler().Start(ctx)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
@@ -124,7 +123,7 @@ func _main() (err error) {
 		v.Cancel()
 	}
 	cancel()
-	innerScheduler.End()
+	sched.Scheduler().End()
 
 	return
 }
