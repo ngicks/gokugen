@@ -2,15 +2,15 @@ package repository
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/hex"
 	"io"
-	"math/rand"
 	"sync"
 )
 
 type RandStringGenerator struct {
 	randMu         sync.Mutex
-	rand           *rand.Rand
+	randReader     io.Reader
 	byteLen        uint
 	bufPool        sync.Pool
 	encoderFactory func(r io.Writer) io.Writer
@@ -21,12 +21,11 @@ func NewRandStringGenerator(seed int64, byteLen uint, encoderFactory func(r io.W
 		encoderFactory = hex.NewEncoder
 	}
 	return &RandStringGenerator{
-		rand:    rand.New(rand.NewSource(seed)),
-		byteLen: byteLen,
+		randReader: rand.Reader,
+		byteLen:    byteLen,
 		bufPool: sync.Pool{
 			New: func() any {
-				buf := bytes.NewBuffer(make([]byte, 32))
-				buf.Reset()
+				buf := bytes.NewBuffer(make([]byte, 0, int(byteLen)))
 				return buf
 			},
 		},
@@ -44,7 +43,7 @@ func (f *RandStringGenerator) Generate() (randomStr string, err error) {
 	encoder := f.encoderFactory(buf)
 
 	f.randMu.Lock()
-	_, err = io.CopyN(encoder, f.rand, int64(f.byteLen))
+	_, err = io.CopyN(encoder, f.randReader, int64(f.byteLen))
 	f.randMu.Unlock()
 
 	if cl, ok := encoder.(io.Closer); ok {
