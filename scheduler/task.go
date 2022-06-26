@@ -76,6 +76,12 @@ type TaskController struct {
 	t *Task
 }
 
+func NewTaskController(t *Task) *TaskController {
+	return &TaskController{
+		t: t,
+	}
+}
+
 func (t *TaskController) GetScheduledTime() time.Time {
 	return t.t.GetScheduledTime()
 }

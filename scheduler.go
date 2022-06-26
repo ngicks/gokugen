@@ -8,6 +8,8 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 )
 
+//go:generate mockgen -source scheduler.go -destination __mock/scheduler.go
+
 type Scheduler interface {
 	Schedule(task *scheduler.Task) (*scheduler.TaskController, error)
 }
@@ -64,7 +66,7 @@ type SchedulerContext interface {
 
 type ScheduleHandlerFn = func(ctx SchedulerContext) (Task, error)
 
-type MiddlewareFunc = func(ScheduleHandlerFn) ScheduleHandlerFn
+type MiddlewareFunc = func(handler ScheduleHandlerFn) ScheduleHandlerFn
 
 type MiddlewareApplicator[T Scheduler] struct {
 	scheduler T

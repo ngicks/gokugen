@@ -6,6 +6,8 @@ import (
 	"github.com/ngicks/gokugen"
 )
 
+//go:generate mockgen -source log.go -destination __mock/log.go
+
 type Logger interface {
 	Info(taskId, workId string, v any)
 	Error(taskId, workId string, e error)
@@ -15,7 +17,13 @@ type LogMiddleware struct {
 	logger Logger
 }
 
-func (mw LogMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
+func New(logger Logger) *LogMiddleware {
+	return &LogMiddleware{
+		logger: logger,
+	}
+}
+
+func (mw *LogMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
 		return handler(gokugen.WithWorkFnWrapper(
 			ctx,
