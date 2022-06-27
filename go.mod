@@ -2,8 +2,6 @@ module github.com/ngicks/gokugen
 
 go 1.18
 
-replace github.com/ngicks/gokugen => ./
-
 require (
 	github.com/golang/mock v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.13
