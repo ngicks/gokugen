@@ -30,34 +30,24 @@ func TestLog(t *testing.T) {
 
 	ma := gokugen.NewMiddlewareApplicator(mockSched)
 
-	inputCtx :=
-		gokugen.WithWorkId(
-			gokugen.WithTaskId(
-				gokugen.NewPlainContext(
-					time.Now(),
-					func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
-						return "baz", nil
-					},
-					nil,
-				),
-				"foo",
-			),
-			"bar",
-		)
-	inputError :=
-		gokugen.WithWorkId(
-			gokugen.WithTaskId(
-				gokugen.NewPlainContext(
-					time.Now(),
-					func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
-						return "", mockErr
-					},
-					nil,
-				),
-				"qux",
-			),
-			"quux",
-		)
+	inputCtx := gokugen.BuildContext(
+		time.Now(),
+		func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+			return "baz", nil
+		},
+		nil,
+		gokugen.WithTaskIdOption("foo"),
+		gokugen.WithWorkIdOption("bar"),
+	)
+	inputError := gokugen.BuildContext(
+		time.Now(),
+		func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+			return "", mockErr
+		},
+		nil,
+		gokugen.WithTaskIdOption("qux"),
+		gokugen.WithWorkIdOption("quux"),
+	)
 
 	ma.Use(
 		logmw.New(mockLogger).Middleware,

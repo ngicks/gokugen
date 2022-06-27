@@ -62,7 +62,15 @@ func TestMultiNode(t *testing.T) {
 			return nil, nil
 		})
 
-		sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
+		sched(
+			gokugen.BuildContext(
+				time.Now(),
+				nil,
+				nil,
+				gokugen.WithParamOption(nil),
+				gokugen.WithWorkIdOption("foobar"),
+			),
+		)
 
 		storedTasks, _ := repo.GetAll()
 		task := storedTasks[0]

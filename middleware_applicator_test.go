@@ -6,45 +6,40 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen"
-	"github.com/ngicks/gokugen/scheduler"
+	mock_gokugen "github.com/ngicks/gokugen/__mock"
+	"github.com/ngicks/gokugen/middleware/observe"
 	"github.com/stretchr/testify/require"
 )
 
-func mockMw(hook func(ctx gokugen.SchedulerContext) gokugen.SchedulerContext) gokugen.MiddlewareFunc {
-	return func(shf gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
-		return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-			newCtx := hook(ctx)
-			if newCtx != nil {
-				return shf(newCtx)
-			}
-			return shf(ctx)
-		}
-	}
-}
-
 func TestScheduler(t *testing.T) {
 	t.Run("Use order is mw application order", func(t *testing.T) {
-		innerScheduler := scheduler.NewScheduler(1, 0)
-		schduler := gokugen.NewMiddlewareApplicator(innerScheduler)
+		_, mockSched, getTrappedTask := mock_gokugen.BuildMockScheduler(t)
+
+		schduler := gokugen.NewMiddlewareApplicator(mockSched)
 
 		orderMu := sync.Mutex{}
 		order := make([]string, 0)
-		hook := func(label string) func(ctx gokugen.SchedulerContext) gokugen.SchedulerContext {
-			return func(ctx gokugen.SchedulerContext) gokugen.SchedulerContext {
+		hook := func(label1, label2 string) (ctxObserver func(ctx gokugen.SchedulerContext), workFnObserver func(ret any, err error)) {
+			ctxObserver = func(ctx gokugen.SchedulerContext) {
 				orderMu.Lock()
 				defer orderMu.Unlock()
-				order = append(order, label)
-				return nil
+				order = append(order, label1)
 			}
+			workFnObserver = func(ret any, err error) {
+				orderMu.Lock()
+				defer orderMu.Unlock()
+				order = append(order, label2)
+			}
+			return
 		}
-		mw1 := mockMw(hook("1"))
-		mw2 := mockMw(hook("2"))
-		mw3 := mockMw(hook("3"))
-		mw4 := mockMw(hook("4"))
+		mw1 := observe.New(hook("ctx1", "work1"))
+		mw2 := observe.New(hook("ctx2", "work2"))
+		mw3 := observe.New(hook("ctx3", "work3"))
+		mw4 := observe.New(hook("ctx4", "work4"))
 
-		schduler.Use(mw1)
-		schduler.Use(mw2)
-		schduler.Use([]gokugen.MiddlewareFunc{mw3, mw4}...)
+		schduler.Use(mw1.Middleware)
+		schduler.Use(mw2.Middleware)
+		schduler.Use([]gokugen.MiddlewareFunc{mw3.Middleware, mw4.Middleware}...)
 
 		schduler.Schedule(gokugen.NewPlainContext(
 			time.Now(),
@@ -53,7 +48,13 @@ func TestScheduler(t *testing.T) {
 		))
 
 		orderMu.Lock()
-		require.Equal(t, order, []string{"1", "2", "3", "4"})
+		require.Equal(t, []string{"ctx1", "ctx2", "ctx3", "ctx4"}, order)
+		orderMu.Unlock()
+
+		getTrappedTask().Do(make(<-chan struct{}))
+
+		orderMu.Lock()
+		require.Equal(t, []string{"ctx1", "ctx2", "ctx3", "ctx4", "work1", "work2", "work3", "work4"}, order)
 		orderMu.Unlock()
 	})
 }

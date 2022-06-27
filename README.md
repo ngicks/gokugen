@@ -139,18 +139,23 @@ import (
 )
 
 func main() {
-	innerScheduler := scheduler.NewScheduler(5, 0)
-	scheduler := gokugen.NewScheduler(innerScheduler)
+	scheduler := gokugen.NewMiddlewareApplicator(scheduler.NewScheduler(5, 0))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
 		cancel()
-		innerScheduler.End()
+		scheduler.Scheduler().End()
 	}()
-	go innerScheduler.Start(ctx)
+	go scheduler.Scheduler().Start(ctx)
 
 	// Do command every year, Jan, Feb, Mar, every day, 12:30.
-	row := cron.Builder{}.Month(1, 2, 3).Day().Hour(12).Minute(30).Command([]string{"command"}).Build()
+	row := cron.Builder{}.
+		Month(1, 2, 3).
+		Day().
+		Hour(12).
+		Minute(30).
+		Command([]string{"command"}).
+		Build()
 	// whence is time when scheduling target starts from.
 	var whence time.Time
 	// reshedule occurs if shouldReschedule returns true.
@@ -204,13 +209,13 @@ import (
 )
 
 func main() {
-	innerScheduler := scheduler.NewScheduler(5, 0)
-	scheduler := gokugen.NewScheduler(innerScheduler)
+	scheduler := gokugen.NewMiddlewareApplicator(scheduler.NewScheduler(5, 0))
 
 	// Repository interface.
 	// External data storage is manipulated through this interface.
 	var repository taskstorage.RepositoryUpdater
-	// When Sync-ing, this cb is used to determine task should be restored and re-scheduled in internal scheduler.
+	// When Sync-ing, this cb is used to determine task should be restored
+	// and re-scheduled in internal scheduler.
 	// (e.g. ignore tasks if they are too old and overdue.)
 	var shouldRestore func(taskstorage.TaskInfo) bool
 	// workRegistry is used to retrieve work function associated to WorkId.
@@ -219,7 +224,8 @@ func main() {
 	}
 	// Context wrapper applicator function used in Sync.
 	// In Sync newly created ctx is used to reschedule.
-	// So without this function context wrapper that should be applied in upper user code is totally ignored.
+	// So without this function context wrapper
+	// that should be applied in upper user code is totally ignored.
 	var syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
 
 	taskStorage := taskstorage.NewSingleNodeTaskStorage(
@@ -233,33 +239,39 @@ func main() {
 	scheduler.Use(taskStorage.Middleware(true)...)
 
 	// Sync syncs itnernal state with external.
-	// Normally TaskStorage does it reversely through middlewares, mirroring internal state to external data storage.
-	// But after rebooting system, or repository is changed externally, Sync is needed to fetch back external data.
+	// Normally TaskStorage does it reversely through middlewares,
+	// mirroring internal state to external data storage.
+	// But after rebooting system, or repository is changed externally,
+	// Sync is needed to fetch back external data.
 	rescheduled, schedulingErr, err := taskStorage.Sync(scheduler.Schedule)
 	if err != nil {
 		panic(err)
 	}
 
 	for taskId, taskController := range rescheduled {
-		fmt.Printf("id = %s, is scheduled for = %s\n", taskId, taskController.GetScheduledTime().Format(time.RFC3339Nano))
+		fmt.Printf(
+			"id = %s, is scheduled for = %s\n",
+			taskId,
+			taskController.GetScheduledTime().Format(time.RFC3339Nano),
+		)
 	}
 	for taskId, schedulingErr := range schedulingErr {
 		fmt.Printf("id = %s, err = %s\n", taskId, schedulingErr)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go innerScheduler.Start(ctx)
+	go scheduler.Scheduler().Start(ctx)
 
 	var scheduleTarget time.Time
 	task, err := scheduler.Schedule(
 		// To store correct data to external repository,
 		// WorkId, Param is additionally needed.
-		gokugen.WithParam(
-			gokugen.WithWorkId(
-				gokugen.NewPlainContext(scheduleTarget, nil, nil),
-				"func1",
-			),
-			[]string{"param", "param"},
+		gokugen.BuildContext(
+			scheduleTarget,
+			nil,
+			nil,
+			gokugen.WithWorkIdOption("func1"),
+			gokugen.WithParamOption([]string{"param", "param"}),
 		),
 	)
 	if err != nil {
@@ -273,6 +285,6 @@ func main() {
 
 	// cancel ctx and tear down scheduler.
 	cancel()
-	innerScheduler.End()
+	scheduler.Scheduler().End()
 }
 ```

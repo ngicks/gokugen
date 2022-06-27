@@ -83,17 +83,17 @@ func (ts *SingleNodeTaskStorage) paramLoad(handler gokugen.ScheduleHandlerFn) go
 		if err != nil {
 			return nil, err
 		}
-		loadable := gokugen.WithParamLoader(
-			ctx,
-			func() (any, error) {
-				info, err := ts.repo.GetById(taskId)
-				if err != nil {
-					return nil, err
-				}
-				return info.Param, nil
-			},
+		loadable := gokugen.WrapContext(ctx,
+			gokugen.WithParamLoaderOption(
+				func() (any, error) {
+					info, err := ts.repo.GetById(taskId)
+					if err != nil {
+						return nil, err
+					}
+					return info.Param, nil
+				},
+			),
 		)
-
 		return handler(loadable)
 	}
 }
@@ -138,25 +138,27 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 
 		var newCtx gokugen.SchedulerContext = ctx
 		if !hadTaskId {
-			newCtx = gokugen.WithTaskId(
+			newCtx = gokugen.WrapContext(
 				ctx,
-				taskId,
+				gokugen.WithTaskIdOption(taskId),
 			)
 		}
 		if workSet := ctx.Work(); workSet == nil {
-			newCtx = gokugen.WithWorkFnWrapper(
+			newCtx = gokugen.WrapContext(
 				newCtx,
-				func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
-					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
-						param, err := gokugen.GetParam(self)
-						if err != nil {
-							return nil, err
+				gokugen.WithWorkFnWrapperOption(
+					func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
+						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+							param, err := gokugen.GetParam(self)
+							if err != nil {
+								return nil, err
+							}
+							ret, err := workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
+							markDoneTask(err, ts, taskId)
+							return ret, err
 						}
-						ret, err := workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
-						markDoneTask(err, ts, taskId)
-						return ret, err
-					}
-				},
+					},
+				),
 			)
 		}
 
@@ -286,15 +288,13 @@ func (ts *SingleNodeTaskStorage) sync(
 	}
 
 	param := fetched.Param
-	var ctx gokugen.SchedulerContext = gokugen.WithParam(
-		gokugen.WithWorkId(
-			gokugen.WithTaskId(
-				gokugen.NewPlainContext(fetched.ScheduledTime, nil, make(map[any]any)),
-				fetched.Id,
-			),
-			fetched.WorkId,
-		),
-		param,
+	var ctx gokugen.SchedulerContext = gokugen.BuildContext(
+		fetched.ScheduledTime,
+		nil,
+		make(map[any]any),
+		gokugen.WithTaskIdOption(fetched.Id),
+		gokugen.WithWorkIdOption(fetched.WorkId),
+		gokugen.WithParamOption(param),
 	)
 
 	if ts.syncCtxWrapper != nil {

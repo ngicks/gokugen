@@ -82,12 +82,14 @@ func prepare(dbFilename string) (
 		workRegistory,
 		func(sc gokugen.SchedulerContext) gokugen.SchedulerContext {
 			param, _ := gokugen.GetParam(sc)
-			return gokugen.WithParam(
+			return gokugen.WrapContext(
 				sc,
-				map[string]any{
-					"synced":   "yayyay",
-					"paramOld": param,
-				},
+				gokugen.WithParamOption(
+					map[string]any{
+						"synced":   "yayyay",
+						"paramOld": param,
+					},
+				),
 			)
 		},
 	)
@@ -111,30 +113,30 @@ func _main() (err error) {
 	now := time.Now()
 
 	sched.Schedule(
-		gokugen.WithParam(
-			gokugen.WithWorkId(
-				gokugen.NewPlainContext(now, nil, nil),
-				"func1",
-			),
-			[]string{"param", "param"},
+		gokugen.BuildContext(
+			now,
+			nil,
+			nil,
+			gokugen.WithWorkIdOption("func1"),
+			gokugen.WithParamOption([]string{"param", "param"}),
 		),
 	)
 	sched.Schedule(
-		gokugen.WithParam(
-			gokugen.WithWorkId(
-				gokugen.NewPlainContext(now.Add(time.Second), nil, nil),
-				"func2",
-			),
-			[]string{"param", "param"},
+		gokugen.BuildContext(
+			now,
+			nil,
+			nil,
+			gokugen.WithWorkIdOption("func2"),
+			gokugen.WithParamOption([]string{"param", "param"}),
 		),
 	)
 	sched.Schedule(
-		gokugen.WithParam(
-			gokugen.WithWorkId(
-				gokugen.NewPlainContext(now.Add(5*time.Second), nil, nil),
-				"func3",
-			),
-			[]string{"param", "param"},
+		gokugen.BuildContext(
+			now,
+			nil,
+			nil,
+			gokugen.WithWorkIdOption("func3"),
+			gokugen.WithParamOption([]string{"param", "param"}),
 		),
 	)
 

@@ -29,7 +29,15 @@ func storageTestSet(
 			return nil, nil
 		})
 		now := time.Now()
-		task, err := sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
+		task, err := sched(
+			gokugen.BuildContext(
+				now,
+				nil,
+				nil,
+				gokugen.WithParamOption(nil),
+				gokugen.WithWorkIdOption("foobar"),
+			),
+		)
 		if err != nil {
 			t.Fatalf("must not be non nil error: %v", err)
 		}
@@ -75,7 +83,15 @@ func storageTestSet(
 			return nil, nil
 		})
 		now := time.Now()
-		task, _ := sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
+		task, _ := sched(
+			gokugen.BuildContext(
+				now,
+				nil,
+				nil,
+				gokugen.WithParamOption(nil),
+				gokugen.WithWorkIdOption("foobar"),
+			),
+		)
 		task.Cancel()
 
 		stored, _ := repo.GetAll()
@@ -93,7 +109,15 @@ func storageTestSet(
 			return nil, errors.New("mock error")
 		})
 		now := time.Now()
-		sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(now, nil, nil), nil), "foobar"))
+		sched(
+			gokugen.BuildContext(
+				now,
+				nil,
+				nil,
+				gokugen.WithParamOption(nil),
+				gokugen.WithWorkIdOption("foobar"),
+			),
+		)
 
 		doAllTasks()
 
@@ -153,9 +177,15 @@ func testSync(t *testing.T, mode testMode) {
 		return nil, nil
 	})
 
-	sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
-	sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
-	sched(gokugen.WithWorkId(gokugen.WithParam(gokugen.NewPlainContext(time.Now(), nil, nil), nil), "foobar"))
+	sched(
+		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParamOption(nil), gokugen.WithWorkIdOption("foobar")),
+	)
+	sched(
+		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParamOption(nil), gokugen.WithWorkIdOption("foobar")),
+	)
+	sched(
+		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParamOption(nil), gokugen.WithWorkIdOption("foobar")),
+	)
 
 	task1, task2, task3 := func() (taskstorage.TaskInfo, taskstorage.TaskInfo, taskstorage.TaskInfo) {
 		tasks, err := repo.GetAll()

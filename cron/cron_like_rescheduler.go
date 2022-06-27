@@ -133,23 +133,25 @@ func (c *CronLikeRescheduler) schedule() error {
 		return c.err
 	}
 
-	paramSet := gokugen.WithParam(
-		gokugen.WithWorkId(gokugen.NewPlainContext(next, nil, nil), command[0]),
-		command[1:],
-	)
 	task, err := c.scheduler.Schedule(
-		gokugen.WithWorkFn(
-			paramSet,
-			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
-				atomic.StoreInt64(&c.isWorking, 1)
-				defer atomic.StoreInt64(&c.isWorking, 0)
+		gokugen.BuildContext(
+			next,
+			nil,
+			nil,
+			gokugen.WithWorkIdOption(command[0]),
+			gokugen.WithParamOption(command[1:]),
+			gokugen.WithWorkFnOption(
+				func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+					atomic.StoreInt64(&c.isWorking, 1)
+					defer atomic.StoreInt64(&c.isWorking, 0)
 
-				ret, err := workRaw(ctxCancelCh, taskCancelCh, scheduled, command[1:])
-				if c.shouldReschedule != nil && c.shouldReschedule(err, callCount) {
-					c.schedule()
-				}
-				return ret, err
-			},
+					ret, err := workRaw(ctxCancelCh, taskCancelCh, scheduled, command[1:])
+					if c.shouldReschedule != nil && c.shouldReschedule(err, callCount) {
+						c.schedule()
+					}
+					return ret, err
+				},
+			),
 		),
 	)
 	if err != nil {

@@ -26,21 +26,25 @@ func New() *RecoverMiddleware {
 
 func (_ *RecoverMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-		return handler(gokugen.WithWorkFnWrapper(
-			ctx,
-			func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
-				return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (ret any, err error) {
-					defer func() {
-						if recoveredErr := recover(); recoveredErr != nil {
-							err = &RecoveredError{
-								OrginalErr: recoveredErr,
-							}
+		return handler(
+			gokugen.WrapContext(
+				ctx,
+				gokugen.WithWorkFnWrapperOption(
+					func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
+						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (ret any, err error) {
+							defer func() {
+								if recoveredErr := recover(); recoveredErr != nil {
+									err = &RecoveredError{
+										OrginalErr: recoveredErr,
+									}
+								}
+							}()
+							ret, err = workFn(ctxCancelCh, taskCancelCh, scheduled)
+							return
 						}
-					}()
-					ret, err = workFn(ctxCancelCh, taskCancelCh, scheduled)
-					return
-				}
-			},
-		))
+					},
+				),
+			),
+		)
 	}
 }

@@ -40,27 +40,26 @@ func NewMultiNodeTaskStorage(
 
 func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-		return handler(
-			gokugen.WithWorkFnWrapper(
-				ctx,
-				func(self gokugen.SchedulerContext, workFn WorkFn) WorkFn {
-					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
-						taskId, err := gokugen.GetTaskId(self)
-						if err != nil {
-							return nil, err
-						}
-						swapped, err := m.repo.UpdateState(taskId, Initialized, Working)
-						if err != nil {
-							return nil, err
-						}
-						if !swapped {
-							return nil, fmt.Errorf("%w: task id = %s", ErrOtherNodeWorkingOnTheTask, taskId)
-						}
-						return workFn(ctxCancelCh, taskCancelCh, scheduled)
-					}
-				},
-			),
-		)
+		return handler(gokugen.WrapContext(ctx, gokugen.WithWorkFnWrapperOption(buildWrapper(m.repo))))
+	}
+}
+
+func buildWrapper(repo RepositoryUpdater) gokugen.WorkFnWrapper {
+	return func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
+		return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+			taskId, err := gokugen.GetTaskId(self)
+			if err != nil {
+				return nil, err
+			}
+			swapped, err := repo.UpdateState(taskId, Initialized, Working)
+			if err != nil {
+				return nil, err
+			}
+			if !swapped {
+				return nil, fmt.Errorf("%w: task id = %s", ErrOtherNodeWorkingOnTheTask, taskId)
+			}
+			return workFn(ctxCancelCh, taskCancelCh, scheduled)
+		}
 	}
 }
 
