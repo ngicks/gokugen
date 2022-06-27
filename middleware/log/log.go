@@ -28,7 +28,7 @@ func (mw *LogMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokugen.S
 		return handler(
 			gokugen.WrapContext(
 				ctx,
-				gokugen.WithWorkFnWrapperOption(
+				gokugen.WithWorkFnWrapper(
 					func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
 						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
 							taskId, _ := gokugen.GetTaskId(self)

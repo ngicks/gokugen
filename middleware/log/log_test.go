@@ -36,8 +36,8 @@ func TestLog(t *testing.T) {
 			return "baz", nil
 		},
 		nil,
-		gokugen.WithTaskIdOption("foo"),
-		gokugen.WithWorkIdOption("bar"),
+		gokugen.WithTaskId("foo"),
+		gokugen.WithWorkId("bar"),
 	)
 	inputError := gokugen.BuildContext(
 		time.Now(),
@@ -45,8 +45,8 @@ func TestLog(t *testing.T) {
 			return "", mockErr
 		},
 		nil,
-		gokugen.WithTaskIdOption("qux"),
-		gokugen.WithWorkIdOption("quux"),
+		gokugen.WithTaskId("qux"),
+		gokugen.WithWorkId("quux"),
 	)
 
 	ma.Use(

@@ -84,7 +84,7 @@ func prepare(dbFilename string) (
 			param, _ := gokugen.GetParam(sc)
 			return gokugen.WrapContext(
 				sc,
-				gokugen.WithParamOption(
+				gokugen.WithParam(
 					map[string]any{
 						"synced":   "yayyay",
 						"paramOld": param,
@@ -117,8 +117,8 @@ func _main() (err error) {
 			now,
 			nil,
 			nil,
-			gokugen.WithWorkIdOption("func1"),
-			gokugen.WithParamOption([]string{"param", "param"}),
+			gokugen.WithWorkId("func1"),
+			gokugen.WithParam([]string{"param", "param"}),
 		),
 	)
 	sched.Schedule(
@@ -126,8 +126,8 @@ func _main() (err error) {
 			now,
 			nil,
 			nil,
-			gokugen.WithWorkIdOption("func2"),
-			gokugen.WithParamOption([]string{"param", "param"}),
+			gokugen.WithWorkId("func2"),
+			gokugen.WithParam([]string{"param", "param"}),
 		),
 	)
 	sched.Schedule(
@@ -135,8 +135,8 @@ func _main() (err error) {
 			now,
 			nil,
 			nil,
-			gokugen.WithWorkIdOption("func3"),
-			gokugen.WithParamOption([]string{"param", "param"}),
+			gokugen.WithWorkId("func3"),
+			gokugen.WithParam([]string{"param", "param"}),
 		),
 	)
 

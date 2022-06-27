@@ -69,7 +69,7 @@ func (ctx *PlainContext) Value(key any) (any, error) {
 	return ctx.values[key], nil
 }
 
-func WithWorkId(parent SchedulerContext, workId string) SchedulerContext {
+func WrapWithWorkId(parent SchedulerContext, workId string) SchedulerContext {
 	return &workIdCtx{
 		SchedulerContext: parent,
 		workId:           workId,
@@ -88,14 +88,14 @@ func (ctx *workIdCtx) Value(key any) (any, error) {
 	return ctx.SchedulerContext.Value(key)
 }
 
-func WithParam(parent SchedulerContext, param any) SchedulerContext {
+func WrapWithParam(parent SchedulerContext, param any) SchedulerContext {
 	return &paramLoadableCtx{
 		SchedulerContext: parent,
 		paramLoader:      func() (any, error) { return param, nil },
 	}
 }
 
-func WithParamLoader(parent SchedulerContext, loader func() (any, error)) SchedulerContext {
+func WrapWithParamLoader(parent SchedulerContext, loader func() (any, error)) SchedulerContext {
 	return &paramLoadableCtx{
 		SchedulerContext: parent,
 		paramLoader:      loader,
@@ -114,7 +114,7 @@ func (ctx *paramLoadableCtx) Value(key any) (any, error) {
 	return ctx.SchedulerContext.Value(key)
 }
 
-func WithWorkFn(parent SchedulerContext, workFn WorkFn) SchedulerContext {
+func WrapWithWorkFn(parent SchedulerContext, workFn WorkFn) SchedulerContext {
 	return &fnWrapperCtx{
 		SchedulerContext: parent,
 		wrapper: func(self SchedulerContext, _ WorkFn) WorkFn {
@@ -125,7 +125,7 @@ func WithWorkFn(parent SchedulerContext, workFn WorkFn) SchedulerContext {
 
 type WorkFnWrapper = func(self SchedulerContext, workFn WorkFn) WorkFn
 
-func WithWorkFnWrapper(parent SchedulerContext, wrapper WorkFnWrapper) SchedulerContext {
+func WrapWithWorkFnWrapper(parent SchedulerContext, wrapper WorkFnWrapper) SchedulerContext {
 	return &fnWrapperCtx{
 		SchedulerContext: parent,
 		wrapper:          wrapper,
@@ -141,7 +141,7 @@ func (ctx *fnWrapperCtx) Work() WorkFn {
 	return ctx.wrapper(ctx, ctx.SchedulerContext.Work())
 }
 
-func WithTaskId(parent SchedulerContext, taskId string) SchedulerContext {
+func WrapWithTaskId(parent SchedulerContext, taskId string) SchedulerContext {
 	return &taskIdCtx{
 		SchedulerContext: parent,
 		taskId:           taskId,

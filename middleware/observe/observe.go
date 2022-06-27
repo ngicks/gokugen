@@ -31,7 +31,7 @@ func (mw *ObserveMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokug
 		return handler(
 			gokugen.WrapContext(
 				ctx,
-				gokugen.WithWorkFnWrapperOption(
+				gokugen.WithWorkFnWrapper(
 					func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
 						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (ret any, err error) {
 							ret, err = workFn(ctxCancelCh, taskCancelCh, scheduled)

@@ -67,8 +67,8 @@ func TestMultiNode(t *testing.T) {
 				time.Now(),
 				nil,
 				nil,
-				gokugen.WithParamOption(nil),
-				gokugen.WithWorkIdOption("foobar"),
+				gokugen.WithParam(nil),
+				gokugen.WithWorkId("foobar"),
 			),
 		)
 

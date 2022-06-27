@@ -84,7 +84,7 @@ func (ts *SingleNodeTaskStorage) paramLoad(handler gokugen.ScheduleHandlerFn) go
 			return nil, err
 		}
 		loadable := gokugen.WrapContext(ctx,
-			gokugen.WithParamLoaderOption(
+			gokugen.WithParamLoader(
 				func() (any, error) {
 					info, err := ts.repo.GetById(taskId)
 					if err != nil {
@@ -140,13 +140,13 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 		if !hadTaskId {
 			newCtx = gokugen.WrapContext(
 				ctx,
-				gokugen.WithTaskIdOption(taskId),
+				gokugen.WithTaskId(taskId),
 			)
 		}
 		if workSet := ctx.Work(); workSet == nil {
 			newCtx = gokugen.WrapContext(
 				newCtx,
-				gokugen.WithWorkFnWrapperOption(
+				gokugen.WithWorkFnWrapper(
 					func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
 						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
 							param, err := gokugen.GetParam(self)
@@ -292,9 +292,9 @@ func (ts *SingleNodeTaskStorage) sync(
 		fetched.ScheduledTime,
 		nil,
 		make(map[any]any),
-		gokugen.WithTaskIdOption(fetched.Id),
-		gokugen.WithWorkIdOption(fetched.WorkId),
-		gokugen.WithParamOption(param),
+		gokugen.WithTaskId(fetched.Id),
+		gokugen.WithWorkId(fetched.WorkId),
+		gokugen.WithParam(param),
 	)
 
 	if ts.syncCtxWrapper != nil {

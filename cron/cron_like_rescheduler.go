@@ -138,9 +138,9 @@ func (c *CronLikeRescheduler) schedule() error {
 			next,
 			nil,
 			nil,
-			gokugen.WithWorkIdOption(command[0]),
-			gokugen.WithParamOption(command[1:]),
-			gokugen.WithWorkFnOption(
+			gokugen.WithWorkId(command[0]),
+			gokugen.WithParam(command[1:]),
+			gokugen.WithWorkFn(
 				func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
 					atomic.StoreInt64(&c.isWorking, 1)
 					defer atomic.StoreInt64(&c.isWorking, 0)

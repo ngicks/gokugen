@@ -15,13 +15,13 @@ func sapmleMw(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 		return handler(
 			gokugen.WrapContext(
 				ctx,
-				gokugen.WithWorkFnWrapperOption(func(_ gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
+				gokugen.WithWorkFnWrapper(func(_ gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
 					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
 						ret, _ := workFn(ctxCancelCh, taskCancelCh, scheduled)
 						return ret.(string) + "bar", nil
 					}
 				}),
-				gokugen.WithWorkIdOption(":"),
+				gokugen.WithWorkId(":"),
 			),
 		)
 	}

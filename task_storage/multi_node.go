@@ -40,7 +40,7 @@ func NewMultiNodeTaskStorage(
 
 func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 	return func(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-		return handler(gokugen.WrapContext(ctx, gokugen.WithWorkFnWrapperOption(buildWrapper(m.repo))))
+		return handler(gokugen.WrapContext(ctx, gokugen.WithWorkFnWrapper(buildWrapper(m.repo))))
 	}
 }
 

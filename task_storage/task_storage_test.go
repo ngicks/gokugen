@@ -34,8 +34,8 @@ func storageTestSet(
 				now,
 				nil,
 				nil,
-				gokugen.WithParamOption(nil),
-				gokugen.WithWorkIdOption("foobar"),
+				gokugen.WithParam(nil),
+				gokugen.WithWorkId("foobar"),
 			),
 		)
 		if err != nil {
@@ -88,8 +88,8 @@ func storageTestSet(
 				now,
 				nil,
 				nil,
-				gokugen.WithParamOption(nil),
-				gokugen.WithWorkIdOption("foobar"),
+				gokugen.WithParam(nil),
+				gokugen.WithWorkId("foobar"),
 			),
 		)
 		task.Cancel()
@@ -114,8 +114,8 @@ func storageTestSet(
 				now,
 				nil,
 				nil,
-				gokugen.WithParamOption(nil),
-				gokugen.WithWorkIdOption("foobar"),
+				gokugen.WithParam(nil),
+				gokugen.WithWorkId("foobar"),
 			),
 		)
 
@@ -178,13 +178,13 @@ func testSync(t *testing.T, mode testMode) {
 	})
 
 	sched(
-		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParamOption(nil), gokugen.WithWorkIdOption("foobar")),
+		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParam(nil), gokugen.WithWorkId("foobar")),
 	)
 	sched(
-		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParamOption(nil), gokugen.WithWorkIdOption("foobar")),
+		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParam(nil), gokugen.WithWorkId("foobar")),
 	)
 	sched(
-		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParamOption(nil), gokugen.WithWorkIdOption("foobar")),
+		gokugen.BuildContext(time.Now(), nil, nil, gokugen.WithParam(nil), gokugen.WithWorkId("foobar")),
 	)
 
 	task1, task2, task3 := func() (taskstorage.TaskInfo, taskstorage.TaskInfo, taskstorage.TaskInfo) {

@@ -72,8 +72,8 @@ func main() {
 			scheduleTarget,
 			nil,
 			nil,
-			gokugen.WithWorkIdOption("func1"),
-			gokugen.WithParamOption([]string{"param", "param"}),
+			gokugen.WithWorkId("func1"),
+			gokugen.WithParam([]string{"param", "param"}),
 		),
 	)
 	if err != nil {

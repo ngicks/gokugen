@@ -17,33 +17,33 @@ func WrapContext(parent SchedulerContext, options ...Option) (ctx SchedulerConte
 	return ctx
 }
 
-func WithParamOption(param any) Option {
+func WithParam(param any) Option {
 	return func(ctx SchedulerContext) SchedulerContext {
-		return WithParam(ctx, param)
+		return WrapWithParam(ctx, param)
 	}
 }
-func WithParamLoaderOption(loader func() (any, error)) Option {
+func WithParamLoader(loader func() (any, error)) Option {
 	return func(ctx SchedulerContext) SchedulerContext {
-		return WithParamLoader(ctx, loader)
+		return WrapWithParamLoader(ctx, loader)
 	}
 }
-func WithWorkFnOption(workFn WorkFn) Option {
+func WithWorkFn(workFn WorkFn) Option {
 	return func(ctx SchedulerContext) SchedulerContext {
-		return WithWorkFn(ctx, workFn)
+		return WrapWithWorkFn(ctx, workFn)
 	}
 }
-func WithWorkFnWrapperOption(wrapper WorkFnWrapper) Option {
+func WithWorkFnWrapper(wrapper WorkFnWrapper) Option {
 	return func(ctx SchedulerContext) SchedulerContext {
-		return WithWorkFnWrapper(ctx, wrapper)
+		return WrapWithWorkFnWrapper(ctx, wrapper)
 	}
 }
-func WithTaskIdOption(taskId string) Option {
+func WithTaskId(taskId string) Option {
 	return func(ctx SchedulerContext) SchedulerContext {
-		return WithTaskId(ctx, taskId)
+		return WrapWithTaskId(ctx, taskId)
 	}
 }
-func WithWorkIdOption(workId string) Option {
+func WithWorkId(workId string) Option {
 	return func(ctx SchedulerContext) SchedulerContext {
-		return WithWorkId(ctx, workId)
+		return WrapWithWorkId(ctx, workId)
 	}
 }

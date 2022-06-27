@@ -175,8 +175,8 @@ func TestSingleNode(t *testing.T) {
 				time.Now(),
 				nil,
 				nil,
-				gokugen.WithParamOption(paramUsedInSched),
-				gokugen.WithWorkIdOption("foobar"),
+				gokugen.WithParam(paramUsedInSched),
+				gokugen.WithWorkId("foobar"),
 			),
 		)
 		stored, _ := repo.GetAll()
