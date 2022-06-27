@@ -3,7 +3,6 @@ package gokugen
 //go:generate mockgen -source scheduler.go -destination __mock/scheduler.go
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -22,46 +21,6 @@ type Task interface {
 	GetScheduledTime() time.Time
 	IsCancelled() bool
 	IsDone() bool
-}
-
-type WorkFn = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error)
-type WorkFnWParam = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error)
-
-var (
-	ErrValueNotFound = errors.New("value not found")
-)
-
-type PlainContext struct {
-	scheduledTime time.Time
-	workFn        WorkFn
-	values        map[any]any
-}
-
-func NewPlainContext(scheduledTime time.Time, workFn WorkFn, values map[any]any) SchedulerContext {
-	return &PlainContext{
-		scheduledTime: scheduledTime,
-		workFn:        workFn,
-		values:        values,
-	}
-}
-
-func (ctx *PlainContext) ScheduledTime() time.Time {
-	return ctx.scheduledTime
-}
-func (ctx *PlainContext) Work() WorkFn {
-	return ctx.workFn
-}
-func (ctx *PlainContext) Value(key any) (any, error) {
-	if ctx.values == nil {
-		return nil, nil
-	}
-	return ctx.values[key], nil
-}
-
-type SchedulerContext interface {
-	ScheduledTime() time.Time
-	Work() WorkFn
-	Value(key any) (any, error)
 }
 
 type ScheduleHandlerFn = func(ctx SchedulerContext) (Task, error)

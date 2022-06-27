@@ -1,8 +1,24 @@
 package gokugen
 
 import (
+	"errors"
 	"fmt"
+	"time"
 )
+
+var (
+	ErrValueNotFound = errors.New("value not found")
+)
+
+type WorkFn = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error)
+type WorkFnWParam = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error)
+
+// SchedulerContext is minimal set of data relevant to scheduling and middlewares.
+type SchedulerContext interface {
+	ScheduledTime() time.Time
+	Work() WorkFn
+	Value(key any) (any, error)
+}
 
 type (
 	paramKeyTy  string
@@ -25,6 +41,33 @@ var (
 	taskIdKey *taskIdKeyTy = new(taskIdKeyTy)
 	workIdKey *workIdKeyTy = new(workIdKeyTy)
 )
+
+type PlainContext struct {
+	scheduledTime time.Time
+	workFn        WorkFn
+	values        map[any]any
+}
+
+func NewPlainContext(scheduledTime time.Time, workFn WorkFn, values map[any]any) SchedulerContext {
+	return &PlainContext{
+		scheduledTime: scheduledTime,
+		workFn:        workFn,
+		values:        values,
+	}
+}
+
+func (ctx *PlainContext) ScheduledTime() time.Time {
+	return ctx.scheduledTime
+}
+func (ctx *PlainContext) Work() WorkFn {
+	return ctx.workFn
+}
+func (ctx *PlainContext) Value(key any) (any, error) {
+	if ctx.values == nil {
+		return nil, nil
+	}
+	return ctx.values[key], nil
+}
 
 func WithWorkId(parent SchedulerContext, workId string) SchedulerContext {
 	return &workIdCtx{
@@ -80,7 +123,9 @@ func WithWorkFn(parent SchedulerContext, workFn WorkFn) SchedulerContext {
 	}
 }
 
-func WithWorkFnWrapper(parent SchedulerContext, wrapper func(self SchedulerContext, workFn WorkFn) WorkFn) SchedulerContext {
+type WorkFnWrapper = func(self SchedulerContext, workFn WorkFn) WorkFn
+
+func WithWorkFnWrapper(parent SchedulerContext, wrapper WorkFnWrapper) SchedulerContext {
 	return &fnWrapperCtx{
 		SchedulerContext: parent,
 		wrapper:          wrapper,
