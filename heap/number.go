@@ -1,8 +1,11 @@
 package heap
 
-import typeparamcommon "github.com/ngicks/type-param-common"
+import (
+	typeparamcommon "github.com/ngicks/type-param-common"
+	"golang.org/x/exp/constraints"
+)
 
-func NewNumber[T typeparamcommon.Lessable]() *ExcludableHeap[T] {
+func NewNumber[T constraints.Ordered]() *ExcludableHeap[T] {
 	heapInternal, interfaceInternal := typeparamcommon.MakeMinHeap[T]()
 	h := &ExcludableHeap[T]{
 		HeapWrapper: heapInternal,

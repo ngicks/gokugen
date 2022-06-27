@@ -1,5 +1,7 @@
 package cron
 
+//go:generate mockgen -source schedule_state.go -destination __mock/schedule_state.go
+
 import (
 	"time"
 )
@@ -12,19 +14,19 @@ type NextScheduler interface {
 //
 // All methods of ScheduleState are not concurrent-safe. Multiple goroutine must not call them directly.
 type ScheduleState struct {
-	prevTime  time.Time
-	schedTime NextScheduler
-	callCount int
+	prevTime      time.Time
+	nextScheduler NextScheduler
+	callCount     int
 }
 
 // NewScheduleState creates new ScheduleState.
-// schedTime is schedule-time calculator implementation. NextSchedule is called with whence or,
+// nextScheduler is schedule-time calculator implementation. NextSchedule is called with whence or,
 // for twice or later time, previous output of the method.
 // whence is the time whence calcuation starts. Next sticks to its location.
-func NewScheduleState(schedTime NextScheduler, whence time.Time) *ScheduleState {
+func NewScheduleState(nextScheduler NextScheduler, whence time.Time) *ScheduleState {
 	return &ScheduleState{
-		schedTime: schedTime,
-		prevTime:  whence,
+		nextScheduler: nextScheduler,
+		prevTime:      whence,
 	}
 }
 
@@ -32,7 +34,7 @@ func NewScheduleState(schedTime NextScheduler, whence time.Time) *ScheduleState 
 // If `same` is false, `next` is larger value than previously returned value.
 // Or otherwise it is same time.
 func (s *ScheduleState) Next() (same bool, callCount int, next time.Time) {
-	next, _ = s.schedTime.NextSchedule(s.prevTime)
+	next, _ = s.nextScheduler.NextSchedule(s.prevTime)
 	if next.Equal(s.prevTime) {
 		same = true
 	}

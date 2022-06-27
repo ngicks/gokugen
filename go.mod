@@ -5,16 +5,16 @@ go 1.18
 replace github.com/ngicks/gokugen => ./
 
 require (
+	github.com/golang/mock v1.6.0
 	github.com/mattn/go-sqlite3 v1.14.13
-	github.com/ngicks/type-param-common v0.0.4
+	github.com/ngicks/type-param-common v0.0.6
+	github.com/stretchr/testify v1.7.5
 	go.uber.org/goleak v1.1.12
+	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/objx v0.4.0 // indirect
-	github.com/stretchr/testify v1.7.5 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

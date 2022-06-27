@@ -1,13 +1,13 @@
 package gokugen_test
 
 import (
-	"reflect"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ngicks/gokugen"
 	"github.com/ngicks/gokugen/scheduler"
+	"github.com/stretchr/testify/require"
 )
 
 func mockMw(hook func(ctx gokugen.SchedulerContext) gokugen.SchedulerContext) gokugen.MiddlewareFunc {
@@ -53,12 +53,7 @@ func TestScheduler(t *testing.T) {
 		))
 
 		orderMu.Lock()
-		if !reflect.DeepEqual(order, []string{"1", "2", "3", "4"}) {
-			t.Fatalf("incorrect mw application order. %v", order)
-
-		}
+		require.Equal(t, order, []string{"1", "2", "3", "4"})
 		orderMu.Unlock()
-
 	})
-
 }

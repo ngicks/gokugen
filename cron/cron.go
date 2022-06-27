@@ -119,7 +119,7 @@ func (r Row) NextSchedule(now time.Time) (time.Time, error) {
 						sub := now.Sub(next)
 						switch {
 						case sub > 365*24*time.Hour:
-							isLeapYear := isLeapYear(next)
+							isLeapYear := IsLeapYear(next)
 							if !isLeapYear {
 								break monthLoop
 							} else if isLeapYear && sub > 366*24*time.Hour {
@@ -167,7 +167,7 @@ func lastDayOfMonth(t time.Time) time.Time {
 	).AddDate(0, 1, -1)
 }
 
-func isLeapYear(t time.Time) bool {
+func IsLeapYear(t time.Time) bool {
 	year := time.Date(t.Year(), time.December, 31, 0, 0, 0, 0, time.UTC)
 	return year.YearDay() == 366
 }

@@ -1,14 +1,15 @@
 package cron_test
 
 import (
-	"container/list"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ngicks/gokugen"
 	"github.com/ngicks/gokugen/cron"
+	"github.com/ngicks/type-param-common/iterator"
 	syncparam "github.com/ngicks/type-param-common/sync-param"
+	"github.com/stretchr/testify/require"
 )
 
 var _ cron.RowLike = fakeRowLike{}
@@ -55,31 +56,35 @@ var _ cron.Scheduler = &fakeScheduler{}
 type fakeScheduler struct {
 	mu      sync.Mutex
 	idx     int
-	ctxList *list.List
+	ctxList []gokugen.SchedulerContext
 }
 
 func (s *fakeScheduler) runAllTasks() (results []error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	prevLen := s.ctxList.Len()
-	cur := s.ctxList.Front()
-	for i := 0; i < s.idx; i++ {
-		cur = cur.Next()
-	}
-	for i := 0; i < prevLen-s.idx; i++ {
-		ctx := cur.Value.(gokugen.SchedulerContext)
-		_, err := ctx.Work()(make(<-chan struct{}), make(<-chan struct{}), ctx.ScheduledTime())
-		results = append(results, err)
+	var cloned []gokugen.SchedulerContext
+	func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		cloned = make([]gokugen.SchedulerContext, len(s.ctxList))
+		copy(cloned, s.ctxList)
+	}()
 
-		cur = cur.Next()
+	iter := iterator.Iterator[gokugen.SchedulerContext]{
+		DeIterator: iterator.FromSlice(cloned),
+	}.SkipN(s.idx)
+
+	s.idx = iter.Len()
+
+	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
+		_, err := next.Work()(make(<-chan struct{}), make(<-chan struct{}), next.ScheduledTime())
+		results = append(results, err)
 	}
-	s.idx = prevLen
 	return
 }
 
 func (s *fakeScheduler) Schedule(ctx gokugen.SchedulerContext) (gokugen.Task, error) {
-	s.ctxList.PushBack(ctx)
-
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ctxList = append(s.ctxList, ctx)
 	return fakeTask{ctx: ctx}, nil
 }
 
@@ -93,7 +98,7 @@ func prepareController(
 ) {
 	rowLike = &fakeRowLike{command: []string{"foo", "bar", "baz"}}
 	scheduler = &fakeScheduler{
-		ctxList: list.New(),
+		ctxList: make([]gokugen.SchedulerContext, 0),
 	}
 	registry = new(syncparam.Map[string, gokugen.WorkFnWParam])
 	registry.LoadOrStore("foo", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
@@ -111,6 +116,7 @@ func prepareController(
 }
 
 func TestController(t *testing.T) {
+	t.Parallel()
 	t.Run("rescheduling is controlled by shouldReschedule passed by user.", func(t *testing.T) {
 		_, scheduler, _, cronLikeRescheduler := prepareController(
 			func(workErr error, callCount int) bool { return callCount == 0 },
@@ -122,9 +128,7 @@ func TestController(t *testing.T) {
 		}
 
 		results := scheduler.runAllTasks()
-		if len(results) != 1 {
-			t.Fatalf("reschedule is not occuring.")
-		}
+		require.Len(t, results, 1)
 		for _, res := range results {
 			if res != nil {
 				t.Fatal(res)
@@ -132,9 +136,7 @@ func TestController(t *testing.T) {
 		}
 
 		results = scheduler.runAllTasks()
-		if len(results) != 1 {
-			t.Fatalf("reschedule is not occuring.")
-		}
+		require.Len(t, results, 1)
 		for _, res := range results {
 			if res != nil {
 				t.Fatal(res)
@@ -142,9 +144,7 @@ func TestController(t *testing.T) {
 		}
 
 		results = scheduler.runAllTasks()
-		if len(results) != 0 {
-			t.Fatalf("reschedule is wrongly ocurred.")
-		}
+		require.Len(t, results, 0)
 	})
 
 }
