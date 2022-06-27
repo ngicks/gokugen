@@ -54,6 +54,8 @@ func TestScheduler(t *testing.T) {
 		getTrappedTask().Do(make(<-chan struct{}))
 
 		orderMu.Lock()
+		// observe action takes place *after* inner work is called.
+		// Then call order is mw-applicaton order.
 		require.Equal(t, []string{"ctx1", "ctx2", "ctx3", "ctx4", "work1", "work2", "work3", "work4"}, order)
 		orderMu.Unlock()
 	})

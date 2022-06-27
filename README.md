@@ -2,9 +2,9 @@
 
 go+刻限(kokugen)
 
-Gokugen is middleware-applicable scheduler built on top of min-heap backed, limitting number of concurrently-processing taks and in-memory scheduler.
+Gokugen is in-memory scheduler and middleware applicator for it.
 
-刻限(kokugen) is japanese word that means an appointed time, scheduled time, or due.
+Term 刻限(kokugen) is japanese word equivalent of appointed time, scheduled time, or due.
 
 ## Idea
 
@@ -38,7 +38,7 @@ simplified architecture.
   - [x] cron-like interface
 - [x] Implement multi node task storage middleware
 - [x] Refactoring
-- [ ] example package
+- [x] example package
 - [ ] Add detailed careful test.
 
 ## Packages
@@ -47,12 +47,12 @@ simplified architecture.
 
 Scheduler is in-memory scheduler.
 
-With WorkerPool, scheduler limits how many tasks are being concurrently worked on.
+With WorkerPool, scheduler limits how many tasks can be concurrently worked on.
 And with min-heap backed TaskQueue, task retrieval complexity is O(log n) where n is number of scheduled task.
 
 See `./example/simple/main.go ` for exmpale usage.
 
-#### Usage
+#### Illustrative code sample
 
 ```go
 package main
@@ -124,7 +124,7 @@ Cron package contains Row, cron row like struct, and rescheduler for Row.
 
 See `./example/cron/main.go ` for exmpale usage.
 
-#### Usage
+#### Illustrative code sample
 
 ```go
 package main
@@ -193,7 +193,7 @@ TaskStorage provides middlewares that stores task information to external persis
 
 See `./example/persistent_shceduler/main.go` for example usage.
 
-#### Usage
+#### Illustrative code sample
 
 ```go
 package main
@@ -288,3 +288,11 @@ func main() {
 	scheduler.Scheduler().End()
 }
 ```
+
+### ./example
+
+example contains some example executables.
+
+### ./impl
+
+impl contains some helper implementations.
