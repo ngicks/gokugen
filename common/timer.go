@@ -1,5 +1,7 @@
 package common
 
+//go:generate mockgen -source timer.go -destination __mock/timer.go
+
 import "time"
 
 type ITimer interface {

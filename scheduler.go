@@ -1,5 +1,7 @@
 package gokugen
 
+//go:generate mockgen -source scheduler.go -destination __mock/scheduler.go
+
 import (
 	"errors"
 	"sync"
@@ -7,8 +9,6 @@ import (
 
 	"github.com/ngicks/gokugen/scheduler"
 )
-
-//go:generate mockgen -source scheduler.go -destination __mock/scheduler.go
 
 type Scheduler interface {
 	Schedule(task *scheduler.Task) (*scheduler.TaskController, error)

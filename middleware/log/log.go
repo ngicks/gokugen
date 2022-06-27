@@ -1,12 +1,12 @@
 package log
 
+//go:generate mockgen -source log.go -destination __mock/log.go
+
 import (
 	"time"
 
 	"github.com/ngicks/gokugen"
 )
-
-//go:generate mockgen -source log.go -destination __mock/log.go
 
 type Logger interface {
 	Info(taskId, workId string, v any)
