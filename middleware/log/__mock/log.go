@@ -34,25 +34,35 @@ func (m *MockLogger) EXPECT() *MockLoggerMockRecorder {
 }
 
 // Error mocks base method.
-func (m *MockLogger) Error(taskId, workId string, e error) {
+func (m *MockLogger) Error(e error, logValues ...string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Error", taskId, workId, e)
+	varargs := []interface{}{e}
+	for _, a := range logValues {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "Error", varargs...)
 }
 
 // Error indicates an expected call of Error.
-func (mr *MockLoggerMockRecorder) Error(taskId, workId, e interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) Error(e interface{}, logValues ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockLogger)(nil).Error), taskId, workId, e)
+	varargs := append([]interface{}{e}, logValues...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Error", reflect.TypeOf((*MockLogger)(nil).Error), varargs...)
 }
 
 // Info mocks base method.
-func (m *MockLogger) Info(taskId, workId string, v any) {
+func (m *MockLogger) Info(v any, logValues ...string) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Info", taskId, workId, v)
+	varargs := []interface{}{v}
+	for _, a := range logValues {
+		varargs = append(varargs, a)
+	}
+	m.ctrl.Call(m, "Info", varargs...)
 }
 
 // Info indicates an expected call of Info.
-func (mr *MockLoggerMockRecorder) Info(taskId, workId, v interface{}) *gomock.Call {
+func (mr *MockLoggerMockRecorder) Info(v interface{}, logValues ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockLogger)(nil).Info), taskId, workId, v)
+	varargs := append([]interface{}{v}, logValues...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Info", reflect.TypeOf((*MockLogger)(nil).Info), varargs...)
 }

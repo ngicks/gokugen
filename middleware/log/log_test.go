@@ -19,14 +19,36 @@ func TestLog(t *testing.T) {
 	mockErr := errors.New("mock error")
 	mockLogger.
 		EXPECT().
-		Info(gomock.Eq("foo"), gomock.Eq("bar"), gomock.Eq("baz")).
-		Times(1)
+		Info(
+			gomock.Any(), // value
+			gomock.Any(), // "scheduled_at" label
+			gomock.Any(), // "scheduled_at" value
+			gomock.Any(), // "task_id" label
+			gomock.Any(), // "task_id" value
+			gomock.Any(), // "work_id" label
+			gomock.Any(), // "work_id" value
+			gomock.Any(), // "timing" label
+			gomock.Any(), // "timing" value
+		).
+		// 2 if successful, 1 if error
+		Times(3)
 	mockLogger.
 		EXPECT().
-		Error(gomock.Eq("qux"), gomock.Eq("quux"), gomock.Eq(mockErr)).
+		Error(
+			gomock.Any(),
+			gomock.Any(),
+			gomock.Any(),
+			gomock.Any(),
+			gomock.Any(),
+			gomock.Any(),
+			gomock.Any(),
+			gomock.Any(),
+			gomock.Any(),
+		).
 		Times(1)
 
-	_, mockSched, getTrappedTask := mock_gokugen.BuildMockScheduler(t)
+	_,
+		mockSched, getTrappedTask := mock_gokugen.BuildMockScheduler(t)
 
 	ma := gokugen.NewMiddlewareApplicator(mockSched)
 
