@@ -32,19 +32,21 @@ type Repository interface {
 	// GetUpdatedSince fetches all elements modified after or equal to t.
 	// Result must be ordered by LastModified in ascending order.
 	// Implementation may limit the number of fetched elements.
+	// Implementation may or may not unmarshal Param to any. Fetched Param may be []byte or naive
 	GetUpdatedSince(t time.Time) ([]TaskInfo, error)
 	// GetById fetches an element associated with the id.
 	// If the id does not exist in the repository,
 	// GetById reports it by returning wrapped  or unwrapped ErrNoEnt error.
+	// Implementation may or may not unmarshal Param to any.
 	GetById(id string) (TaskInfo, error)
 	// MarkAsDone marks the task as done.
 	// Other than Initialized or Working state is not updatable to done.
 	MarkAsDone(id string) (ok bool, err error)
 	// MarkAsCancelled marks the task as cancelled.
-	// Other than Initialized or Working state is not updatable to done.
+	// Other than Initialized or Working state is not updatable to cancelled.
 	MarkAsCancelled(id string) (ok bool, err error)
 	// MarkAsFailed marks the task as failed which means workers failed to do this task.
-	// Other than Initialized or Working state is not updatable to done.
+	// Other than Initialized or Working state is not updatable to failed.
 	MarkAsFailed(id string) (ok bool, err error)
 }
 
