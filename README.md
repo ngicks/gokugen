@@ -219,6 +219,7 @@ func main() {
 	// (e.g. ignore tasks if they are too old and overdue.)
 	var shouldRestore func(taskstorage.TaskInfo) bool
 	// workRegistry is used to retrieve work function associated to WorkId.
+	// Using `impl/workregistry`.ParamUnmarshaller is safe for almost all users.(untested)
 	var workRegisry interface {
 		Load(key string) (value taskstorage.WorkFnWParam, ok bool)
 	}
