@@ -14,8 +14,6 @@ var (
 	ErrNoMatch   = errors.New("no match")
 )
 
-type WorkFn = func(targeted, current time.Time, repeat int) (any, error)
-
 type CronTab []Row
 
 var _ RowLike = Row{}
