@@ -1,6 +1,7 @@
 package taskstorage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -46,7 +47,7 @@ func (m *MultiNodeTaskStorage) markWorking(handler gokugen.ScheduleHandlerFn) go
 
 func buildWrapper(repo RepositoryUpdater) gokugen.WorkFnWrapper {
 	return func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
-		return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+		return func(ctx context.Context, scheduled time.Time) (any, error) {
 			taskId, err := gokugen.GetTaskId(self)
 			if err != nil {
 				return nil, err
@@ -58,7 +59,7 @@ func buildWrapper(repo RepositoryUpdater) gokugen.WorkFnWrapper {
 			if !swapped {
 				return nil, fmt.Errorf("%w: task id = %s", ErrOtherNodeWorkingOnTheTask, taskId)
 			}
-			return workFn(ctxCancelCh, taskCancelCh, scheduled)
+			return workFn(ctx, scheduled)
 		}
 	}
 }

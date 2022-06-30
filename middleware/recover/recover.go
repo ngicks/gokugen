@@ -1,6 +1,7 @@
 package recover
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -31,7 +32,7 @@ func (_ *RecoverMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokuge
 				ctx,
 				gokugen.WithWorkFnWrapper(
 					func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
-						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (ret any, err error) {
+						return func(taskCtx context.Context, scheduled time.Time) (ret any, err error) {
 							defer func() {
 								if recoveredErr := recover(); recoveredErr != nil {
 									err = &RecoveredError{
@@ -39,7 +40,7 @@ func (_ *RecoverMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokuge
 									}
 								}
 							}()
-							ret, err = workFn(ctxCancelCh, taskCancelCh, scheduled)
+							ret, err = workFn(taskCtx, scheduled)
 							return
 						}
 					},

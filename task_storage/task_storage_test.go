@@ -1,6 +1,7 @@
 package taskstorage_test
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -25,7 +26,7 @@ func storageTestSet(
 	t.Run("basic usage", func(t *testing.T) {
 		repo, registry, sched, doAllTasks, _ := prepare()
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+		registry.Store("foobar", func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 			return nil, nil
 		})
 		now := time.Now()
@@ -79,7 +80,7 @@ func storageTestSet(
 	t.Run("cancel marks data as cancelled inside repository", func(t *testing.T) {
 		repo, registry, sched, _, _ := prepare()
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+		registry.Store("foobar", func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 			return nil, nil
 		})
 		now := time.Now()
@@ -105,7 +106,7 @@ func storageTestSet(
 	t.Run("failed marks data as failed inside repository", func(t *testing.T) {
 		repo, registry, sched, doAllTasks, _ := prepare()
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+		registry.Store("foobar", func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 			return nil, errors.New("mock error")
 		})
 		now := time.Now()
@@ -168,11 +169,11 @@ func testSync(t *testing.T, mode testMode) {
 	}
 
 	var called int64
-	registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+	registry.Store("foobar", func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 		atomic.AddInt64(&called, 1)
 		return nil, nil
 	})
-	registry.Store("external", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+	registry.Store("external", func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 		atomic.AddInt64(&called, 1)
 		return nil, nil
 	})

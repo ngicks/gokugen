@@ -1,5 +1,10 @@
 package scheduler
 
+import (
+	"context"
+	"sync"
+)
+
 // Worker represents single loop that executes tasks.
 // It will work on a single task at a time.
 // It may be in stopped-state where loop is stopped,
@@ -8,12 +13,14 @@ package scheduler
 type Worker[T any] struct {
 	workingState
 	endState
-	id           T
-	stopCh       chan struct{}
-	killCh       chan struct{}
-	taskCh       <-chan *Task
-	taskReceived func()
-	taskDone     func()
+	mu             sync.Mutex
+	id             T
+	stopCh         chan struct{}
+	killCh         chan struct{}
+	taskCh         <-chan *Task
+	onTaskReceived func()
+	onTaskDone     func()
+	cancel         func()
 }
 
 func NewWorker[T any](id T, taskCh <-chan *Task, taskReceived, taskDone func()) (*Worker[T], error) {
@@ -29,12 +36,13 @@ func NewWorker[T any](id T, taskCh <-chan *Task, taskReceived, taskDone func()) 
 	}
 
 	worker := &Worker[T]{
-		id:           id,
-		stopCh:       make(chan struct{}, 1),
-		killCh:       make(chan struct{}),
-		taskCh:       taskCh,
-		taskReceived: taskReceived,
-		taskDone:     taskDone,
+		id:             id,
+		stopCh:         make(chan struct{}, 1),
+		killCh:         make(chan struct{}),
+		taskCh:         taskCh,
+		onTaskReceived: taskReceived,
+		onTaskDone:     taskDone,
+		cancel:         func() {},
 	}
 	return worker, nil
 }
@@ -85,9 +93,22 @@ LOOP:
 					break LOOP
 				}
 				func() {
-					w.taskReceived()
-					defer w.taskDone()
-					task.Do(w.killCh)
+					ctx, cancel := context.WithCancel(context.Background())
+					defer cancel()
+
+					w.mu.Lock()
+					w.cancel = cancel
+					w.mu.Unlock()
+
+					select {
+					case <-w.killCh:
+						return
+					default:
+					}
+
+					w.onTaskReceived()
+					defer w.onTaskDone()
+					task.Do(ctx, w.cancel)
 				}()
 			}
 		}
@@ -117,6 +138,11 @@ func (w *Worker[T]) Kill() {
 	if w.setEnded() {
 		close(w.killCh)
 	}
+
+	w.mu.Lock()
+	w.cancel()
+	w.mu.Unlock()
+
 	w.Stop()
 }
 

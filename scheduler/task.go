@@ -1,11 +1,13 @@
 package scheduler
 
 import (
+	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
-type WorkFn = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time)
+type WorkFn = func(ctx context.Context, scheduled time.Time)
 
 // Task is simple set of data of
 // scheduledTime and work and calling state.
@@ -15,11 +17,12 @@ type WorkFn = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Tim
 // taskCancelCh is closed when the task is cancelled by calling Close. Further computing is not advised.
 // A passed work should make use of these channels if it would take long time.
 type Task struct {
+	mu            sync.Mutex
 	scheduledTime time.Time
 	work          WorkFn
-	cancelCh      chan struct{}
 	done          uint32
 	cancelled     uint32
+	cancel        func()
 }
 
 // NewTask creates a new Task instance.
@@ -29,19 +32,31 @@ func NewTask(scheduledTime time.Time, work WorkFn) *Task {
 	return &Task{
 		scheduledTime: scheduledTime,
 		work:          work,
-		cancelCh:      make(chan struct{}),
 	}
 }
 
-func (t *Task) Do(ctxCancelCh <-chan struct{}) {
-	if t.work != nil && !t.IsCancelled() && atomic.CompareAndSwapUint32(&t.done, 0, 1) {
+func (t *Task) Do(ctx context.Context, cancel func()) {
+	if t.IsCancelled() {
+		cancel()
+		return
+	}
+	if atomic.CompareAndSwapUint32(&t.done, 0, 1) && t.work != nil {
+		t.mu.Lock()
+		t.cancel = cancel
+		t.mu.Unlock()
+		// in case of race condition.
+		// Cancel might be called right between this cancel assigning and above IsCancelled call.
+		if t.IsCancelled() {
+			cancel()
+			return
+		}
 		select {
-		case <-ctxCancelCh:
+		case <-ctx.Done():
 			// Fast path: ctx is already cancelled.
 			return
 		default:
 		}
-		t.work(ctxCancelCh, t.cancelCh, t.scheduledTime)
+		t.work(ctx, t.scheduledTime)
 	}
 }
 
@@ -51,9 +66,11 @@ func (t *Task) GetScheduledTime() time.Time {
 
 func (t *Task) Cancel() (cancelled bool) {
 	cancelled = atomic.CompareAndSwapUint32(&t.cancelled, 0, 1)
-	if cancelled {
-		close(t.cancelCh)
+	t.mu.Lock()
+	if t.cancel != nil {
+		t.cancel()
 	}
+	t.mu.Unlock()
 	return
 }
 

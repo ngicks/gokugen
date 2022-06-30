@@ -3,6 +3,7 @@ package gokugen
 //go:generate mockgen -source scheduler.go -destination __mock/scheduler.go
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -46,10 +47,10 @@ func (s *MiddlewareApplicator[T]) Schedule(ctx SchedulerContext) (Task, error) {
 			scheduler.NewTask(
 				ctx.ScheduledTime(),
 				func(
-					ctxCancelCh, taskCancelCh <-chan struct{},
+					taskCtx context.Context,
 					scheduled time.Time,
 				) {
-					ctx.Work()(ctxCancelCh, taskCancelCh, scheduled)
+					ctx.Work()(taskCtx, scheduled)
 				},
 			),
 		)

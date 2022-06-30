@@ -1,6 +1,7 @@
 package taskstorage_test
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -57,7 +58,7 @@ func TestMultiNode(t *testing.T) {
 		_, repo, registry, sched, doAllTasks, getTaskResults := prepareMulti(false)
 
 		var count int64
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+		registry.Store("foobar", func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 			atomic.AddInt64(&count, 1)
 			return nil, nil
 		})

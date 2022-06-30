@@ -14,36 +14,29 @@ func main() {
 	}
 }
 
-func printNowWithDelay(id int, delay time.Duration) func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) {
-	return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) {
+func printNowWithDelay(id int, delay time.Duration) func(ctx context.Context, scheduled time.Time) {
+	return func(ctx context.Context, scheduled time.Time) {
 		now := time.Now()
-		var isCtxCancelled, isTaskCancelled bool
+		var isCtxCancelled bool
 		if delay > 0 {
 			timer := time.NewTimer(delay)
 			select {
 			case <-timer.C:
-			case <-ctxCancelCh:
-			case <-taskCancelCh:
+			case <-ctx.Done():
 			}
 		}
 		select {
-		case <-ctxCancelCh:
+		case <-ctx.Done():
 			isCtxCancelled = true
-		default:
-		}
-		select {
-		case <-taskCancelCh:
-			isTaskCancelled = true
 		default:
 		}
 
 		fmt.Printf(
-			"id: %d, scheduled: %s, diff to now: %s, isCtxCancelled: %t, isTaskCancelled: %t\n",
+			"id: %d, scheduled: %s, diff to now: %s, isCtxCancelled: %t\n",
 			id,
 			scheduled.Format(time.RFC3339Nano),
 			now.Sub(scheduled).String(),
 			isCtxCancelled,
-			isTaskCancelled,
 		)
 	}
 }
@@ -52,7 +45,7 @@ func _main() error {
 	sched := scheduler.NewScheduler(5, 0)
 
 	now := time.Now()
-	printNow := func(id int) func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) {
+	printNow := func(id int) func(ctx context.Context, scheduled time.Time) {
 		return printNowWithDelay(id, 0)
 	}
 

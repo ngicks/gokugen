@@ -3,6 +3,7 @@ package log
 //go:generate mockgen -source log.go -destination __mock/log.go
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -80,10 +81,10 @@ type logValueSetBuilder = func(ctx gokugen.SchedulerContext) (logValues []string
 
 func wrapper(logger Logger, logVal logValueSetBuilder) func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
 	return func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
-		return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+		return func(taskCtx context.Context, scheduled time.Time) (any, error) {
 			values := logVal(self)
 			logger.Info(nil, append(values, "timing", "before_work")...)
-			ret, err := workFn(ctxCancelCh, taskCancelCh, scheduled)
+			ret, err := workFn(taskCtx, scheduled)
 			values = append(values, "timing", "after_work")
 			if err != nil {
 				logger.Error(err, values...)

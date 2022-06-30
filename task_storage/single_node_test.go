@@ -1,6 +1,7 @@
 package taskstorage_test
 
 import (
+	"context"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -84,7 +85,7 @@ func prepare(
 		workMu.Lock()
 		defer workMu.Unlock()
 		for _, v := range works {
-			ret, err := v(make(<-chan struct{}), make(<-chan struct{}), time.Now())
+			ret, err := v(context.TODO(), time.Now())
 			taskResults = append(taskResults, resultSet{retVal: ret, err: err})
 		}
 	}
@@ -154,7 +155,7 @@ func TestSingleNode(t *testing.T) {
 	t.Run("param is freed after task storage if freeParam is set to true", func(t *testing.T) {
 		_, repo, registry, sched, doAllTasks, _ := prepareSingle(true)
 
-		registry.Store("foobar", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+		registry.Store("foobar", func(ctx context.Context, scheduled time.Time, param any) (any, error) {
 			return nil, nil
 		})
 

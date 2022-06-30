@@ -1,6 +1,7 @@
 package cron_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -75,7 +76,7 @@ func (s *fakeScheduler) runAllTasks() (results []error) {
 	s.idx = iter.Len()
 
 	for next, ok := iter.Next(); ok; next, ok = iter.Next() {
-		_, err := next.Work()(make(<-chan struct{}), make(<-chan struct{}), next.ScheduledTime())
+		_, err := next.Work()(context.TODO(), next.ScheduledTime())
 		results = append(results, err)
 	}
 	return
@@ -101,7 +102,7 @@ func prepareController(
 		ctxList: make([]gokugen.SchedulerContext, 0),
 	}
 	registry = new(syncparam.Map[string, gokugen.WorkFnWParam])
-	registry.LoadOrStore("foo", func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+	registry.LoadOrStore("foo", func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 		return nil, nil
 	})
 

@@ -1,6 +1,7 @@
 package taskstorage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -148,12 +149,12 @@ func (ts *SingleNodeTaskStorage) storeTask(handler gokugen.ScheduleHandlerFn) go
 				newCtx,
 				gokugen.WithWorkFnWrapper(
 					func(self gokugen.SchedulerContext, _ WorkFn) WorkFn {
-						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+						return func(taskCtx context.Context, scheduled time.Time) (any, error) {
 							param, err := gokugen.GetParam(self)
 							if err != nil {
 								return nil, err
 							}
-							ret, err := workWithParam(ctxCancelCh, taskCancelCh, scheduled, param)
+							ret, err := workWithParam(taskCtx, scheduled, param)
 							markDoneTask(err, ts, taskId)
 							return ret, err
 						}

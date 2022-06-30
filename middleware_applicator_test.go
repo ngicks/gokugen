@@ -1,6 +1,7 @@
 package gokugen_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -43,7 +44,7 @@ func TestScheduler(t *testing.T) {
 
 		schduler.Schedule(gokugen.NewPlainContext(
 			time.Now(),
-			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) { return nil, nil },
+			func(taskCtx context.Context, scheduled time.Time) (any, error) { return nil, nil },
 			nil,
 		))
 
@@ -51,7 +52,7 @@ func TestScheduler(t *testing.T) {
 		require.Equal(t, []string{"ctx1", "ctx2", "ctx3", "ctx4"}, order)
 		orderMu.Unlock()
 
-		getTrappedTask().Do(make(<-chan struct{}))
+		getTrappedTask().Do(context.TODO(), func() {})
 
 		orderMu.Lock()
 		// observe action takes place *after* inner work is called.

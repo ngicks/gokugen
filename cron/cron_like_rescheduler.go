@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -141,11 +142,11 @@ func (c *CronLikeRescheduler) schedule() error {
 			gokugen.WithWorkId(command[0]),
 			gokugen.WithParam(command[1:]),
 			gokugen.WithWorkFn(
-				func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+				func(taskCtx context.Context, scheduled time.Time) (any, error) {
 					atomic.StoreInt64(&c.isWorking, 1)
 					defer atomic.StoreInt64(&c.isWorking, 0)
 
-					ret, err := workRaw(ctxCancelCh, taskCancelCh, scheduled, command[1:])
+					ret, err := workRaw(taskCtx, scheduled, command[1:])
 					if c.shouldReschedule != nil && c.shouldReschedule(err, callCount) {
 						c.schedule()
 					}

@@ -1,6 +1,7 @@
 package gokugen
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -10,8 +11,8 @@ var (
 	ErrValueNotFound = errors.New("value not found")
 )
 
-type WorkFn = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error)
-type WorkFnWParam = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error)
+type WorkFn = func(taskCtx context.Context, scheduled time.Time) (any, error)
+type WorkFnWParam = func(taskCtx context.Context, scheduled time.Time, param any) (any, error)
 
 // SchedulerContext is minimal set of data relevant to scheduling and middlewares.
 type SchedulerContext interface {

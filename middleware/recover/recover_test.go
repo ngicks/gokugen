@@ -1,6 +1,7 @@
 package recover_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -19,7 +20,7 @@ func TestRecoverMw(t *testing.T) {
 	ma.Schedule(
 		gokugen.NewPlainContext(
 			time.Now(),
-			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+			func(taskCtx context.Context, scheduled time.Time) (any, error) {
 				panic("mock pacnic")
 			},
 			nil,
@@ -31,7 +32,7 @@ func TestRecoverMw(t *testing.T) {
 				t.Fatalf("must not be recovered")
 			}
 		}()
-		getTrappedTask().Do(make(<-chan struct{}))
+		getTrappedTask().Do(context.TODO(), func() {})
 	}()
 
 	observer := observe.New(nil, func(ret any, err error) {
@@ -44,7 +45,7 @@ func TestRecoverMw(t *testing.T) {
 	ma.Schedule(
 		gokugen.NewPlainContext(
 			time.Now(),
-			func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+			func(taskCtx context.Context, scheduled time.Time) (any, error) {
 				panic("mock pacnic")
 			},
 			nil,
@@ -56,6 +57,6 @@ func TestRecoverMw(t *testing.T) {
 				t.Fatalf("must be recovered")
 			}
 		}()
-		getTrappedTask().Do(make(<-chan struct{}))
+		getTrappedTask().Do(context.TODO(), func() {})
 	}()
 }

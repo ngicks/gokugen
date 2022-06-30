@@ -1,6 +1,7 @@
 package scheduler_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ func TestTaskTimer(t *testing.T) {
 				tasks,
 				scheduler.NewTask(
 					now.Add(time.Duration(i*int64(time.Microsecond))),
-					func(ctxCanCh, canCh <-chan struct{}, scheduled time.Time) {},
+					func(taskCtx context.Context, scheduled time.Time) {},
 				),
 			)
 		}
@@ -82,7 +83,7 @@ func TestTaskTimer(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(-2*time.Second),
-			func(ctxCanCh, canCh <-chan struct{}, scheduled time.Time) {},
+			func(taskCtx context.Context, scheduled time.Time) {},
 		))
 
 		if d := dummyTimer.resetArg[0]; len(dummyTimer.resetArg) != 1 || d != -2*time.Second {
@@ -91,7 +92,7 @@ func TestTaskTimer(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(-time.Second),
-			func(ctxCanCh, canCh <-chan struct{}, scheduled time.Time) {},
+			func(taskCtx context.Context, scheduled time.Time) {},
 		))
 
 		if len(dummyTimer.resetArg) != 1 {
@@ -102,7 +103,7 @@ func TestTaskTimer(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(5*time.Second),
-			func(ctxCanCh, canCh <-chan struct{}, scheduled time.Time) {},
+			func(taskCtx context.Context, scheduled time.Time) {},
 		))
 
 		if d := dummyTimer.resetArg[1]; len(dummyTimer.resetArg) != 2 || d != 5*time.Second {
@@ -111,7 +112,7 @@ func TestTaskTimer(t *testing.T) {
 
 		f.Push(scheduler.NewTask(
 			now.Add(3*time.Second),
-			func(ctxCanCh, canCh <-chan struct{}, scheduled time.Time) {},
+			func(taskCtx context.Context, scheduled time.Time) {},
 		))
 
 		if d := dummyTimer.resetArg[2]; len(dummyTimer.resetArg) != 3 || d != 3*time.Second {

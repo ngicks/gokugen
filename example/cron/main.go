@@ -22,27 +22,21 @@ func main() {
 }
 
 func printNowWithId(workId string) gokugen.WorkFnWParam {
-	return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+	return func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 		now := time.Now()
-		var isCtxCancelled, isTaskCancelled bool
+		var isCtxCancelled bool
 		select {
-		case <-ctxCancelCh:
+		case <-taskCtx.Done():
 			isCtxCancelled = true
-		default:
-		}
-		select {
-		case <-taskCancelCh:
-			isTaskCancelled = true
 		default:
 		}
 
 		fmt.Printf(
-			"workId: %s, scheduled: %s, diff to now: %s, isCtxCancelled: %t, isTaskCancelled: %t, param: %v\n",
+			"workId: %s, scheduled: %s, diff to now: %s, isCtxCancelled: %t, param: %v\n",
 			workId,
 			scheduled.Format(time.RFC3339Nano),
 			now.Sub(scheduled).String(),
 			isCtxCancelled,
-			isTaskCancelled,
 			param,
 		)
 

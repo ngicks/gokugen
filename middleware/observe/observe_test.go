@@ -1,6 +1,7 @@
 package observe_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,8 +17,8 @@ func sapmleMw(handler gokugen.ScheduleHandlerFn) gokugen.ScheduleHandlerFn {
 			gokugen.WrapContext(
 				ctx,
 				gokugen.WithWorkFnWrapper(func(_ gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
-					return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
-						ret, _ := workFn(ctxCancelCh, taskCancelCh, scheduled)
+					return func(taskCtx context.Context, scheduled time.Time) (any, error) {
+						ret, _ := workFn(taskCtx, scheduled)
 						return ret.(string) + "bar", nil
 					}
 				}),
@@ -34,7 +35,7 @@ func TestObserve(t *testing.T) {
 
 	inputCtx := gokugen.NewPlainContext(
 		time.Now(),
-		func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+		func(taskCtx context.Context, scheduled time.Time) (any, error) {
 			return "foo", nil
 		},
 		nil,
@@ -62,5 +63,5 @@ func TestObserve(t *testing.T) {
 	)
 
 	ma.Schedule(inputCtx)
-	getTrappedTask().Do(make(<-chan struct{}))
+	getTrappedTask().Do(context.TODO(), func() {})
 }

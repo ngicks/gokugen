@@ -1,6 +1,7 @@
 package log_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -54,7 +55,7 @@ func TestLog(t *testing.T) {
 
 	inputCtx := gokugen.BuildContext(
 		time.Now(),
-		func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+		func(taskCtx context.Context, scheduled time.Time) (any, error) {
 			return "baz", nil
 		},
 		nil,
@@ -63,7 +64,7 @@ func TestLog(t *testing.T) {
 	)
 	inputError := gokugen.BuildContext(
 		time.Now(),
-		func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (any, error) {
+		func(taskCtx context.Context, scheduled time.Time) (any, error) {
 			return "", mockErr
 		},
 		nil,
@@ -76,7 +77,7 @@ func TestLog(t *testing.T) {
 	)
 
 	ma.Schedule(inputCtx)
-	getTrappedTask().Do(make(<-chan struct{}))
+	getTrappedTask().Do(context.TODO(), func() {})
 	ma.Schedule(inputError)
-	getTrappedTask().Do(make(<-chan struct{}))
+	getTrappedTask().Do(context.TODO(), func() {})
 }

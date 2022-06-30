@@ -1,6 +1,7 @@
 package workregistry
 
 import (
+	"context"
 	"encoding/json"
 	"time"
 
@@ -50,7 +51,7 @@ type AnyUnmarshaller struct {
 }
 
 // AddType stores UnmarshalAny, which is instantiated with T, into registry.
-// AddType is external function, not a method for *AnyUnmarshaller,
+// AddType is an external function, not a method for *AnyUnmarshaller,
 // since Go curently does not allow us to add type parameters to methods.
 func AddType[T any](key string, registry *AnyUnmarshaller) {
 	registry.Store(key, UnmarshalAny[T])
@@ -72,12 +73,12 @@ func (p *ParamUnmarshaller) Load(key string) (value gokugen.WorkFnWParam, ok boo
 		return
 	}
 
-	value = func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (any, error) {
+	value = func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
 		unmarshaled, err := unmarshaller(param)
 		if err != nil {
 			return nil, err
 		}
-		return work(ctxCancelCh, taskCancelCh, scheduled, unmarshaled)
+		return work(taskCtx, scheduled, unmarshaled)
 	}
 
 	return

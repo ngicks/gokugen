@@ -1,13 +1,14 @@
 package scheduler_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-func emptyWork(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) {}
+func emptyWork(taskCtx context.Context, scheduled time.Time) {}
 
 func BenchmarkQueue_RemoveCancelled_1000_allCancelled(b *testing.B) {
 	b.StopTimer()

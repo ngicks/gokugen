@@ -84,28 +84,13 @@ func (c *Cli) Load(key string) (value gokugen.WorkFnWParam, ok bool) {
 }
 
 func buildCliWorkFn(command string) cron.WorkFnWParam {
-	return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time, param any) (v any, err error) {
-		ctx, cancel := context.WithCancel(context.Background())
-		// in case of abnormal return.
-		defer cancel()
+	return func(taskCtx context.Context, scheduled time.Time, param any) (v any, err error) {
 
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 
-		go func() {
-			select {
-			case <-ctx.Done():
-			case <-ctxCancelCh:
-				cancel()
-			case <-taskCancelCh:
-				cancel()
-			}
-			wg.Done()
-		}()
-
-		cmd := exec.CommandContext(ctx, command, serializeParam(param)...)
+		cmd := exec.CommandContext(taskCtx, command, serializeParam(param)...)
 		b, err := cmd.Output()
-		cancel()
 		if b != nil {
 			v = string(b)
 		}

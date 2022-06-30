@@ -1,6 +1,7 @@
 package observe
 
 import (
+	"context"
 	"time"
 
 	"github.com/ngicks/gokugen"
@@ -33,8 +34,8 @@ func (mw *ObserveMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) gokug
 				ctx,
 				gokugen.WithWorkFnWrapper(
 					func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
-						return func(ctxCancelCh, taskCancelCh <-chan struct{}, scheduled time.Time) (ret any, err error) {
-							ret, err = workFn(ctxCancelCh, taskCancelCh, scheduled)
+						return func(taskCtx context.Context, scheduled time.Time) (ret any, err error) {
+							ret, err = workFn(taskCtx, scheduled)
 							mw.workFnObserver(ret, err)
 							return
 						}
