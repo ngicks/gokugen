@@ -100,7 +100,7 @@ func TestTask(t *testing.T) {
 		}
 		for i := 0; i < 10; i++ {
 			// This does not block. Bacause task is already cancelled, internal work will no be called.
-			task.Do(context.TODO(), func() {})
+			task.Do(context.TODO())
 			if !task.IsCancelled() {
 				t.Fatalf("IsCancelled must be true")
 			}
@@ -129,7 +129,7 @@ func TestTask(t *testing.T) {
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
-			task.Do(context.TODO(), func() {})
+			task.Do(context.TODO())
 			wg.Done()
 		}()
 
@@ -143,7 +143,7 @@ func TestTask(t *testing.T) {
 		}
 
 		// This does not block. Because if it's done, it does not call internal work
-		task.Do(context.TODO(), func() {})
+		task.Do(context.TODO())
 
 		if !task.IsDone() {
 			t.Fatalf("IsDone must be true")
@@ -156,7 +156,7 @@ func TestTask(t *testing.T) {
 			t.Fatalf("IsCancelled must be true")
 		}
 
-		task.Do(context.TODO(), func() {})
+		task.Do(context.TODO())
 
 		if taskSet.WorkCallCount() != 1 {
 			t.Fatalf("work call count is not correct")
@@ -175,7 +175,7 @@ func TestTask(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 		// This does not block.
-		task.Do(ctx, cancel)
+		task.Do(ctx)
 		if !task.IsDone() {
 			t.Fatalf("IsDone must be true")
 		}
@@ -186,11 +186,11 @@ func TestTask(t *testing.T) {
 		defer exhaustSelectChan(taskSet.GetSelectCh())
 		task := taskSet.Task()
 
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx := context.Background()
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
-			task.Do(ctx, cancel)
+			task.Do(ctx)
 			wg.Done()
 		}()
 

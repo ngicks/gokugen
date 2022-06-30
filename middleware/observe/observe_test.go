@@ -63,5 +63,5 @@ func TestObserve(t *testing.T) {
 	)
 
 	ma.Schedule(inputCtx)
-	getTrappedTask().Do(context.TODO(), func() {})
+	getTrappedTask().Do(context.TODO())
 }

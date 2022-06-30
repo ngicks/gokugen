@@ -35,7 +35,8 @@ func NewTask(scheduledTime time.Time, work WorkFn) *Task {
 	}
 }
 
-func (t *Task) Do(ctx context.Context, cancel func()) {
+func (t *Task) Do(ctx context.Context) {
+	innerCtx, cancel := context.WithCancel(ctx)
 	if t.IsCancelled() {
 		cancel()
 		return
@@ -56,8 +57,9 @@ func (t *Task) Do(ctx context.Context, cancel func()) {
 			return
 		default:
 		}
-		t.work(ctx, t.scheduledTime)
+		t.work(innerCtx, t.scheduledTime)
 	}
+	cancel()
 }
 
 func (t *Task) GetScheduledTime() time.Time {

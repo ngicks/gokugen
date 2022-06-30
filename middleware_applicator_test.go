@@ -52,7 +52,7 @@ func TestScheduler(t *testing.T) {
 		require.Equal(t, []string{"ctx1", "ctx2", "ctx3", "ctx4"}, order)
 		orderMu.Unlock()
 
-		getTrappedTask().Do(context.TODO(), func() {})
+		getTrappedTask().Do(context.TODO())
 
 		orderMu.Lock()
 		// observe action takes place *after* inner work is called.

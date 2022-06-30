@@ -32,7 +32,7 @@ func TestRecoverMw(t *testing.T) {
 				t.Fatalf("must not be recovered")
 			}
 		}()
-		getTrappedTask().Do(context.TODO(), func() {})
+		getTrappedTask().Do(context.TODO())
 	}()
 
 	observer := observe.New(nil, func(ret any, err error) {
@@ -57,6 +57,6 @@ func TestRecoverMw(t *testing.T) {
 				t.Fatalf("must be recovered")
 			}
 		}()
-		getTrappedTask().Do(context.TODO(), func() {})
+		getTrappedTask().Do(context.TODO())
 	}()
 }

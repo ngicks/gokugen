@@ -109,7 +109,7 @@ LOOP:
 
 					w.onTaskReceived()
 					defer w.onTaskDone()
-					task.Do(ctx, w.cancel)
+					task.Do(ctx)
 				}()
 			}
 		}

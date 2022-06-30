@@ -77,7 +77,7 @@ func TestLog(t *testing.T) {
 	)
 
 	ma.Schedule(inputCtx)
-	getTrappedTask().Do(context.TODO(), func() {})
+	getTrappedTask().Do(context.TODO())
 	ma.Schedule(inputError)
-	getTrappedTask().Do(context.TODO(), func() {})
+	getTrappedTask().Do(context.TODO())
 }
