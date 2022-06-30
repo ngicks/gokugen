@@ -17,11 +17,14 @@ var (
 	ErrNonexistentWorkId = errors.New("nonexistent work id")
 )
 
+// ExternalStateChangeErr is used to tell that error is caused by
+// external repository manipulations.
 type ExternalStateChangeErr struct {
 	id    string
 	state TaskState
 }
 
+// Error implements Error interface.
 func (e ExternalStateChangeErr) Error() string {
 	return fmt.Sprintf("The state is changed externally: id = %s, state = %s", e.id, e.state)
 }
@@ -30,11 +33,13 @@ type WorkFn = gokugen.WorkFn
 type WorkFnWParam = gokugen.WorkFnWParam
 
 // WorkRegistry is used to retrieve work function by workId.
+// impl/work_registry.ParamUnmarshaller will be good enough for almost all users.
 type WorkRegistry interface {
 	Load(key string) (value WorkFnWParam, ok bool)
 }
 
-// SingleNodeTaskStorage provides ability to store task information to, and restore them from persistent data storage.
+// SingleNodeTaskStorage provides ability to store task information to,
+// and restore from persistent data storage.
 type SingleNodeTaskStorage struct {
 	repo           Repository
 	failedIds      *SyncStateStore
@@ -42,7 +47,7 @@ type SingleNodeTaskStorage struct {
 	workRegistry   WorkRegistry
 	taskMap        *TaskMap
 	mu             sync.Mutex
-	getNow         common.GetNow // this field can be swapped out in test codes.
+	getNow         common.GetNower // this field can be swapped out in test codes.
 	lastSynced     time.Time
 	knownIdForTime set.Set[string]
 	syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
@@ -190,12 +195,13 @@ func markDoneTask(result error, ts *SingleNodeTaskStorage, taskId string) {
 	}
 }
 
-// Middleware returns slice of gokugen.MiddlewareFunc. Order must maintained.
-// Though these middleware, task context info is stored in external persistent data storage.
+// Middleware returns gokugen.MiddlewareFunc's. Order must be maintained.
+// Though these middleware(s), task context info is stored in external persistent data storage.
 //
 // If freeParam is true, param free up functionality is enabled.
-// It let those middlewares to forget param until needed. This adds one middleware
-// that load up param from repository right before execution.
+// It let those middlewares to forget param until needed.
+// Setting freeParam true adds one middleware
+// that loads up param from repository right before work execution.
 func (ts *SingleNodeTaskStorage) Middleware(freeParam bool) []gokugen.MiddlewareFunc {
 	if freeParam {
 		return []gokugen.MiddlewareFunc{ts.storeTask, ts.paramLoad}
@@ -203,9 +209,9 @@ func (ts *SingleNodeTaskStorage) Middleware(freeParam bool) []gokugen.Middleware
 	return []gokugen.MiddlewareFunc{ts.storeTask}
 }
 
-// Sync syncs itnernal state with external data storage.
-// Normally TaskStorage does it reversely through middlewares, mirroring internal state to external data storage.
-// But after rebooting system, or repository is changed externally, Sync is needed to fetch back external data.
+// Sync syncs itnernal state with an external data storage.
+// Normally TaskStorage does it reversely through middlewares, mirroring internal state to the external data storage.
+// But after rebooting the system, or repository is changed externally, Sync is needed to fetch back external data.
 func (ts *SingleNodeTaskStorage) Sync(
 	schedule func(ctx gokugen.SchedulerContext) (gokugen.Task, error),
 ) (rescheduled map[string]gokugen.Task, schedulingErr map[string]error, err error) {
@@ -310,9 +316,11 @@ func (ts *SingleNodeTaskStorage) sync(
 	return
 }
 
+// RetryMarking retries to mark of failed marking.
 func (s *SingleNodeTaskStorage) RetryMarking() (allRemoved bool) {
 	for _, set := range s.failedIds.GetAll() {
 		if !s.failedIds.Remove(set.Key) {
+			// race condition.
 			continue
 		}
 		var err error

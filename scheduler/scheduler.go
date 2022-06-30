@@ -26,7 +26,7 @@ func NewScheduler(initialWorkerNum, queueMax uint) *Scheduler {
 	return newScheduler(initialWorkerNum, queueMax, common.GetNowImpl{})
 }
 
-func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNow) *Scheduler {
+func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNower) *Scheduler {
 	taskCh := make(chan *Task)
 	taskTimer := NewTaskTimer(queueMax, getNow, common.NewTimerImpl())
 
@@ -66,8 +66,8 @@ func (e LoopError) Error() string {
 	)
 }
 
-// Start starts loops to facilitate scheduler.
-// Start creates one goroutine for periodical-cancelled-task-removal.
+// Start starts needed loops.
+// Start creates one goroutine for periodical-removal-of-cancelled-task.
 // Start blocks until ctx is cancelled, and other loops to return.
 func (s *Scheduler) Start(ctx context.Context) error {
 	if s.IsEnded() {

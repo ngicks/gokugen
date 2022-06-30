@@ -14,8 +14,8 @@ import (
 
 var _ cron.WorkRegistry = &Cli{}
 
-// Cli builds work function from given string assuming it is cli command.
-// Cli also holds whiteList and blackList
+// Cli builds work function from given string assuming it is a cli command.
+// Cli also holds whiteList and blackList.
 type Cli struct {
 	mu        sync.Mutex
 	whiteList set.Set[string]

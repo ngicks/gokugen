@@ -19,7 +19,7 @@ type ent struct {
 	info taskstorage.TaskInfo
 }
 
-func (e *ent) Update(new taskstorage.TaskState, updateIf func(old taskstorage.TaskState) bool, getNow common.GetNow) bool {
+func (e *ent) Update(new taskstorage.TaskState, updateIf func(old taskstorage.TaskState) bool, getNow common.GetNower) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if updateIf(e.info.State) {
@@ -30,7 +30,7 @@ func (e *ent) Update(new taskstorage.TaskState, updateIf func(old taskstorage.Ta
 	return false
 }
 
-func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow common.GetNow) bool {
+func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow common.GetNower) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -58,7 +58,7 @@ func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow common.GetNow) bo
 type InMemoryRepo struct {
 	randomStr *RandStringGenerator
 	store     *syncparam.Map[string, *ent]
-	getNow    common.GetNow
+	getNow    common.GetNower
 }
 
 func NewInMemoryRepo() *InMemoryRepo {
@@ -146,7 +146,7 @@ func (r *InMemoryRepo) UpdateState(id string, old, new taskstorage.TaskState) (s
 	return entry.Update(new, func(old_ taskstorage.TaskState) bool { return old_ == old }, r.getNow), nil
 }
 
-func updateState(store *syncparam.Map[string, *ent], id string, state taskstorage.TaskState, getNow common.GetNow) (bool, error) {
+func updateState(store *syncparam.Map[string, *ent], id string, state taskstorage.TaskState, getNow common.GetNower) (bool, error) {
 	entry, ok := store.Load(id)
 	if !ok {
 		return false, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)

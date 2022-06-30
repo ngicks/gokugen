@@ -15,9 +15,9 @@ The idea is based on [this article](https://qiita.com/kawasin73/items/7af6766c78
 ### Differences
 
 - It removes cancelled tasks from min-heap at every one minute.
-- It passes 2 channels to task that would be closed if scheduler is ended and the task is cancelled respectively.
-- It has countermeasurement for abnormally-returned work (i.e. calling runtime.Goexit or panicking). But not tested yet!
-- Task cancellations are controlled by Cancel method of struct instance returned from Schedule.
+- It passes an instance of context.Context to a task, which would be `Done` if scheduler is ended and/or the task is cancelled.
+- It has a countermeasurement for abnormally-returned work (i.e. calling runtime.Goexit or panicking). But not tested yet!
+- Task cancellations are controlled by Cancel method of a struct instance returned from `Schedule`.
 - Cancellation of scheduler is controlled by context.Context.
 
 ### Additonal Properties
@@ -48,7 +48,7 @@ simplified architecture.
 Scheduler is in-memory scheduler.
 
 With WorkerPool, scheduler limits how many tasks can be concurrently worked on.
-And with min-heap backed TaskQueue, task retrieval complexity is O(log n) where n is number of scheduled task.
+And with min-heap backed TaskQueue, task retrieval complexity is O(log n) where n is number of currently scheduled task.
 
 See `./example/simple/main.go ` for exmpale usage.
 
@@ -271,8 +271,8 @@ func main() {
 			scheduleTarget,
 			nil,
 			nil,
-			gokugen.WithWorkIdOption("func1"),
-			gokugen.WithParamOption([]string{"param", "param"}),
+			gokugen.WithWorkId("func1"),
+			gokugen.WithParam([]string{"param", "param"}),
 		),
 	)
 	if err != nil {

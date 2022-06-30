@@ -1,18 +1,16 @@
 package cron
 
 import (
-	"errors"
 	"time"
 )
 
-var (
-	ErrNilWork = errors.New("nil work")
-)
-
+// Builder helps easy building of Row.
 type Builder struct {
 	cron Row
 }
 
+// Minute overwrites Minute field.
+// Passing zero arguments set it as wildcard.
 func (b Builder) Minute(in ...uint8) Builder {
 	minutes := Minutes([]Minute{})
 	for _, m := range in {
@@ -22,6 +20,8 @@ func (b Builder) Minute(in ...uint8) Builder {
 	return b
 }
 
+// Hour overwrites Hour field.
+// Passing zero arguments set it as wildcard.
 func (b Builder) Hour(in ...uint8) Builder {
 	hours := Hours([]Hour{})
 	for _, m := range in {
@@ -31,6 +31,8 @@ func (b Builder) Hour(in ...uint8) Builder {
 	return b
 }
 
+// Day overwrites Day field.
+// Passing zero arguments set it as wildcard.
 func (b Builder) Day(in ...uint8) Builder {
 	days := Days([]Day{})
 	for _, m := range in {
@@ -40,6 +42,8 @@ func (b Builder) Day(in ...uint8) Builder {
 	return b
 }
 
+// Month overwrites Month field.
+// Passing zero arguments set it as wildcard.
 func (b Builder) Month(in ...time.Month) Builder {
 	months := Months([]time.Month{})
 	for _, m := range in {
@@ -49,6 +53,8 @@ func (b Builder) Month(in ...time.Month) Builder {
 	return b
 }
 
+// WeekDay overwrites WeekDay field.
+// Passing zero arguments set it as wildcard.
 func (b Builder) WeekDay(in ...time.Weekday) Builder {
 	weekdays := Weekdays([]time.Weekday{})
 	for _, w := range in {
@@ -58,6 +64,7 @@ func (b Builder) WeekDay(in ...time.Weekday) Builder {
 	return b
 }
 
+// Command overwrites Command field.
 func (b Builder) Command(in []string) Builder {
 	b.cron.Command = in
 	return b
@@ -90,10 +97,14 @@ func (b Builder) Hourly(minute []uint8) Builder {
 	return b.clearTime().Minute(minute...)
 }
 
+// Reboot clears all time value fields.
+// This will make row as a once task.
 func (b Builder) Reboot() Builder {
 	return b.clearTime()
 }
 
+// Build builds Row.
+// No validation happens.
 func (b Builder) Build() Row {
 	return b.cron
 }

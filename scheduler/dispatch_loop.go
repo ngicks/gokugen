@@ -8,18 +8,18 @@ import (
 )
 
 // DispatchLoop waits for a TaskTimer to emit the timer signal,
-// and then sends received tasks to worker channel.
+// and then sends scheduled tasks to worker channel.
 //
-// Multiple calls of Start is ok. But performance benefits are questionable.
+// Multiple calls of Start is allowed. But performance benefits are questionable.
 type DispatchLoop struct {
 	taskTimer *TaskTimer
-	getNow    common.GetNow
+	getNow    common.GetNower
 }
 
 // NewDispatchLoop creates DispatchLoop.
 //
 // panic: when one or more of arguments is nil.
-func NewDispatchLoop(taskTimer *TaskTimer, getNow common.GetNow) *DispatchLoop {
+func NewDispatchLoop(taskTimer *TaskTimer, getNow common.GetNower) *DispatchLoop {
 	if taskTimer == nil || getNow == nil {
 		panic(fmt.Errorf(
 			"%w: one or more of aruguments is nil. taskTimer is nil=[%t], getNow is nil=[%t]",

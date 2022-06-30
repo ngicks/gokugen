@@ -142,7 +142,7 @@ func (r Row) NextSchedule(now time.Time) (time.Time, error) {
 }
 
 // GetCommand returns []string if Command is valid, nil otherwise.
-// Behavior after mutating returned slice is undefined.
+// Mutating returned slice causes undefined behavior.
 func (r Row) GetCommand() []string {
 	if r.IsCommandValid() {
 		return r.Command

@@ -6,7 +6,7 @@ import (
 	"github.com/ngicks/gokugen/common"
 )
 
-var _ common.GetNow = new(getNowDummyImpl)
+var _ common.GetNower = new(getNowDummyImpl)
 var _ common.ITimer = new(timerDummyImpl)
 
 type getNowDummyImpl struct {

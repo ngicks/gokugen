@@ -7,8 +7,14 @@ import (
 )
 
 var (
-	ErrNoEnt             = errors.New("no ent")
-	ErrInvalidEnt        = errors.New("invalid ent")
+	// ErrNoEnt is used in Repository implementation
+	// to express situation where TaskInfo for operation does not exist.
+	ErrNoEnt = errors.New("no ent")
+	// ErrInvalidEnt is used in Repository implementation.
+	// This is indication of an invalid TaskInfo insertion or a stored info is invalid.
+	ErrInvalidEnt = errors.New("invalid ent")
+	// ErrNotUpdatableState is used in Repository implementation.
+	// It is returned when TaskInfo for the update is not updatable.
 	ErrNotUpdatableState = errors.New("not updatable")
 )
 

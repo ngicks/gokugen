@@ -4,11 +4,15 @@ import "time"
 
 type Option func(ctx SchedulerContext) SchedulerContext
 
+// BuildContext builds a new SchedulerContext.
+// workFn, valMap can be nil.
+// Add options to set additional values to the ctx.
 func BuildContext(scheduledTime time.Time, workFn WorkFn, valMap map[any]any, options ...Option) SchedulerContext {
 	var ctx SchedulerContext = NewPlainContext(scheduledTime, workFn, valMap)
 	return WrapContext(ctx, options...)
 }
 
+// WrapContext wrapps parent with options.
 func WrapContext(parent SchedulerContext, options ...Option) (ctx SchedulerContext) {
 	ctx = parent
 	for _, opt := range options {

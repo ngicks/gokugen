@@ -22,7 +22,7 @@ The delay between scheduled time and actual work invocation is typically under 3
 
 Scheduler stores tasks to the min-heap. It is a priority queue that prioritize least scheduled time, meaning earlist is most. It relies on [std container/heap](https://pkg.go.dev/container/heap@go1.18.3) implementation, which means element addition and retrieval is O(log n) where n = len of elements.
 
-### TaskTaskTimer
+### TaskTimer
 
 TaskTimer is wrapper of min-heap.
 

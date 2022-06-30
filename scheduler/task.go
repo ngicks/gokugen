@@ -87,8 +87,8 @@ func (t *Task) IsDone() bool {
 }
 
 // TaskController is a small wrapper around Task.
-// Simply it removes Do method from Task.
-// For other methods, it delegates to inner Task.
+// Simply it removes Do method from Task and
+// expose other methods as it delegates them to inner Task.
 type TaskController struct {
 	t *Task
 }

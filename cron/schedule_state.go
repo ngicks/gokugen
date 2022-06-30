@@ -20,19 +20,19 @@ type ScheduleState struct {
 }
 
 // NewScheduleState creates new ScheduleState.
-// nextScheduler is schedule-time calculator implementation. NextSchedule is called with whence or,
+// nextScheduler is schedule-time calculator implementation. NextSchedule is called with fromWhen or,
 // for twice or later time, previous output of the method.
-// whence is the time whence calcuation starts. Next sticks to its location.
-func NewScheduleState(nextScheduler NextScheduler, whence time.Time) *ScheduleState {
+// fromWhen is the time from when calcuation starts. Next sticks to its location.
+func NewScheduleState(nextScheduler NextScheduler, fromWhen time.Time) *ScheduleState {
 	return &ScheduleState{
 		nextScheduler: nextScheduler,
-		prevTime:      whence,
+		prevTime:      fromWhen,
 	}
 }
 
 // Next returns next schedule time.
 // If `same` is false, `next` is larger value than previously returned value.
-// Or otherwise it is same time.
+// Otherwise it is same time.
 func (s *ScheduleState) Next() (same bool, callCount int, next time.Time) {
 	next, _ = s.nextScheduler.NextSchedule(s.prevTime)
 	if next.Equal(s.prevTime) {

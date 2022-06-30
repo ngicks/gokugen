@@ -8,13 +8,13 @@ import (
 	"github.com/ngicks/gokugen/common"
 )
 
-// TaskTimer is a wrapper around the task min-heap and a timer channel.
+// TaskTimer is a wrapper of a min-heap and a timer channel.
 // It manages timer to be always reset to a min task.
 type TaskTimer struct {
 	workingState
 	mu     sync.Mutex
 	q      TaskQueue
-	getNow common.GetNow
+	getNow common.GetNower
 	timer  common.ITimer
 }
 
@@ -22,7 +22,7 @@ type TaskTimer struct {
 // queueMax is max for tasks. Passing zero sets it unlimited.
 //
 // panic: If getNow or timerImpl is nil.
-func NewTaskTimer(queueMax uint, getNow common.GetNow, timerImpl common.ITimer) *TaskTimer {
+func NewTaskTimer(queueMax uint, getNow common.GetNower, timerImpl common.ITimer) *TaskTimer {
 	if getNow == nil || timerImpl == nil {
 		panic(
 			fmt.Errorf(
@@ -100,8 +100,8 @@ func excludeCancelled(ele *Task) bool {
 }
 
 // RemoveCancelled removes elements from underlying heap if they are cancelled.
-// Heap is scanned in given range [start,end).
-// Wider range is, longer it will hold lock. So range size must be chosen wisely.
+// Heap is scanned in given range, [start,end).
+// Wider the range is, longer it may hold lock. So range size must be chosen wisely.
 func (f *TaskTimer) RemoveCancelled(start, end int) (removed []*Task) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -115,7 +115,7 @@ func (f *TaskTimer) Len() int {
 }
 
 // GetScheduledTask gets tasks whose scheduled time is earlier than given time t.
-// Note that returned slice might be zero-length, because min task might be removed in racy `RemoveCancelled` call.
+// Note that returned slice might be empty. Because min task might be removed in racy `RemoveCancelled` call.
 func (f *TaskTimer) GetScheduledTask(t time.Time) []*Task {
 	f.mu.Lock()
 	defer f.mu.Unlock()

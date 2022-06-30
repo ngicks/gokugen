@@ -43,12 +43,15 @@ var (
 	workIdKey *workIdKeyTy = new(workIdKeyTy)
 )
 
+// PlainContext is intended to be a base context of SchedulerContext.
 type PlainContext struct {
 	scheduledTime time.Time
 	workFn        WorkFn
 	values        map[any]any
 }
 
+// NewPlainContext creates a new PlainContext instance.
+// But recommendation here is to use BuildContext instead.
 func NewPlainContext(scheduledTime time.Time, workFn WorkFn, values map[any]any) SchedulerContext {
 	return &PlainContext{
 		scheduledTime: scheduledTime,
@@ -165,6 +168,9 @@ func GetParam(ctx SchedulerContext) (any, error) {
 	return ctx.Value(paramKey)
 }
 
+// GetTaskId gets task id from ctx.
+// This may be heavy or cause error.
+// If task id is not set, GetTaskId returns a wrapped ErrValueNotFound.
 func GetTaskId(ctx SchedulerContext) (string, error) {
 	id, err := ctx.Value(taskIdKey)
 	if err != nil {
@@ -176,6 +182,9 @@ func GetTaskId(ctx SchedulerContext) (string, error) {
 	return id.(string), nil
 }
 
+// GetWorkId gets task id from ctx.
+// This may be heavy or cause error.
+// If work id is not set, GetWorkId returns a wrapped ErrValueNotFound.
 func GetWorkId(ctx SchedulerContext) (string, error) {
 	id, err := ctx.Value(workIdKey)
 	if err != nil {

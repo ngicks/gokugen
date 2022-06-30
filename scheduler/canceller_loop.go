@@ -13,14 +13,14 @@ import (
 type CancellerLoop struct {
 	workingState
 	taskTimer *TaskTimer
-	getNow    common.GetNow
+	getNow    common.GetNower
 	interval  time.Duration
 }
 
 // NewCancellerLoop creates a CancellerLoop.
 //
 // panic: when one or more of arguments is nil or zero-vakue.
-func NewCancellerLoop(taskTimer *TaskTimer, getNow common.GetNow, interval time.Duration) *CancellerLoop {
+func NewCancellerLoop(taskTimer *TaskTimer, getNow common.GetNower, interval time.Duration) *CancellerLoop {
 	if taskTimer == nil || getNow == nil || interval <= 0 {
 		panic(fmt.Errorf(
 			"%w: one or more of aruguments is nil or zero-value. taskTimer is nil=[%t], getNow is nil=[%t], interval is zero=[%t]",
@@ -38,7 +38,7 @@ func NewCancellerLoop(taskTimer *TaskTimer, getNow common.GetNow, interval time.
 }
 
 // Start starts a loop that requests TaskTimer to remove cancelled tasks at at given interval.
-// Cancelling is controlled by ctx.
+// Cancelling of Start is controlled by ctx.
 //
 // If ctx is nil, Start immediately returns ErrInvalidArg.
 // If loop is already running in some goroutine, Start immediately returns ErrAlreadyStarted.
@@ -67,7 +67,7 @@ loop:
 	return nil
 }
 
-func removeCancelled(taskTimer *TaskTimer, getNow common.GetNow) (removed bool) {
+func removeCancelled(taskTimer *TaskTimer, getNow common.GetNower) (removed bool) {
 	p := taskTimer.Peek()
 	if p != nil && p.scheduledTime.Sub(getNow.GetNow()) > time.Second {
 		// Racy Push may add min element in between previous Peek and this RemoveCancelled.

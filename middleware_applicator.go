@@ -41,6 +41,8 @@ func NewMiddlewareApplicator[T Scheduler](scheduler T) *MiddlewareApplicator[T] 
 	}
 }
 
+// Schedule schedules ctx to inner scheduler with middlewares applied.
+// Middlewares will be called in first-in-first-applied order.
 func (s *MiddlewareApplicator[T]) Schedule(ctx SchedulerContext) (Task, error) {
 	schedule := s.apply(func(ctx SchedulerContext) (Task, error) {
 		return s.scheduler.Schedule(
@@ -58,10 +60,13 @@ func (s *MiddlewareApplicator[T]) Schedule(ctx SchedulerContext) (Task, error) {
 	return schedule(ctx)
 }
 
+// Scheduler is getter of inner sheculer.
 func (ma *MiddlewareApplicator[T]) Scheduler() T {
 	return ma.scheduler
 }
 
+// Use registers MiddlewareFunc.
+// First registered one will be invoked first.
 func (s *MiddlewareApplicator[T]) Use(mw ...MiddlewareFunc) {
 	s.mwMu.Lock()
 	defer s.mwMu.Unlock()

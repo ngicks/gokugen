@@ -50,9 +50,9 @@ type AnyUnmarshaller struct {
 	syncparam.Map[string, Unmarshaller]
 }
 
-// AddType stores UnmarshalAny, which is instantiated with T, into registry.
+// AddType stores UnmarshalAny instantiated with T into the registry.
 // AddType is an external function, not a method for *AnyUnmarshaller,
-// since Go curently does not allow us to add type parameters to methods.
+// since Go curently does not allow us to add type parameters to methods individually.
 func AddType[T any](key string, registry *AnyUnmarshaller) {
 	registry.Store(key, UnmarshalAny[T])
 }

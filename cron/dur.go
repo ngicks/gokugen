@@ -17,6 +17,8 @@ func (d Duration) NextSchedule(now time.Time) (time.Time, error) {
 	return now.Add(d.Duration), nil
 }
 
+// GetCommand returns []string if Command is valid, nil otherwise.
+// Mutating returned slice causes undefined behavior.
 func (d Duration) GetCommand() []string {
 	if d.IsCommandValid() {
 		return d.Command

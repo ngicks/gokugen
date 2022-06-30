@@ -8,10 +8,12 @@ import (
 	"sync/atomic"
 )
 
+// WorkerConstructor is aliased type of constructor.
 // id must be, as its name says, unique value.
-// onTaskReceived, onTaskDone must be non nil function called at timing as name suggests.
+// onTaskReceived, onTaskDone can be nil.
 type WorkerConstructor = func(id int, onTaskReceived func(), onTaskDone func()) *Worker[int]
 
+// BuildWorkerConstructor is helper function for WorkerConstructor.
 // taskCh must not be nil. onTaskReceived_, onTaskDone_ can be nil.
 func BuildWorkerConstructor(taskCh <-chan *Task, onTaskReceived_ func(), onTaskDone_ func()) WorkerConstructor {
 	return func(id int, onTaskReceived__ func(), onTaskDone__ func()) *Worker[int] {
@@ -167,8 +169,6 @@ func (p *WorkerPool) ActiveWorkerNum() int64 {
 }
 
 // Kill kills all worker.
-// Kill also clears internal slept worker slice.
-// It is advised to call this method after excessive Add-s and Remove-s.
 func (p *WorkerPool) Kill() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -178,7 +178,7 @@ func (p *WorkerPool) Kill() {
 }
 
 // Wait waits for all workers to stop.
-// Calling this before sleeping or removing all worker may block forever.
+// Calling this without sleeping or removing all worker may block forever.
 func (p *WorkerPool) Wait() {
 	p.wg.Wait()
 }

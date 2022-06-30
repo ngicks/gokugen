@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// Worker represents single loop that executes tasks.
+// Worker represents a single task executor.
 // It will work on a single task at a time.
 // It may be in stopped-state where loop is stopped,
 // working-state where looping in goroutine,
@@ -101,6 +101,7 @@ LOOP:
 					w.mu.Unlock()
 
 					select {
+					// in case of racy kill
 					case <-w.killCh:
 						return
 					default:
@@ -119,8 +120,8 @@ LOOP:
 }
 
 // Stop stops an active Start loop.
-// If Start is not in work when Stop is called,
-// it will stops next Start immediately after an invocation of Start.
+// If Start is not in use when Stop is called,
+// it will stops next Start immediately.
 func (w *Worker[T]) Stop() {
 	select {
 	case <-w.stopCh:
@@ -131,8 +132,8 @@ func (w *Worker[T]) Stop() {
 }
 
 // Kill kills this worker.
-// If a task is being worked,
-// a channel passed to the task will be closed immediately after an invocation of this method.
+// If a task is being worked at the time of invocation,
+// a contex passed to the task will be cancelled immediately.
 // Kill makes this worker to step into ended state, making it impossible to Start-ed again.
 func (w *Worker[T]) Kill() {
 	if w.setEnded() {

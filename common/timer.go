@@ -4,16 +4,22 @@ package common
 
 import "time"
 
+// ITimer is timer interface.
+// Intention is to use as an unexported field of some structs.
+// And make it mock-able inside internal tests.
 type ITimer interface {
 	GetChan() <-chan time.Time
 	Reset(to, now time.Time)
 	Stop()
 }
 
+// TimerImpl is a struct that implements ITimer.
 type TimerImpl struct {
 	*time.Timer
 }
 
+// NewTimerImpl returns newly created TimerImpl.
+// Timer is stopped after return.
 func NewTimerImpl() *TimerImpl {
 	timer := time.NewTimer(time.Second)
 	if !timer.Stop() {

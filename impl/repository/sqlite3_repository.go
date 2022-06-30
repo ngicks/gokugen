@@ -55,6 +55,10 @@ func fromHighLevel(
 	taskId string,
 	taskInfo taskstorage.TaskInfo,
 ) (lowTaskInfo sqlite3TaskInfo, err error) {
+	if taskInfo.State < 0 {
+		err = taskstorage.ErrInvalidEnt
+		return
+	}
 	// Implementation detail: param must be json marshalable
 	var paramMarshaled []byte
 	if taskInfo.Param != nil {
