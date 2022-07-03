@@ -20,8 +20,8 @@ type Task struct {
 	mu            sync.Mutex
 	scheduledTime time.Time
 	work          WorkFn
-	done          uint32
-	cancelled     uint32
+	isDone        uint32
+	isCancelled   uint32
 	cancel        func()
 }
 
@@ -81,11 +81,11 @@ func (t *Task) CancelWithReason(err error) (cancelled bool) {
 }
 
 func (t *Task) IsCancelled() bool {
-	return atomic.LoadUint32(&t.cancelled) == 1
+	return atomic.LoadUint32(&t.isCancelled) == 1
 }
 
 func (t *Task) IsDone() bool {
-	return atomic.LoadUint32(&t.done) == 1
+	return atomic.LoadUint32(&t.isDone) == 1
 }
 
 // TaskController is a small wrapper around Task.
