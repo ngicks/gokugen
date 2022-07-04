@@ -10,15 +10,11 @@ import (
 
 type WorkFn = func(ctx context.Context, scheduled time.Time)
 
-// Task is simple set of data of
-// scheduledTime and work and calling state.
+// Task is simple set of data, which is consist of
+// scheduledTime, work, internal calling state and context canceller.
 //
-// work will be called with ctxCancelCh, taskCancelCh and scheduled time.
-// ctxCancelCh is closed when the larger context is being torn down, needing all tasks to be aborted.
-// taskCancelCh is closed when the task is cancelled by calling Close. Further computing is not advised.
-// A passed work should make use of these channels if it would take long time.
+// work will be called with contex.Contex which will be closed when task is cancelled or scheduler is torn down.
 type Task struct {
-	mu            sync.Mutex
 	scheduledTime time.Time
 	work          WorkFn
 	isDone        uint32
@@ -70,8 +66,11 @@ func (t *Task) GetScheduledTime() time.Time {
 
 func (t *Task) Cancel() (cancelled bool) {
 	cancelled = atomic.CompareAndSwapUint32(&t.isCancelled, 0, 1)
-	if cancel := *t.cancelCtx.Load(); cancel != nil {
-		cancel()
+	if !cancelled {
+		return
+	}
+	if cancel := t.cancelCtx.Load(); cancel != nil {
+		(*cancel)()
 	}
 	return
 }

@@ -1,4 +1,4 @@
-# gokugen
+# gokugen [![Godoc](https://pkg.go.dev/github.com/ngicks/gokugen?status.svg)](https://pkg.go.dev/github.com/ngicks/gokugen)
 
 go+刻限(kokugen)
 
