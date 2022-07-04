@@ -3,6 +3,7 @@ package scheduler
 import (
 	"errors"
 	"fmt"
+	"log"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
@@ -76,8 +77,9 @@ func (p *WorkerPool) Add(delta uint32) (newAliveLen int) {
 			func() { atomic.AddInt64(&p.activeWorkerNum, 1) },
 			func() { atomic.AddInt64(&p.activeWorkerNum, -1) },
 		)
+		// callWorkerStart calls wg.Done().
 		p.wg.Add(1)
-		go p.callWorkerStart(worker, true, func(err error) {})
+		go p.callWorkerStart(worker, true, func(err error) { log.Println(err) })
 
 		p.workers[worker.Id()] = worker
 	}
