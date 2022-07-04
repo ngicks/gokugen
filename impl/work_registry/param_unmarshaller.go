@@ -62,6 +62,16 @@ type ParamUnmarshaller struct {
 	marshallerRegistry UnmarshallerRegistry
 }
 
+func NewParamUnmarshaller(
+	inner cron.WorkRegistry,
+	marshallerRegistry UnmarshallerRegistry,
+) *ParamUnmarshaller {
+	return &ParamUnmarshaller{
+		inner:              inner,
+		marshallerRegistry: marshallerRegistry,
+	}
+}
+
 func (p *ParamUnmarshaller) Load(key string) (value gokugen.WorkFnWParam, ok bool) {
 	work, ok := p.inner.Load(key)
 	if !ok {
