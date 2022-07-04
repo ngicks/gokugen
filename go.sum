@@ -12,8 +12,8 @@ github.com/mattn/go-sqlite3 v1.14.13 h1:1tj15ngiFfcZzii7yd82foL+ks+ouQcj8j/TPq3f
 github.com/mattn/go-sqlite3 v1.14.13/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
 github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
-github.com/ngicks/type-param-common v0.0.6 h1:llW0uqRo+AFbuw+KrVQsxlAk75FxzmVqb5i1ajhZJIc=
-github.com/ngicks/type-param-common v0.0.6/go.mod h1:W8PCgqsSe/Jl1qyziEjZ2LqspFddNCsHJyZAAU42vvM=
+github.com/ngicks/type-param-common v0.0.7 h1:XxhB4MsqVA05w0w9jfAXR3ORhxLwgwVVqdigPAP1wOY=
+github.com/ngicks/type-param-common v0.0.7/go.mod h1:W8PCgqsSe/Jl1qyziEjZ2LqspFddNCsHJyZAAU42vvM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

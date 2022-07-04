@@ -2,9 +2,10 @@ package scheduler
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"time"
+
+	atomicparam "github.com/ngicks/type-param-common/sync-param/atomic-param"
 )
 
 type WorkFn = func(ctx context.Context, scheduled time.Time)
@@ -22,33 +23,35 @@ type Task struct {
 	work          WorkFn
 	isDone        uint32
 	isCancelled   uint32
-	cancel        func()
+	cancelCtx     atomicparam.Value[*context.CancelFunc]
 }
 
 // NewTask creates a new Task instance.
 // scheduledTime is scheduled time when work should be invoked.
 // work is work of Task, this will be only called once.
 func NewTask(scheduledTime time.Time, work WorkFn) *Task {
+	cancelCtx := atomicparam.NewValue[*context.CancelFunc]()
+	cancelCtx.Store(nil)
 	return &Task{
 		scheduledTime: scheduledTime,
 		work:          work,
+		cancelCtx:     cancelCtx,
 	}
 }
 
 func (t *Task) Do(ctx context.Context) {
 	innerCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	if t.IsCancelled() {
-		cancel()
 		return
 	}
-	if atomic.CompareAndSwapUint32(&t.done, 0, 1) && t.work != nil {
-		t.mu.Lock()
-		t.cancel = cancel
-		t.mu.Unlock()
+	if atomic.CompareAndSwapUint32(&t.isDone, 0, 1) && t.work != nil {
+		t.cancelCtx.Store(&cancel)
+		// forget cancel immediately in case where Task is held long time after it is done.
+		defer t.cancelCtx.Store(nil)
 		// in case of race condition.
-		// Cancel might be called right between this cancel assigning and above IsCancelled call.
+		// Cancel might be called right between cancelFunc storage and above IsCancelled call.
 		if t.IsCancelled() {
-			cancel()
 			return
 		}
 		select {
@@ -59,7 +62,6 @@ func (t *Task) Do(ctx context.Context) {
 		}
 		t.work(innerCtx, t.scheduledTime)
 	}
-	cancel()
 }
 
 func (t *Task) GetScheduledTime() time.Time {
@@ -67,12 +69,10 @@ func (t *Task) GetScheduledTime() time.Time {
 }
 
 func (t *Task) Cancel() (cancelled bool) {
-	cancelled = atomic.CompareAndSwapUint32(&t.cancelled, 0, 1)
-	t.mu.Lock()
-	if t.cancel != nil {
-		t.cancel()
+	cancelled = atomic.CompareAndSwapUint32(&t.isCancelled, 0, 1)
+	if cancel := *t.cancelCtx.Load(); cancel != nil {
+		cancel()
 	}
-	t.mu.Unlock()
 	return
 }
 
