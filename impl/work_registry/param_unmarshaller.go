@@ -39,7 +39,7 @@ func UnmarshalAny[T any](naive any) (unmarshalled any, err error) {
 	if err != nil {
 		return
 	}
-	return
+	return val, nil
 }
 
 type UnmarshallerRegistry interface {
