@@ -43,6 +43,7 @@ func TransformedAny[T any](naive any) (transformed any, err error) {
 }
 
 type TransformerRegistry interface {
+	Store(key string, value Transformer)
 	Load(key string) (value Transformer, ok bool)
 }
 
@@ -53,12 +54,35 @@ type TransformerRegistryImpl struct {
 // AddType stores TransformedAny instantiated with T into the registry.
 // AddType is an external function, not a method for *AnyUnmarshaller,
 // since Go curently does not allow us to add type parameters to methods individually.
-func AddType[T any](key string, registry *TransformerRegistryImpl) {
+func AddType[T any](key string, registry TransformerRegistry) {
 	registry.Store(key, TransformedAny[T])
 }
 
 type Storer interface {
 	Store(key string, value cron.WorkFnWParam)
+}
+
+// RegisterDefault registers default transformer TransformedAny[T] to registry.
+// typed workFn will be called with transformed T value processed by those defaut ones.
+//
+// WorkRegistry of registry must implement Storer interface. If not, returns false and no registration occurs.
+func RegisterDefault[T any](
+	key string,
+	registry *ParamTransformer,
+	workFn func(taskCtx context.Context, scheduled time.Time, param T) (any, error),
+) (stored bool) {
+	storer, ok := registry.inner.(Storer)
+	if !ok {
+		return false
+	}
+
+	AddType[T](key, registry.transformerRegistry)
+
+	storer.Store(key, func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
+		return workFn(taskCtx, scheduled, param.(T))
+	})
+
+	return true
 }
 
 type ParamTransformer struct {
