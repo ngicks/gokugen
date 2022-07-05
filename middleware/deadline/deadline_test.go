@@ -2,6 +2,7 @@ package deadline
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -14,6 +15,45 @@ import (
 )
 
 func TestDeadline(t *testing.T) {
+	_, mockSched, getTrappedTask := mock_gokugen.BuildMockScheduler(t)
+	ma := gokugen.NewMiddlewareApplicator(mockSched)
+
+	var workErr error
+	observeMw := observe.New(nil, func(_ any, err error) {
+		workErr = err
+	})
+	// never dies
+	deadlineMw := New(math.MaxInt64, func(ctx gokugen.SchedulerContext) bool { return false })
+
+	ma.Use(
+		deadlineMw.Middleware,
+		observeMw.Middleware,
+	)
+
+	inputCtx := gokugen.BuildContext(
+		time.Now(),
+		func(taskCtx context.Context, scheduled time.Time) (any, error) {
+			return "baz", nil
+		},
+		nil,
+	)
+
+	ma.Schedule(inputCtx)
+	getTrappedTask().Do(context.TODO())
+
+	require.Equal(t, nil, workErr)
+
+	// dies however you try
+	deadlineMw.deadline = 0
+	ma.Schedule(inputCtx)
+	getTrappedTask().Do(context.TODO())
+
+	dee, ok := workErr.(DeadlineExeededErr)
+	require.Equal(t, true, ok)
+	require.Error(t, dee)
+}
+
+func TestDeadlineMock(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	mockGetNow := mock_common.NewMockGetNower(ctrl)
 	_, mockSched, getTrappedTask := mock_gokugen.BuildMockScheduler(t)

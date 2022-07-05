@@ -39,6 +39,7 @@ func New(deadline time.Duration, shouldSkip func(ctx gokugen.SchedulerContext) b
 	return &DeadlineMiddleware{
 		deadline:   deadline,
 		shouldSkip: shouldSkip,
+		getNow:     common.GetNowImpl{},
 	}
 }
 
