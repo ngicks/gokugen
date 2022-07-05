@@ -112,7 +112,7 @@ func prepare(dbFilename string) (
 	innerRegistry.Store("func2", printNowWithIdParam2("func2"))
 	innerRegistry.Store("func3", printNowWithIdParam2("func3"))
 
-	unmarshallerResgitry := &workregistry.AnyUnmarshaller{}
+	unmarshallerResgitry := &workregistry.TransformerRegistryImpl{}
 	workregistry.AddType[Param1]("func1", unmarshallerResgitry)
 	workregistry.AddType[Param2]("func2", unmarshallerResgitry)
 	workregistry.AddType[Param2]("func3", unmarshallerResgitry)
