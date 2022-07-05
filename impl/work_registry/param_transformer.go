@@ -90,7 +90,7 @@ type ParamTransformer struct {
 	transformerRegistry TransformerRegistry
 }
 
-func NewParamUnmarshaller(
+func NewParamTransformer(
 	inner cron.WorkRegistry,
 	marshallerRegistry TransformerRegistry,
 ) *ParamTransformer {
@@ -106,13 +106,13 @@ func (p *ParamTransformer) Load(key string) (value gokugen.WorkFnWParam, ok bool
 		return
 	}
 
-	unmarshaller, ok := p.transformerRegistry.Load(key)
+	tansformer, ok := p.transformerRegistry.Load(key)
 	if !ok {
 		return
 	}
 
 	value = func(taskCtx context.Context, scheduled time.Time, param any) (any, error) {
-		unmarshaled, err := unmarshaller(param)
+		unmarshaled, err := tansformer(param)
 		if err != nil {
 			return nil, err
 		}

@@ -117,7 +117,7 @@ func prepare(dbFilename string) (
 	workregistry.AddType[Param2]("func2", unmarshallerResgitry)
 	workregistry.AddType[Param2]("func3", unmarshallerResgitry)
 
-	workRegistory = workregistry.NewParamUnmarshaller(innerRegistry, unmarshallerResgitry)
+	workRegistory = workregistry.NewParamTransformer(innerRegistry, unmarshallerResgitry)
 
 	sched = gokugen.NewMiddlewareApplicator(scheduler.NewScheduler(5, 0))
 
