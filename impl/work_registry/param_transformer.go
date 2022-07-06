@@ -92,11 +92,11 @@ type ParamTransformer struct {
 
 func NewParamTransformer(
 	inner cron.WorkRegistry,
-	marshallerRegistry TransformerRegistry,
+	transformerRegistry TransformerRegistry,
 ) *ParamTransformer {
 	return &ParamTransformer{
 		inner:               inner,
-		transformerRegistry: marshallerRegistry,
+		transformerRegistry: transformerRegistry,
 	}
 }
 
