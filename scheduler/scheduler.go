@@ -6,36 +6,56 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ngicks/gokugen/common"
+	"github.com/ngicks/gommon"
+	"github.com/ngicks/gommon/state"
+	gopherpool "github.com/ngicks/gopher-pool"
 )
 
 // Scheduler is an in-memory scheduler backed by min heap.
 type Scheduler struct {
-	workingState
-	endState
+	*state.WorkingStateChecker
+	workingInner *state.WorkingStateSetter
+	*state.EndedStateChecker
+	endedInner *state.EndedStateSetter
+
 	wg sync.WaitGroup
 
 	taskTimer     *TaskTimer
 	cancellerLoop *CancellerLoop
 	dispatchLoop  *DispatchLoop
-	workerPool    *WorkerPool
-	taskCh        chan *Task
+	workerPool    *gopherpool.WorkerPool
+	workCh        chan gopherpool.WorkFn
 }
 
 func NewScheduler(initialWorkerNum, queueMax uint) *Scheduler {
-	return newScheduler(initialWorkerNum, queueMax, common.GetNowImpl{})
+	return newScheduler(initialWorkerNum, queueMax, gommon.GetNowImpl{})
 }
 
-func newScheduler(initialWorkerNum, queueMax uint, getNow common.GetNower) *Scheduler {
-	taskCh := make(chan *Task)
-	taskTimer := NewTaskTimer(queueMax, getNow, common.NewTimerImpl())
+func newScheduler(initialWorkerNum, queueMax uint, getNow gommon.GetNower) *Scheduler {
+
+	workingStateChecker, workingStateInner := state.NewWorkingState()
+	endedStateChecker, endedStateInner := state.NewEndedState()
+
+	workCh := make(chan gopherpool.WorkFn)
+	taskTimer := NewTaskTimer(queueMax, getNow, gommon.NewTimerImpl())
 
 	s := &Scheduler{
+		WorkingStateChecker: workingStateChecker,
+		workingInner:        workingStateInner,
+		EndedStateChecker:   endedStateChecker,
+		endedInner:          endedStateInner,
+
 		taskTimer:     taskTimer,
 		cancellerLoop: NewCancellerLoop(taskTimer, getNow, time.Minute),
 		dispatchLoop:  NewDispatchLoop(taskTimer, getNow),
-		workerPool:    NewWorkerPool(BuildWorkerConstructor(taskCh, nil, nil)),
-		taskCh:        taskCh,
+		workerPool: gopherpool.NewWorkerPool(
+			gopherpool.SetDefaultWorkerConstructor(
+				workCh,
+				nil,
+				nil,
+			),
+		),
+		workCh: workCh,
 	}
 	s.AddWorker(uint32(initialWorkerNum))
 	return s
@@ -73,10 +93,10 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	if s.IsEnded() {
 		return ErrAlreadyEnded
 	}
-	if !s.setWorking() {
+	if !s.workingInner.SetWorking() {
 		return ErrAlreadyStarted
 	}
-	defer s.setWorking(false)
+	defer s.workingInner.SetWorking(false)
 
 	err := new(LoopError)
 	s.wg.Add(1)
@@ -85,7 +105,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		err.cancellerLoopErr = s.cancellerLoop.Start(ctx)
 		s.wg.Done()
 	}()
-	err.dispatchLoopErr = s.dispatchLoop.Start(ctx, s.taskCh)
+	err.dispatchLoopErr = s.dispatchLoop.Start(ctx, s.workCh)
 	s.wg.Wait()
 	s.taskTimer.Stop()
 
@@ -111,7 +131,7 @@ func (s *Scheduler) ActiveWorkerNum() int64 {
 // End also cancel tasks if they are working on in any work.
 // Calling this method *before* cancelling of ctx passed to Start will cause blocking forever.
 func (s *Scheduler) End() {
-	s.setEnded()
+	s.endedInner.SetEnded()
 	// wait for the Start loop to be done.
 	s.wg.Wait()
 	s.workerPool.Kill()

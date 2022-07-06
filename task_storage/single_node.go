@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen"
-	"github.com/ngicks/gokugen/common"
+	"github.com/ngicks/gommon"
 	"github.com/ngicks/type-param-common/set"
 )
 
@@ -47,7 +47,7 @@ type SingleNodeTaskStorage struct {
 	workRegistry   WorkRegistry
 	taskMap        *TaskMap
 	mu             sync.Mutex
-	getNow         common.GetNower // this field can be swapped out in test codes.
+	getNow         gommon.GetNower // this field can be swapped out in test codes.
 	lastSynced     time.Time
 	knownIdForTime set.Set[string]
 	syncCtxWrapper func(gokugen.SchedulerContext) gokugen.SchedulerContext
@@ -77,7 +77,7 @@ func NewSingleNodeTaskStorage(
 		failedIds:      NewSyncStateStore(),
 		workRegistry:   workRegistry,
 		taskMap:        NewTaskMap(),
-		getNow:         common.GetNowImpl{},
+		getNow:         gommon.GetNowImpl{},
 		knownIdForTime: set.Set[string]{},
 		syncCtxWrapper: syncCtxWrapper,
 	}

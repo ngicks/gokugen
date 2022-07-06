@@ -9,8 +9,8 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/ngicks/gokugen"
 	mock_gokugen "github.com/ngicks/gokugen/__mock"
-	mock_common "github.com/ngicks/gokugen/common/__mock"
 	"github.com/ngicks/gokugen/middleware/observe"
+	mock_gommon "github.com/ngicks/gommon/__mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -55,7 +55,7 @@ func TestDeadline(t *testing.T) {
 
 func TestDeadlineMock(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	mockGetNow := mock_common.NewMockGetNower(ctrl)
+	mockGetNow := mock_gommon.NewMockGetNower(ctrl)
 	_, mockSched, getTrappedTask := mock_gokugen.BuildMockScheduler(t)
 
 	ma := gokugen.NewMiddlewareApplicator(mockSched)

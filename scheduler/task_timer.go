@@ -5,24 +5,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ngicks/gokugen/common"
+	"github.com/ngicks/gommon"
+	"github.com/ngicks/gommon/state"
 )
 
 // TaskTimer is a wrapper of a min-heap and a timer channel.
 // It manages timer to be always reset to a min task.
 type TaskTimer struct {
-	workingState
+	*state.WorkingStateChecker
+	workingInner *state.WorkingStateSetter
+
 	mu     sync.Mutex
 	q      TaskQueue
-	getNow common.GetNower
-	timer  common.ITimer
+	getNow gommon.GetNower
+	timer  gommon.ITimer
 }
 
 // NewTaskTimer creates TaskTimer.
 // queueMax is max for tasks. Passing zero sets it unlimited.
 //
 // panic: If getNow or timerImpl is nil.
-func NewTaskTimer(queueMax uint, getNow common.GetNower, timerImpl common.ITimer) *TaskTimer {
+func NewTaskTimer(queueMax uint, getNow gommon.GetNower, timerImpl gommon.ITimer) *TaskTimer {
 	if getNow == nil || timerImpl == nil {
 		panic(
 			fmt.Errorf(
@@ -33,10 +36,14 @@ func NewTaskTimer(queueMax uint, getNow common.GetNower, timerImpl common.ITimer
 			),
 		)
 	}
+
+	workingStateChecker, workingStateInner := state.NewWorkingState()
 	return &TaskTimer{
-		q:      NewUnsafeQueue(queueMax),
-		getNow: getNow,
-		timer:  timerImpl,
+		WorkingStateChecker: workingStateChecker,
+		workingInner:        workingStateInner,
+		q:                   NewUnsafeQueue(queueMax),
+		getNow:              getNow,
+		timer:               timerImpl,
 	}
 }
 
@@ -51,14 +58,14 @@ func (f *TaskTimer) Start() {
 }
 
 func (f *TaskTimer) Stop() {
-	f.setWorking(false)
+	f.workingInner.SetWorking(false)
 	f.timer.Stop()
 }
 
 // GetTimer returns timer channel
 // that emits when a scheduled time of a min task is past.
 func (f *TaskTimer) GetTimer() <-chan time.Time {
-	return f.timer.GetChan()
+	return f.timer.Channel()
 }
 
 // Push pushes *Task into underlying heap.

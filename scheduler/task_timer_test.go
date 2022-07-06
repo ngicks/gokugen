@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ngicks/gokugen/common"
 	"github.com/ngicks/gokugen/scheduler"
+	"github.com/ngicks/gommon"
 )
 
 func TestTaskTimer(t *testing.T) {
@@ -27,7 +27,7 @@ func TestTaskTimer(t *testing.T) {
 		)
 	}
 
-	f := scheduler.NewTaskTimer(0, &g, common.NewTimerImpl())
+	f := scheduler.NewTaskTimer(0, &g, gommon.NewTimerImpl())
 
 	var task []*scheduler.Task
 	task = f.GetScheduledTask(now)
@@ -77,7 +77,7 @@ func TestTaskTimerReset(t *testing.T) {
 		if !timer.Stop() {
 			<-timer.C
 		}
-		return &timerDummyImpl{timer: common.NewTimerImpl()}
+		return &timerDummyImpl{timer: gommon.NewTimerImpl()}
 	}()
 
 	f := scheduler.NewTaskTimer(0, &g, dummyTimer)

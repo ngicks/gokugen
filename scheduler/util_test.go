@@ -3,11 +3,11 @@ package scheduler_test
 import (
 	"time"
 
-	"github.com/ngicks/gokugen/common"
+	"github.com/ngicks/gommon"
 )
 
-var _ common.GetNower = new(getNowDummyImpl)
-var _ common.ITimer = new(timerDummyImpl)
+var _ gommon.GetNower = new(getNowDummyImpl)
+var _ gommon.ITimer = new(timerDummyImpl)
 
 type getNowDummyImpl struct {
 	dummy time.Time
@@ -19,10 +19,10 @@ func (g *getNowDummyImpl) GetNow() time.Time {
 
 type timerDummyImpl struct {
 	resetArg []time.Duration
-	timer    *common.TimerImpl
+	timer    *gommon.TimerImpl
 }
 
-func (t *timerDummyImpl) GetChan() <-chan time.Time {
+func (t *timerDummyImpl) Channel() <-chan time.Time {
 	return t.timer.C
 }
 

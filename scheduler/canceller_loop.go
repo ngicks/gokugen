@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ngicks/gokugen/common"
+	"github.com/ngicks/gommon"
 )
 
 // CancellerLoop requests TaskTimer to remove cancelled element at a given interval.
@@ -13,14 +13,14 @@ import (
 type CancellerLoop struct {
 	workingState
 	taskTimer *TaskTimer
-	getNow    common.GetNower
+	getNow    gommon.GetNower
 	interval  time.Duration
 }
 
 // NewCancellerLoop creates a CancellerLoop.
 //
 // panic: when one or more of arguments is nil or zero-vakue.
-func NewCancellerLoop(taskTimer *TaskTimer, getNow common.GetNower, interval time.Duration) *CancellerLoop {
+func NewCancellerLoop(taskTimer *TaskTimer, getNow gommon.GetNower, interval time.Duration) *CancellerLoop {
 	if taskTimer == nil || getNow == nil || interval <= 0 {
 		panic(fmt.Errorf(
 			"%w: one or more of aruguments is nil or zero-value. taskTimer is nil=[%t], getNow is nil=[%t], interval is zero=[%t]",
@@ -67,7 +67,7 @@ loop:
 	return nil
 }
 
-func removeCancelled(taskTimer *TaskTimer, getNow common.GetNower) (removed bool) {
+func removeCancelled(taskTimer *TaskTimer, getNow gommon.GetNower) (removed bool) {
 	p := taskTimer.Peek()
 	if p != nil && p.scheduledTime.Sub(getNow.GetNow()) > time.Second {
 		// Racy Push may add min element in between previous Peek and this RemoveCancelled.

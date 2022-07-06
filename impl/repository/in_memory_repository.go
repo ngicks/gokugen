@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ngicks/gokugen/common"
 	taskstorage "github.com/ngicks/gokugen/task_storage"
+	"github.com/ngicks/gommon"
 	syncparam "github.com/ngicks/type-param-common/sync-param"
 )
 
@@ -19,7 +19,7 @@ type ent struct {
 	info taskstorage.TaskInfo
 }
 
-func (e *ent) Update(new taskstorage.TaskState, updateIf func(old taskstorage.TaskState) bool, getNow common.GetNower) bool {
+func (e *ent) Update(new taskstorage.TaskState, updateIf func(old taskstorage.TaskState) bool, getNow gommon.GetNower) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if updateIf(e.info.State) {
@@ -30,7 +30,7 @@ func (e *ent) Update(new taskstorage.TaskState, updateIf func(old taskstorage.Ta
 	return false
 }
 
-func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow common.GetNower) bool {
+func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow gommon.GetNower) bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -58,14 +58,14 @@ func (e *ent) UpdateByDiff(diff taskstorage.UpdateDiff, getNow common.GetNower) 
 type InMemoryRepo struct {
 	randomStr *RandStringGenerator
 	store     *syncparam.Map[string, *ent]
-	getNow    common.GetNower
+	getNow    gommon.GetNower
 }
 
 func NewInMemoryRepo() *InMemoryRepo {
 	return &InMemoryRepo{
 		randomStr: NewRandStringGenerator(int64(time.Now().Nanosecond()), 16, hex.NewEncoder),
 		store:     new(syncparam.Map[string, *ent]),
-		getNow:    common.GetNowImpl{},
+		getNow:    gommon.GetNowImpl{},
 	}
 }
 
@@ -146,7 +146,7 @@ func (r *InMemoryRepo) UpdateState(id string, old, new taskstorage.TaskState) (s
 	return entry.Update(new, func(old_ taskstorage.TaskState) bool { return old_ == old }, r.getNow), nil
 }
 
-func updateState(store *syncparam.Map[string, *ent], id string, state taskstorage.TaskState, getNow common.GetNower) (bool, error) {
+func updateState(store *syncparam.Map[string, *ent], id string, state taskstorage.TaskState, getNow gommon.GetNower) (bool, error) {
 	entry, ok := store.Load(id)
 	if !ok {
 		return false, fmt.Errorf("%w: no such id [%s]", taskstorage.ErrNoEnt, id)

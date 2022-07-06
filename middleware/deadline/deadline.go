@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen"
-	"github.com/ngicks/gokugen/common"
+	"github.com/ngicks/gommon"
 )
 
 type DeadlineExeededErr struct {
@@ -31,7 +31,7 @@ func (e DeadlineExeededErr) ExecutedTime() time.Time {
 
 type DeadlineMiddleware struct {
 	deadline   time.Duration
-	getNow     common.GetNower
+	getNow     gommon.GetNower
 	shouldSkip func(ctx gokugen.SchedulerContext) bool
 }
 
@@ -39,7 +39,7 @@ func New(deadline time.Duration, shouldSkip func(ctx gokugen.SchedulerContext) b
 	return &DeadlineMiddleware{
 		deadline:   deadline,
 		shouldSkip: shouldSkip,
-		getNow:     common.GetNowImpl{},
+		getNow:     gommon.GetNowImpl{},
 	}
 }
 
@@ -59,7 +59,7 @@ func (mw *DeadlineMiddleware) Middleware(handler gokugen.ScheduleHandlerFn) goku
 
 func wrapper(
 	deadline time.Duration,
-	getNow common.GetNower,
+	getNow gommon.GetNower,
 ) func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
 	return func(self gokugen.SchedulerContext, workFn gokugen.WorkFn) gokugen.WorkFn {
 		return func(taskCtx context.Context, scheduled time.Time) (any, error) {
