@@ -26,16 +26,11 @@ type LogMiddleware struct {
 
 type Option = func(mw *LogMiddleware) *LogMiddleware
 
-func SetTimeFormat(timeFormat string) (Option, error) {
-	_, err := time.Parse(timeFormat, time.Now().Format(timeFormat))
-	if err != nil {
-		return nil, err
-	}
-
+func SetTimeFormat(timeFormat string) Option {
 	return func(mw *LogMiddleware) *LogMiddleware {
 		mw.timeFormat = timeFormat
 		return mw
-	}, nil
+	}
 }
 
 func LogParam() Option {
@@ -97,7 +92,7 @@ func wrapper(logger Logger, logVal logValueSetBuilder) func(self gokugen.Schedul
 }
 
 func (mw *LogMiddleware) buildLogValueSet(ctx gokugen.SchedulerContext) (logValues []string) {
-	logValues = append(logValues, "scheduled_at", ctx.ScheduledTime().Format(time.RFC3339Nano))
+	logValues = append(logValues, "scheduled_at", ctx.ScheduledTime().Format(mw.timeFormat))
 
 	taskId, _ := gokugen.GetTaskId(ctx)
 	if taskId != "" {
@@ -128,14 +123,26 @@ func (mw *LogMiddleware) buildLogValueSet(ctx gokugen.SchedulerContext) (logValu
 		if err != nil && !errors.Is(err, gokugen.ErrValueNotFound) {
 			logValues = append(logValues, keyLabel, "loading error")
 		} else {
-			marshaled, err := json.Marshal(val)
-			if err == nil {
-				logValues = append(logValues, keyLabel, string(marshaled))
-			} else {
-				logValues = append(logValues, keyLabel, "marshalling error")
-			}
+			logValues = append(logValues, keyLabel, stringify(val))
 		}
 	}
 
 	return
+}
+
+func stringify(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case fmt.Stringer:
+		return x.String()
+	case []byte:
+		marshalled, err := json.Marshal(x)
+		if err != nil {
+			return "marshalling error"
+		}
+		return string(marshalled)
+	default:
+		return fmt.Sprintf("%v", x)
+	}
 }
