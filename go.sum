@@ -14,8 +14,8 @@ github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyua
 github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/ngicks/gommon v0.0.5 h1:5BUFgVjquWVNoiY6njQKZ6Gafozna3ffcfYuhys3mrQ=
 github.com/ngicks/gommon v0.0.5/go.mod h1:QK845JnVLei726wHaXMolFUslDeZco2N8PsSv2v7rok=
-github.com/ngicks/gopher-pool v0.0.1 h1:KzdIzZDjdCXRol5tFzZb78scXmWZlu8LPnIFbQ8KMTc=
-github.com/ngicks/gopher-pool v0.0.1/go.mod h1:VK9rmxMDbF79xtC5uZA4oyvDIqPQB2Stu+/9LKtZ2cg=
+github.com/ngicks/gopher-pool v0.0.2 h1:y1IOT70rnnMIu3mslsZjxKc1vmAvZTIbTpVG2cNknh4=
+github.com/ngicks/gopher-pool v0.0.2/go.mod h1:VK9rmxMDbF79xtC5uZA4oyvDIqPQB2Stu+/9LKtZ2cg=
 github.com/ngicks/type-param-common v0.0.7 h1:XxhB4MsqVA05w0w9jfAXR3ORhxLwgwVVqdigPAP1wOY=
 github.com/ngicks/type-param-common v0.0.7/go.mod h1:W8PCgqsSe/Jl1qyziEjZ2LqspFddNCsHJyZAAU42vvM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

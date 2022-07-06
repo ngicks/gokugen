@@ -7,7 +7,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/ngicks/gommon v0.0.5
-	github.com/ngicks/gopher-pool v0.0.1
+	github.com/ngicks/gopher-pool v0.0.2
 	github.com/ngicks/type-param-common v0.0.7
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/goleak v1.1.12
