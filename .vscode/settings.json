@@ -1,13 +1,21 @@
 {
   "cSpell.words": [
+    "acceptancetest",
     "atomicstate",
+    "Deque",
     "Desync",
     "gokugen",
     "gommon",
     "gopherpool",
     "kokugen",
     "Lessable",
+    "Millis",
+    "Nanos",
     "ngicks",
-    "Nower"
+    "Nower",
+    "randstr",
+    "stretchr",
+    "unexported",
+    "usecase"
   ]
 }
