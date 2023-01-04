@@ -231,18 +231,7 @@ func (r *HeapRepository) MarkAsDone(id string, err error) error {
 	return nil
 }
 
-func (r *HeapRepository) Peek() *scheduler.Task {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	peeked := r.heap.Peek()
-	if peeked == nil {
-		return nil
-	}
-	return &peeked.Task
-}
-
-func (r *HeapRepository) Pop() (scheduler.Task, error) {
+func (r *HeapRepository) GetNext() (scheduler.Task, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

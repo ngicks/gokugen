@@ -282,7 +282,7 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 					t.Fatalf("must not return error: %+v", err)
 				}
 				<-repo.TimerChannel()
-				task, err := repo.Pop()
+				task, err := repo.GetNext()
 				if err != nil {
 					t.Fatalf("must not return error: %+v", err)
 				}
@@ -340,7 +340,7 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 
 				now := util.DropNanos(TruncatedNow())
 				task, _ := repo.AddTask(randParam(now.Add(500 * time.Millisecond)))
-				if peeked := repo.Peek(); peeked.Id != task.Id {
+				if peeked, _ := repo.GetNext(); peeked.Id != task.Id {
 					t.Fatalf("Peek did not change its min element"+
 						" even if AddTask is called with min ScheduledAt. expected = %s, actual = %s",
 						task.Id,

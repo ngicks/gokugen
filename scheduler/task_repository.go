@@ -17,13 +17,9 @@ type TaskRepository interface {
 	// MarkAsDone marks the id as done. if err is non-nil, task is marked as failed.
 	MarkAsDone(id string, err error) error
 
-	// Peek peeks a min (most prioritized) element from TaskRepository without changing it.
-	// Implementations might use a cached content for its return value. The caller will not mutate returned Task.
-	// In case of error, the implementation may return nil pointer.
-	Peek() *Task
-	// Pop pops a min (most prioritized) element from TaskRepository.
-	// The implementation may or may not remove the element from it, since the caller might fail to dispatch.
-	Pop() (Task, error)
+	// GetNext returns the most prioritized element without changing repository contents.
+	// GetNext should not return cancelled tasks.
+	GetNext() (Task, error)
 	TimerLike
 }
 

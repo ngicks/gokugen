@@ -112,7 +112,7 @@ func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error
 }
 
 func (l *loop) dispatch(ctx context.Context) error {
-	task, err := l.repo.Pop()
+	task, err := l.repo.GetNext()
 	if err != nil {
 		repoErr, ok := err.(*RepositoryError)
 		if !ok || repoErr.Kind != Empty {
