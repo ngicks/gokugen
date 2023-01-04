@@ -2,94 +2,65 @@ package scheduler
 
 import (
 	"context"
-	"fmt"
-	"sync"
-	"time"
+	"errors"
 
 	"github.com/ngicks/gommon/pkg/atomicstate"
-	"github.com/ngicks/gommon/pkg/common"
 )
 
 type Scheduler struct {
 	*atomicstate.WorkingStateChecker
 	workingState *atomicstate.WorkingStateSetter
 
-	wg            sync.WaitGroup
-	taskDispenser TaskDispenser
+	dispatcher Dispatcher
+	repo       TaskRepository
+	hooks      LoopHooks
 
-	dispatcherLoop *DispatcherLoop
-	cancellerLoop  *CancellerLoop
+	loop loop
 }
 
-type Option func(s *Scheduler) *Scheduler
-
-func SetGetNow(getNow common.GetNower) Option {
-	return func(s *Scheduler) *Scheduler {
-		s.dispatcherLoop.getNow = getNow
-		s.cancellerLoop.getNow = getNow
-		return s
-	}
-}
-
-func SetInterval(interval time.Duration) Option {
-	return func(s *Scheduler) *Scheduler {
-		s.cancellerLoop.interval = interval
-		return s
-	}
-}
-
-func New(taskDispenser TaskDispenser, options ...Option) *Scheduler {
+func New(
+	dispatcher Dispatcher,
+	repo TaskRepository,
+	hooks LoopHooks,
+) *Scheduler {
 	checker, setter := atomicstate.NewWorkingState()
 
 	s := &Scheduler{
 		WorkingStateChecker: checker,
 		workingState:        setter,
-		taskDispenser:       taskDispenser,
-		dispatcherLoop:      NewDispatchLoop(taskDispenser, common.GetNowImpl{}),
-		cancellerLoop:       NewCancellerLoop(taskDispenser, common.GetNowImpl{}, time.Hour),
+
+		dispatcher: dispatcher,
+		repo:       repo,
+		hooks:      hooks,
+
+		loop: newLoop(dispatcher, repo, hooks),
 	}
 
-	for _, opt := range options {
-		s = opt(s)
-	}
 	return s
 }
 
-func (s *Scheduler) Start(ctx context.Context) error {
-	if ctx == nil {
-		return fmt.Errorf("%w: one or more args are invalid. ctx == nil:[%t]",
-			ErrInvalidArg,
-			ctx == nil,
-		)
-	}
+var (
+	ErrAlreadyRunning = errors.New("already running")
+)
 
-	if !s.workingState.SetWorking() {
-		return ErrAlreadyStarted
+func (s *Scheduler) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error {
+	if s.WorkingStateChecker.IsWorking() {
+		return ErrAlreadyEnded
 	}
+	s.workingState.SetWorking()
 	defer s.workingState.SetWorking(false)
 
-	err := new(LoopError)
+	return s.loop.Run(ctx, startTimer, stopTimerOnClose)
+}
 
-	s.wg.Add(1)
-	go func() {
-		s.taskDispenser.MarkStart()
-		s.wg.Done()
-	}()
+func (s *Scheduler) AddTask(param TaskParam) (Task, error) {
+	return s.repo.AddTask(param)
+}
 
-	s.wg.Add(1)
-	go func() {
-		err.cancellerLoopErr = s.cancellerLoop.Start(ctx)
-		s.wg.Done()
-	}()
+func (s *Scheduler) Cancel(id string) error {
+	return s.loop.Cancel(id)
+}
 
-	err.dispatchLoopErr = s.dispatcherLoop.Start(ctx)
-
-	s.wg.Wait()
-
-	s.taskDispenser.Stop()
-
-	if err.IsEmpty() {
-		return nil
-	}
-	return err
+func (s *Scheduler) Update(id string, param TaskParam) error {
+	return s.loop.Update(id, param)
 }
