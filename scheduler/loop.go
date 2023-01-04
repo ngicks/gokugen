@@ -141,6 +141,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 	)
 
 	if err != nil {
+		l.beingDispatched.Delete(task.Id)
 		if IsAlreadyCancelled(err) {
 			return nil
 		}
@@ -154,6 +155,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 
 	err = l.repo.MarkAsDispatched(task.Id)
 	if err != nil {
+		l.beingDispatched.Delete(task.Id)
 		hookErr := l.hooks.OnUpdateError(MarkAsDispatched, err)
 		if hookErr != nil {
 			return hookErr
