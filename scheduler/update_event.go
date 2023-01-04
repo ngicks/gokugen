@@ -13,6 +13,7 @@ type updateEvent struct {
 	id         string
 	updateType UpdateType
 	err        error
+	task       Task
 	param      TaskParam
 	responseCh chan error
 }

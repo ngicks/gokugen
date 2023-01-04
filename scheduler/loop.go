@@ -9,8 +9,8 @@ import (
 
 type LoopHooks interface {
 	OnGetNextError(err error) error
-	OnDispatchError(err error) error
-	OnUpdateError(updateType UpdateType, err error) error
+	OnDispatchError(id string, err error) error
+	OnUpdateError(id string, updateType UpdateType, err error) error
 }
 
 type beingDispatchedIDs struct {
@@ -125,6 +125,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 		return nil
 	}
 
+	var updated Task
 	resultCh, err := l.dispatcher.Dispatch(
 		ctx,
 		func() (Task, error) {
@@ -136,6 +137,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 			if task.CancelledAt != nil {
 				return Task{}, &RepositoryError{Id: task.Id, Kind: AlreadyCancelled}
 			}
+			updated = task
 			return task, nil
 		},
 	)
@@ -146,7 +148,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 			return nil
 		}
 
-		hookErr := l.hooks.OnDispatchError(err)
+		hookErr := l.hooks.OnDispatchError(task.Id, err)
 		if hookErr != nil {
 			return hookErr
 		}
@@ -156,7 +158,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 	err = l.repo.MarkAsDispatched(task.Id)
 	if err != nil {
 		l.beingDispatched.Delete(task.Id)
-		hookErr := l.hooks.OnUpdateError(MarkAsDispatched, err)
+		hookErr := l.hooks.OnUpdateError(task.Id, MarkAsDispatched, err)
 		if hookErr != nil {
 			return hookErr
 		}
@@ -169,6 +171,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 			return updateEvent{
 				id:         task.Id,
 				updateType: MarkAsDone,
+				task:       updated,
 				err:        err,
 			}
 		},
@@ -277,7 +280,7 @@ func (l *loop) markAsDone(event updateEvent) {
 	markErr := l.repo.MarkAsDone(event.id, event.err)
 	l.beingDispatched.Delete(event.id)
 	if markErr != nil {
-		hookErr := l.hooks.OnUpdateError(event.updateType, markErr)
+		hookErr := l.hooks.OnUpdateError(event.id, event.updateType, markErr)
 		if hookErr != nil {
 			l.errCh <- hookErr
 		}
