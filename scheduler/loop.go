@@ -114,14 +114,15 @@ func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error
 func (l *loop) dispatch(ctx context.Context) error {
 	task, err := l.repo.GetNext()
 	if err != nil {
-		repoErr, ok := err.(*RepositoryError)
-		if !ok || repoErr.Kind != Empty {
+		if !IsEmpty(err) {
 			hookErr := l.hooks.OnPopError(err)
 			if hookErr != nil {
 				return hookErr
 			}
 			return nil
 		}
+		// log when IsEmpty == true ?
+		return nil
 	}
 
 	resultCh, err := l.dispatcher.Dispatch(

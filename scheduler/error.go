@@ -38,6 +38,9 @@ func (e *RepositoryError) Error() string {
 }
 
 func IsRepositoryErr(err error, kind RepositoryErrorKind) bool {
+	if err == nil {
+		return false
+	}
 	repoErr, ok := err.(*RepositoryError)
 	if !ok {
 		return false
