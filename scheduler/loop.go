@@ -11,6 +11,7 @@ type LoopHooks interface {
 	OnGetNextError(err error) error
 	OnDispatchError(id string, err error) error
 	OnUpdateError(id string, updateType UpdateType, err error) error
+	OnTaskDone(task Task, err error)
 }
 
 type beingDispatchedIDs struct {
@@ -284,5 +285,7 @@ func (l *loop) markAsDone(event updateEvent) {
 		if hookErr != nil {
 			l.errCh <- hookErr
 		}
+	} else {
+		l.hooks.OnTaskDone(event.task, event.err)
 	}
 }
