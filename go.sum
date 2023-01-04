@@ -4,8 +4,8 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/ngicks/gommon/pkg/atomicstate v0.0.1 h1:lQ/0L9yTun3U1B9v+Dh3RrLAe+s3Ke8ZoM2VhMaDoBc=
-github.com/ngicks/gommon/pkg/atomicstate v0.0.1/go.mod h1:yTzNFijXyJ5lB2gjD/r6muG3hEB8HIioQaO7Fy2Yf4k=
+github.com/ngicks/gommon/pkg/atomicstate v0.0.2 h1:b3SJD8+W/gJmdxnoLSY3jVW91RYHQ+wtiXFsZ4hv/Qk=
+github.com/ngicks/gommon/pkg/atomicstate v0.0.2/go.mod h1:yTzNFijXyJ5lB2gjD/r6muG3hEB8HIioQaO7Fy2Yf4k=
 github.com/ngicks/gommon/pkg/common v0.0.1 h1:/tYSJSd/B9w3sycBAB3Jj00ks0DdNBCr+bLXZ4NGgT8=
 github.com/ngicks/gommon/pkg/common v0.0.1/go.mod h1:cOK3mkJaG6SXytBTP5tE2iAXj9idOvXyQxgtvuDb2Ic=
 github.com/ngicks/gommon/pkg/randstr v0.0.1 h1:mWxoBSxf02/M/zJhfO/77UB7IOeS0p1Gx9DtuP0YV+0=

@@ -6,9 +6,7 @@ import (
 )
 
 var (
-	ErrAlreadyStarted = errors.New("already started")
-	ErrAlreadyEnded   = errors.New("already ended")
-	ErrInvalidArg     = errors.New("invalid argument")
+	ErrAlreadyRunning = errors.New("already running")
 )
 
 type RepositoryErrorKind string

@@ -2,14 +2,13 @@ package scheduler
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ngicks/gommon/pkg/atomicstate"
 )
 
 type Scheduler struct {
-	*atomicstate.WorkingStateChecker
-	workingState *atomicstate.WorkingStateSetter
+	*atomicstate.RunningStateChecker
+	runningState *atomicstate.RunningStateSetter
 
 	dispatcher Dispatcher
 	repo       TaskRepository
@@ -23,11 +22,11 @@ func New(
 	repo TaskRepository,
 	hooks LoopHooks,
 ) *Scheduler {
-	checker, setter := atomicstate.NewWorkingState()
+	checker, setter := atomicstate.NewRunningState()
 
 	s := &Scheduler{
-		WorkingStateChecker: checker,
-		workingState:        setter,
+		RunningStateChecker: checker,
+		runningState:        setter,
 
 		dispatcher: dispatcher,
 		repo:       repo,
@@ -39,16 +38,12 @@ func New(
 	return s
 }
 
-var (
-	ErrAlreadyRunning = errors.New("already running")
-)
-
 func (s *Scheduler) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error {
-	if s.WorkingStateChecker.IsWorking() {
-		return ErrAlreadyEnded
+	if s.RunningStateChecker.IsRunning() {
+		return ErrAlreadyRunning
 	}
-	s.workingState.SetWorking()
-	defer s.workingState.SetWorking(false)
+	s.runningState.SetRunning()
+	defer s.runningState.SetRunning(false)
 
 	return s.loop.Run(ctx, startTimer, stopTimerOnClose)
 }
