@@ -8,7 +8,7 @@ import (
 )
 
 type LoopHooks interface {
-	OnPopError(err error) error
+	OnGetNextError(err error) error
 	OnDispatchError(err error) error
 	OnUpdateError(updateType UpdateType, err error) error
 }
@@ -115,7 +115,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 	task, err := l.repo.GetNext()
 	if err != nil {
 		if !IsEmpty(err) {
-			hookErr := l.hooks.OnPopError(err)
+			hookErr := l.hooks.OnGetNextError(err)
 			if hookErr != nil {
 				return hookErr
 			}
