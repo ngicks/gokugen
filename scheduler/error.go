@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrAlreadyRunning = errors.New("already running")
+	ErrNotRunning     = errors.New("not running")
 )
 
 type RepositoryErrorKind string

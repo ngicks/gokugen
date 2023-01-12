@@ -247,8 +247,7 @@ func (l *loop) updateLoop() {
 
 func (l *loop) Cancel(id string) error {
 	if l.updateEventQueue.IsClosed() {
-		_, err := l.repo.Cancel(id)
-		return err
+		return ErrNotRunning
 	}
 
 	errCh := make(chan error)
@@ -262,8 +261,7 @@ func (l *loop) Cancel(id string) error {
 
 func (l *loop) Update(id string, param TaskParam) error {
 	if l.updateEventQueue.IsClosed() {
-		_, err := l.repo.Update(id, param)
-		return err
+		return ErrNotRunning
 	}
 
 	errCh := make(chan error)
