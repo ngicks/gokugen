@@ -33,3 +33,49 @@ func (h PassThroughHook) OnUpdateError(_ Task, _ UpdateType, err error) error {
 }
 func (h PassThroughHook) OnUpdate(_ Task, _ UpdateType) {}
 func (h PassThroughHook) OnTaskDone(_ Task, _ error)    {}
+
+type OnTaskDone = func(task Task, err error)
+
+type hookWrapper struct {
+	LoopHooks
+	sync.RWMutex
+	onTaskDone *set.OrderedSet[*OnTaskDone]
+}
+
+func newHookWrapper(hooks LoopHooks) *hookWrapper {
+	return &hookWrapper{
+		LoopHooks:  hooks,
+		onTaskDone: set.NewOrdered[*OnTaskDone](),
+	}
+}
+
+func (h *hookWrapper) addOnTaskDone(fn *OnTaskDone) {
+	if fn == nil || *fn == nil {
+		return
+	}
+
+	h.Lock()
+	h.onTaskDone.Add(fn)
+	h.Unlock()
+}
+
+func (h *hookWrapper) removeOnTaskDone(fn *OnTaskDone) {
+	if fn == nil || *fn == nil {
+		return
+	}
+
+	h.Lock()
+	h.onTaskDone.Delete(fn)
+	h.Unlock()
+}
+
+func (h *hookWrapper) OnTaskDone(task Task, err error) {
+	h.LoopHooks.OnTaskDone(task, err)
+
+	h.RLock()
+	defer h.RUnlock()
+
+	h.onTaskDone.ForEach(func(fn *OnTaskDone, _ int) {
+		(*fn)(task, err)
+	})
+}

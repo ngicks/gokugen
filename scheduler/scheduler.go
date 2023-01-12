@@ -12,7 +12,7 @@ type Scheduler struct {
 
 	dispatcher Dispatcher
 	repo       TaskRepository
-	hooks      LoopHooks
+	hooks      *hookWrapper
 
 	loop loop
 }
@@ -24,15 +24,16 @@ func New(
 ) *Scheduler {
 	checker, setter := atomicstate.NewRunningState()
 
+	wrappedHook := newHookWrapper(hooks)
 	s := &Scheduler{
 		RunningStateChecker: checker,
 		runningState:        setter,
 
 		dispatcher: dispatcher,
 		repo:       repo,
-		hooks:      hooks,
+		hooks:      wrappedHook,
 
-		loop: newLoop(dispatcher, repo, hooks),
+		loop: newLoop(dispatcher, repo, wrappedHook),
 	}
 
 	return s
@@ -58,4 +59,12 @@ func (s *Scheduler) Cancel(id string) error {
 
 func (s *Scheduler) Update(id string, param TaskParam) error {
 	return s.loop.Update(id, param)
+}
+
+func (s *Scheduler) AddOnTaskDone(fn *OnTaskDone) {
+	s.hooks.addOnTaskDone(fn)
+}
+
+func (s *Scheduler) RemoveOnTaskDone(fn *OnTaskDone) {
+	s.hooks.removeOnTaskDone(fn)
 }
