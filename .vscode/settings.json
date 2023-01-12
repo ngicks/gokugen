@@ -15,6 +15,7 @@
     "Nower",
     "randstr",
     "stretchr",
+    "syncparam",
     "unexported",
     "usecase",
     "workerpool"
