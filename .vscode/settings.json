@@ -16,6 +16,7 @@
     "randstr",
     "stretchr",
     "unexported",
-    "usecase"
+    "usecase",
+    "workerpool"
   ]
 }
