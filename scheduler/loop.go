@@ -7,13 +7,6 @@ import (
 	"github.com/ngicks/type-param-common/set"
 )
 
-type LoopHooks interface {
-	OnGetNextError(err error) error
-	OnDispatchError(id string, err error) error
-	OnUpdateError(id string, updateType UpdateType, err error) error
-	OnTaskDone(task Task, err error)
-}
-
 type beingDispatchedIDs struct {
 	*set.Set[string]
 	sync.Mutex
@@ -126,6 +119,8 @@ func (l *loop) dispatch(ctx context.Context) error {
 		return nil
 	}
 
+	l.hooks.OnGetNext(task)
+
 	var updated Task
 	resultCh, err := l.dispatcher.Dispatch(
 		ctx,
@@ -149,21 +144,25 @@ func (l *loop) dispatch(ctx context.Context) error {
 			return nil
 		}
 
-		hookErr := l.hooks.OnDispatchError(task.Id, err)
+		hookErr := l.hooks.OnDispatchError(task, err)
 		if hookErr != nil {
 			return hookErr
 		}
 		return nil
 	}
 
+	l.hooks.OnDispatch(task)
+
 	err = l.repo.MarkAsDispatched(task.Id)
 	if err != nil {
 		l.beingDispatched.Delete(task.Id)
-		hookErr := l.hooks.OnUpdateError(task.Id, MarkAsDispatched, err)
+		hookErr := l.hooks.OnUpdateError(updated, MarkAsDispatched, err)
 		if hookErr != nil {
 			return hookErr
 		}
 	}
+
+	l.hooks.OnUpdate(updated, MarkAsDispatched)
 
 	l.updateEventQueue.Reserve(
 		task.Id,
@@ -281,7 +280,7 @@ func (l *loop) markAsDone(event updateEvent) {
 	markErr := l.repo.MarkAsDone(event.id, event.err)
 	l.beingDispatched.Delete(event.id)
 	if markErr != nil {
-		hookErr := l.hooks.OnUpdateError(event.id, event.updateType, markErr)
+		hookErr := l.hooks.OnUpdateError(event.task, event.updateType, markErr)
 		if hookErr != nil {
 			l.errCh <- hookErr
 		}
