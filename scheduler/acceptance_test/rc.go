@@ -4,6 +4,7 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 )
 
+// oneYearLater is far-future time.
 var oneYearLater = TruncatedNow().AddDate(1, 0, 0)
 
 type ParamAndFiller struct {
@@ -15,7 +16,7 @@ type ParamAndFiller struct {
 var possibleParams = []ParamAndFiller{
 	{
 		scheduler.TaskParam{
-			ScheduledAt: TruncatedNow().AddDate(1, 0, 0),
+			ScheduledAt: oneYearLater,
 		},
 		fillScheduledAt,
 	},

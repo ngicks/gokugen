@@ -20,6 +20,12 @@ type Task struct {
 	Err          string     `json:"err"`
 }
 
+func (t Task) IsInitialized() bool {
+	return t.Id != "" &&
+		t.WorkId != "" &&
+		!t.ScheduledAt.IsZero()
+}
+
 func (t Task) DropNanos() Task {
 	t.ScheduledAt = util.DropNanos(t.ScheduledAt)
 	t.CreatedAt = util.DropNanos(t.CreatedAt)
@@ -36,9 +42,9 @@ func (t Task) Less(j Task) bool {
 	return t.Priority > j.Priority
 }
 
-func (t Task) Update(param TaskParam, ignoreMilliSecs bool) Task {
+func (t Task) Update(param TaskParam, ignoreNanoSecs bool) Task {
 	if !param.ScheduledAt.IsZero() {
-		if ignoreMilliSecs {
+		if ignoreNanoSecs {
 			t.ScheduledAt = util.DropNanos(param.ScheduledAt)
 		} else {
 			t.ScheduledAt = param.ScheduledAt

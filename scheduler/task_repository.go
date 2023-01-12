@@ -17,14 +17,19 @@ type TaskRepository interface {
 	// MarkAsDone marks the id as done. if err is non-nil, task is marked as failed.
 	MarkAsDone(id string, err error) error
 
-	// GetNext returns the most prioritized element without changing repository contents.
+	// GetNext returns the next scheduled Task without changing repository contents.
 	// GetNext should not return cancelled tasks.
 	GetNext() (Task, error)
 	TimerLike
 }
 
 type TimerLike interface {
+	// StartTimer starts the internal timer. A channel returned from TimerChannel emits only if it is started.
+	// In started state, the timer channel updates to the next scheduled element at every Repository mutations.
 	StartTimer()
+	// StopTimer stops timer channels returned from TimerChannel.
 	StopTimer()
+	// TimerChannel returns the internal timer channel. The timer could be either of started, or stopped state.
+	// It will emits if and only if in started state.
 	TimerChannel() <-chan time.Time
 }
