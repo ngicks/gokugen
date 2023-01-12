@@ -18,7 +18,9 @@ type updateEventQueue struct {
 }
 
 func newUpdateEventQueue() *updateEventQueue {
-	q := new(updateEventQueue)
+	q := &updateEventQueue{
+		reserved: make(map[string]<-chan struct{}),
+	}
 	return q
 }
 
