@@ -57,7 +57,7 @@ type HeapRepository struct {
 	mapLike         map[string]*wrappedTask
 	beingDispatched map[string]*wrappedTask
 	getNow          common.GetNower
-	timer           common.ITimer
+	timer           common.Timer
 	isTimerStarted  bool
 }
 
@@ -67,7 +67,7 @@ func NewHeapRepository() *HeapRepository {
 		mapLike:         make(map[string]*wrappedTask),
 		beingDispatched: make(map[string]*wrappedTask),
 		getNow:          common.GetNowImpl{},
-		timer:           common.NewTimerImpl(),
+		timer:           common.NewTimerReal(),
 	}
 }
 
@@ -264,7 +264,7 @@ func (r *HeapRepository) StartTimer() {
 func (r *HeapRepository) resetTimer() {
 	if r.isTimerStarted {
 		if peeked := r.heap.Peek(); peeked != nil {
-			r.timer.ResetTo(peeked.ScheduledAt)
+			r.timer.Reset(peeked.ScheduledAt.Sub(r.getNow.GetNow()))
 		}
 	}
 }
@@ -274,11 +274,16 @@ func (r *HeapRepository) StopTimer() {
 	r.isTimerStarted = false
 	r.mu.Unlock()
 
-	r.timer.Stop()
+	if !r.timer.Stop() {
+		select {
+		case <-r.timer.C():
+		default:
+		}
+	}
 }
 
 func (r *HeapRepository) TimerChannel() <-chan time.Time {
-	return r.timer.Channel()
+	return r.timer.C()
 }
 
 func (r *HeapRepository) RemoveCancelled() []scheduler.Task {

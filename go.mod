@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/google/uuid v1.3.0
 	github.com/ngicks/gommon/pkg/atomicstate v0.0.2
-	github.com/ngicks/gommon/pkg/common v0.0.1
+	github.com/ngicks/gommon/pkg/common v0.1.0
 	github.com/ngicks/gommon/pkg/randstr v0.0.1
 	github.com/ngicks/type-param-common v0.2.0
 	github.com/stretchr/testify v1.8.1
