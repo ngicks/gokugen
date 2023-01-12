@@ -124,7 +124,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 	var updated Task
 	resultCh, err := l.dispatcher.Dispatch(
 		ctx,
-		func() (Task, error) {
+		func(ctx context.Context) (Task, error) {
 			l.beingDispatched.Add(task.Id)
 			task, err := l.repo.GetById(task.Id)
 			if err != nil {
