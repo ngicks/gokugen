@@ -4,8 +4,8 @@ package util
 
 import "time"
 
-// DropNanos drops nano seconds from t.
-func DropNanos(t time.Time) time.Time {
+// DropMicros drops micro and nano seconds from t.
+func DropMicros(t time.Time) time.Time {
 	// TODO: use more specialized implementation?
 	//```go
 	// t.Add(-time.Duration(t.Nanosecond() % 1e6))
@@ -15,10 +15,12 @@ func DropNanos(t time.Time) time.Time {
 	return t.Truncate(time.Millisecond)
 }
 
-func DropNanosPointer(t *time.Time) *time.Time {
+// DropMicrosPointer returns new *Time which has same value as t but micro and nano seconds removed,
+// when t is non-nil. It returns plain nil otherwise.
+func DropMicrosPointer(t *time.Time) *time.Time {
 	if t == nil {
 		return nil
 	}
-	u := DropNanos(*t)
+	u := DropMicros(*t)
 	return &u
 }

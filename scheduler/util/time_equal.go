@@ -2,12 +2,12 @@ package util
 
 import "time"
 
-// TimeEqual determines equality of t and u, ignoring nano secs.
+// TimeEqual determines equality of t and u, ignoring micro and nano secs.
 func TimeEqual(t, u time.Time) bool {
-	return DropNanos(t).Equal(DropNanos(u))
+	return DropMicros(t).Equal(DropMicros(u))
 }
 
-func TimePointerEqual(t, u *time.Time, ignoreMilli bool) bool {
+func TimePointerEqual(t, u *time.Time, ignoreMicro bool) bool {
 	if t == nil || u == nil {
 		if t == nil && u == nil {
 			return true
@@ -16,7 +16,7 @@ func TimePointerEqual(t, u *time.Time, ignoreMilli bool) bool {
 			return false
 		}
 	}
-	if ignoreMilli {
+	if ignoreMicro {
 		return TimeEqual(*t, *u)
 	} else {
 		return t.Equal(*u)

@@ -80,7 +80,7 @@ func (r *HeapRepository) AddTask(param scheduler.TaskParam) (scheduler.Task, err
 	task.Id = uuid.NewString()
 
 	if r.isMilliSecPrecise {
-		task = task.DropNanos()
+		task = task.DropMicros()
 	}
 
 	wrapped := &wrappedTask{
@@ -159,7 +159,7 @@ func (r *HeapRepository) Cancel(id string) (cancelled bool, err error) {
 	wrapped.Task.CancelledAt = util.Escape(r.getNow.GetNow())
 
 	if r.isMilliSecPrecise {
-		wrapped.Task = wrapped.Task.DropNanos()
+		wrapped.Task = wrapped.Task.DropMicros()
 	}
 
 	if wrapped.Index >= 0 {
@@ -186,7 +186,7 @@ func (r *HeapRepository) MarkAsDispatched(id string) error {
 	}
 	wrapped.Task.DispatchedAt = util.Escape(r.getNow.GetNow())
 	if r.isMilliSecPrecise {
-		wrapped.Task = wrapped.Task.DropNanos()
+		wrapped.Task = wrapped.Task.DropMicros()
 	}
 
 	r.beingDispatched[wrapped.Id] = wrapped
@@ -226,7 +226,7 @@ func (r *HeapRepository) MarkAsDone(id string, err error) error {
 	}
 
 	if r.isMilliSecPrecise {
-		wrapped.Task = wrapped.Task.DropNanos()
+		wrapped.Task = wrapped.Task.DropMicros()
 	}
 	return nil
 }

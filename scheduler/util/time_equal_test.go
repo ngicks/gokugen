@@ -21,9 +21,9 @@ func TestTimeEqual(t *testing.T) {
 		panic(err)
 	}
 
-	assert.True(util.DropNanos(tt).Equal(u), "DropNanos")
+	assert.True(util.DropMicros(tt).Equal(u), "DropNanos")
 	assert.True(util.TimeEqual(tt, u), "TimeEqual")
-	assert.True(util.DropNanosPointer(&tt).Equal(u), "DropNanosPointer")
+	assert.True(util.DropMicrosPointer(&tt).Equal(u), "DropNanosPointer")
 	assert.True(!util.TimePointerEqual(&tt, &u, false), "TimeEqualPointer, ignoreMilli = false")
 	assert.True(util.TimePointerEqual(&tt, &u, true), "TimeEqualPointer, ignoreMilli = true")
 }
@@ -32,7 +32,7 @@ func TestTimeEqualPointer(t *testing.T) {
 	assert := assert.New(t)
 
 	now := time.Now()
-	nowWithoutNanos := util.DropNanos(now)
+	nowWithoutMicros := util.DropMicros(now)
 
 	for _, testCase := range []struct {
 		l           *time.Time
@@ -47,12 +47,12 @@ func TestTimeEqualPointer(t *testing.T) {
 		{&now, nil, true, false},
 		{&now, &now, false, true},
 		{&now, &now, true, true},
-		{&nowWithoutNanos, &nowWithoutNanos, false, true},
-		{&nowWithoutNanos, &nowWithoutNanos, true, true},
-		{&now, &nowWithoutNanos, false, false},
-		{&nowWithoutNanos, &now, false, false},
-		{&now, &nowWithoutNanos, true, true},
-		{&nowWithoutNanos, &now, true, true},
+		{&nowWithoutMicros, &nowWithoutMicros, false, true},
+		{&nowWithoutMicros, &nowWithoutMicros, true, true},
+		{&now, &nowWithoutMicros, false, false},
+		{&nowWithoutMicros, &now, false, false},
+		{&now, &nowWithoutMicros, true, true},
+		{&nowWithoutMicros, &now, true, true},
 	} {
 		assert.True(
 			util.TimePointerEqual(

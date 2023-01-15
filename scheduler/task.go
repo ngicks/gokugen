@@ -26,12 +26,12 @@ func (t Task) IsInitialized() bool {
 		!t.ScheduledAt.IsZero()
 }
 
-func (t Task) DropNanos() Task {
-	t.ScheduledAt = util.DropNanos(t.ScheduledAt)
-	t.CreatedAt = util.DropNanos(t.CreatedAt)
-	t.CancelledAt = util.DropNanosPointer(t.CancelledAt)
-	t.DispatchedAt = util.DropNanosPointer(t.DispatchedAt)
-	t.DoneAt = util.DropNanosPointer(t.DoneAt)
+func (t Task) DropMicros() Task {
+	t.ScheduledAt = util.DropMicros(t.ScheduledAt)
+	t.CreatedAt = util.DropMicros(t.CreatedAt)
+	t.CancelledAt = util.DropMicrosPointer(t.CancelledAt)
+	t.DispatchedAt = util.DropMicrosPointer(t.DispatchedAt)
+	t.DoneAt = util.DropMicrosPointer(t.DoneAt)
 	return t
 }
 
@@ -42,10 +42,10 @@ func (t Task) Less(j Task) bool {
 	return t.Priority > j.Priority
 }
 
-func (t Task) Update(param TaskParam, ignoreNanoSecs bool) Task {
+func (t Task) Update(param TaskParam, ignoreMicroSecs bool) Task {
 	if !param.ScheduledAt.IsZero() {
-		if ignoreNanoSecs {
-			t.ScheduledAt = util.DropNanos(param.ScheduledAt)
+		if ignoreMicroSecs {
+			t.ScheduledAt = util.DropMicros(param.ScheduledAt)
 		} else {
 			t.ScheduledAt = param.ScheduledAt
 		}
@@ -99,7 +99,7 @@ type TaskParam struct {
 	Priority    int
 }
 
-func (p TaskParam) ToTask(ignoreNanos bool) Task {
+func (p TaskParam) ToTask(ignoreMicros bool) Task {
 	var param []byte
 	if p.Param != nil {
 		param = make([]byte, len(p.Param))
@@ -107,8 +107,8 @@ func (p TaskParam) ToTask(ignoreNanos bool) Task {
 	}
 
 	var scheduledAt time.Time
-	if ignoreNanos {
-		scheduledAt = util.DropNanos(p.ScheduledAt)
+	if ignoreMicros {
+		scheduledAt = util.DropMicros(p.ScheduledAt)
 	} else {
 		scheduledAt = p.ScheduledAt
 	}

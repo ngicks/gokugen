@@ -338,7 +338,7 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 				repo.StartTimer()
 				defer repo.StopTimer()
 
-				now := util.DropNanos(TruncatedNow())
+				now := util.DropMicros(TruncatedNow())
 				task, _ := repo.AddTask(randParam(now.Add(500 * time.Millisecond)))
 				if peeked, _ := repo.GetNext(); peeked.Id != task.Id {
 					t.Fatalf("Peek did not change its min element"+
