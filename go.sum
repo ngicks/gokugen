@@ -20,8 +20,8 @@ github.com/ngicks/gommon/pkg/randstr v0.0.1/go.mod h1:IZ1Q1EiYCacKQcS4CVDN8Na+V+
 github.com/ngicks/gommon/pkg/timing v0.0.3 h1:4McuEzQ+rzStbcczmR2YjP0sxWQStlI75B4ckNSZXec=
 github.com/ngicks/type-param-common v0.2.0 h1:rP4mkZCj87l2QaP1U2E9Vjy9GbamBt1+UNd+pEMhyIo=
 github.com/ngicks/type-param-common v0.2.0/go.mod h1:0G7u69ThuvB3wRVxPYeO8U5sOghr8xFalZPquIm7KJI=
-github.com/ngicks/workerpool v0.0.1-alpha2 h1:CdDp+pGHqlprYYl79uqmv7MyXjvVabCoKkzFfmjaHR8=
-github.com/ngicks/workerpool v0.0.1-alpha2/go.mod h1:G4wbboIMAOM5WitEe8qnLq8PtyJv6aqzDf9p5koNpoc=
+github.com/ngicks/workerpool v0.0.1-alpha3 h1:ys9/qZBIxzexcSBl5XbMS7nTK3+DFRBSHNbYHdcFvOU=
+github.com/ngicks/workerpool v0.0.1-alpha3/go.mod h1:MY4WohDGmRvqwM1u3rtuSQHK1evf1hqPBGwU7d/yEoc=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

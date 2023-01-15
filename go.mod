@@ -8,7 +8,7 @@ require (
 	github.com/ngicks/gommon/pkg/common v0.1.0
 	github.com/ngicks/gommon/pkg/randstr v0.0.1
 	github.com/ngicks/type-param-common v0.2.0
-	github.com/ngicks/workerpool v0.0.1-alpha2
+	github.com/ngicks/workerpool v0.0.1-alpha3
 	github.com/stretchr/testify v1.8.1
 )
 

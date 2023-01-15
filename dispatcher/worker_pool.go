@@ -38,13 +38,13 @@ func newWorkFn(ctx context.Context, fetcher func(ctx context.Context) (scheduler
 	}
 }
 
-var _ workerpool.WorkExecuter[*workFn] = &executor{}
+var _ workerpool.WorkExecuter[string, *workFn] = &executor{}
 
 type executor struct {
 	workRegistry WorkRegistry
 }
 
-func (e *executor) Exec(ctx context.Context, param *workFn) error {
+func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
 	t, err := param.fetcher(ctx)
 	if err != nil {
 		param.fetchErr <- err
@@ -78,7 +78,7 @@ func (e *executor) Exec(ctx context.Context, param *workFn) error {
 }
 
 type WorkerPool interface {
-	Add(delta int)
+	Add(delta int) (ok bool)
 	Remove(delta int)
 	Kill()
 	Wait()
@@ -88,14 +88,17 @@ var _ scheduler.Dispatcher = &WorkerPoolDispatcher{}
 
 type WorkerPoolDispatcher struct {
 	WorkerPool   WorkerPool
-	workerPool   *workerpool.Pool[*workFn]
+	workerPool   *workerpool.Pool[string, *workFn]
 	workRegistry WorkRegistry
 }
 
 // NewWorkerPoolDispatcher returns in-memory worker pool dispatcher.
 // Initially worker pool has zero worker. You must call Add.
 func NewWorkerPoolDispatcher(workRegistry WorkRegistry) *WorkerPoolDispatcher {
-	pool := workerpool.New[*workFn](&executor{workRegistry: workRegistry})
+	pool := workerpool.New[string, *workFn](
+		&executor{workRegistry: workRegistry},
+		workerpool.NewUuidPool(),
+	)
 	return &WorkerPoolDispatcher{
 		workRegistry: workRegistry,
 		workerPool:   pool,
