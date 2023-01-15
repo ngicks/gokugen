@@ -10,14 +10,16 @@ type Scheduler struct {
 	*atomicstate.RunningStateChecker
 	runningState *atomicstate.RunningStateSetter
 
-	dispatcher Dispatcher
-	repo       TaskRepository
-	hooks      *hookWrapper
+	workRegistry WorkRegistry
+	dispatcher   Dispatcher
+	repo         TaskRepository
+	hooks        *hookWrapper
 
 	loop loop
 }
 
 func New(
+	workRegistry WorkRegistry,
 	dispatcher Dispatcher,
 	repo TaskRepository,
 	hooks LoopHooks,
@@ -29,9 +31,10 @@ func New(
 		RunningStateChecker: checker,
 		runningState:        setter,
 
-		dispatcher: dispatcher,
-		repo:       repo,
-		hooks:      wrappedHook,
+		workRegistry: workRegistry,
+		dispatcher:   dispatcher,
+		repo:         repo,
+		hooks:        wrappedHook,
 
 		loop: newLoop(dispatcher, repo, wrappedHook),
 	}
@@ -50,6 +53,9 @@ func (s *Scheduler) Run(ctx context.Context, startTimer, stopTimerOnClose bool) 
 }
 
 func (s *Scheduler) AddTask(param TaskParam) (Task, error) {
+	if _, ok := s.workRegistry.Load(param.WorkId); !ok {
+		return Task{}, &ErrWorkIdNotFound{param}
+	}
 	return s.repo.AddTask(param)
 }
 

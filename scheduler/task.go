@@ -76,6 +76,15 @@ func (t Task) Equal(other Task) bool {
 		t.Err == other.Err)
 }
 
+func (t Task) ToParam() TaskParam {
+	return TaskParam{
+		ScheduledAt: t.ScheduledAt,
+		WorkId:      t.WorkId,
+		Param:       t.Param,
+		Priority:    t.Priority,
+	}
+}
+
 // Serializable is serializable part
 type Serializable struct {
 	Id     string `json:"id"`

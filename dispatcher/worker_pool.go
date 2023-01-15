@@ -2,25 +2,10 @@ package dispatcher
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/workerpool"
 )
-
-type WorkFn = func(ctx context.Context, param []byte) error
-
-type WorkRegistry interface {
-	Load(workId string) (fn WorkFn, ok bool)
-}
-
-type ErrWorkIdNotFound struct {
-	WorkId string
-}
-
-func (e *ErrWorkIdNotFound) Error() string {
-	return fmt.Sprintf("work id not found. id = %s", e.WorkId)
-}
 
 type workFn struct {
 	ctx      context.Context
@@ -41,7 +26,7 @@ func newWorkFn(ctx context.Context, fetcher func(ctx context.Context) (scheduler
 var _ workerpool.WorkExecuter[string, *workFn] = &executor{}
 
 type executor struct {
-	workRegistry WorkRegistry
+	workRegistry scheduler.WorkRegistry
 }
 
 func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
@@ -53,7 +38,7 @@ func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
 
 	fn, ok := e.workRegistry.Load(t.WorkId)
 	if !ok {
-		err := &ErrWorkIdNotFound{WorkId: t.WorkId}
+		err := &scheduler.ErrWorkIdNotFound{Param: t.ToParam()}
 		param.fetchErr <- err
 		return err
 	}
@@ -86,15 +71,16 @@ type WorkerPool interface {
 
 var _ scheduler.Dispatcher = &WorkerPoolDispatcher{}
 
+// WorkerPoolDispatcher is an in-memory worker pool backed dispatcher.
 type WorkerPoolDispatcher struct {
 	WorkerPool   WorkerPool
 	workerPool   *workerpool.Pool[string, *workFn]
-	workRegistry WorkRegistry
+	workRegistry scheduler.WorkRegistry
 }
 
 // NewWorkerPoolDispatcher returns in-memory worker pool dispatcher.
 // Initially worker pool has zero worker. You must call Add.
-func NewWorkerPoolDispatcher(workRegistry WorkRegistry) *WorkerPoolDispatcher {
+func NewWorkerPoolDispatcher(workRegistry scheduler.WorkRegistry) *WorkerPoolDispatcher {
 	pool := workerpool.New[string, *workFn](
 		&executor{workRegistry: workRegistry},
 		workerpool.NewUuidPool(),

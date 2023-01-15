@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	workRegistry := syncparam.Map[string, dispatcher.WorkFn]{}
+	workRegistry := syncparam.Map[string, scheduler.WorkFn]{}
 
 	nowInRFC3339Nano := func() string {
 		return time.Now().Format(time.RFC3339Nano)
@@ -35,7 +35,12 @@ func main() {
 
 	heapRepo := repository.NewHeapRepository()
 
-	inMemoryScheduler := scheduler.New(workerPoolDispatcher, heapRepo, scheduler.PassThroughHook{})
+	inMemoryScheduler := scheduler.New(
+		&workRegistry,
+		workerPoolDispatcher,
+		heapRepo,
+		scheduler.PassThroughHook{},
+	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -93,7 +98,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("updated task %s to %s\n", task2.Id, util.Must(json.Marshal(p)))
+	fmt.Printf("updated task %s to %s\n", task3.Id, util.Must(json.Marshal(p)))
 
 	<-time.After(10 * time.Second)
 }
