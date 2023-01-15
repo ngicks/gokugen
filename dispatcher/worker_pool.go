@@ -56,6 +56,12 @@ func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
 		cancel()
 	}()
 
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	err = fn(combined, t.Param)
 	param.workErr <- err
 
