@@ -113,6 +113,8 @@ func (q *updateEventQueue) Subscribe() <-chan updateEvent {
 
 func (q *updateEventQueue) close() {
 	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	if q.isClosed() {
 		return
 	}
@@ -122,7 +124,6 @@ func (q *updateEventQueue) close() {
 	// reaching that nil pointer.
 	q.queue.PushBack(nil)
 	close(q.hasUpdate)
-	q.mu.Unlock()
 }
 
 // Run has no way to stop other than cancelling ctx.
