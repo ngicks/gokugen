@@ -6,6 +6,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/ngicks/gommon/pkg/atomicstate v0.0.2
 	github.com/ngicks/gommon/pkg/common v0.1.0
+	github.com/ngicks/gommon/pkg/lockmap v0.0.1-alpha2
 	github.com/ngicks/gommon/pkg/randstr v0.0.1
 	github.com/ngicks/type-param-common v0.2.0
 	github.com/ngicks/workerpool v0.0.1-alpha3
@@ -17,6 +18,7 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/ngicks/locker v0.0.0-20230116102153-fda89107dea5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.5 // indirect
 	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d // indirect

@@ -4,37 +4,30 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ngicks/type-param-common/set"
+	"github.com/ngicks/gommon/pkg/lockmap"
 )
 
 type beingDispatchedIDs struct {
-	*set.Set[string]
-	sync.Mutex
+	*lockmap.LockMap[string, struct{}]
 }
 
 func newBeingDispatchedIDs() beingDispatchedIDs {
 	return beingDispatchedIDs{
-		Set: set.New[string](),
+		LockMap: lockmap.New[string, struct{}](),
 	}
 }
 
 func (ids *beingDispatchedIDs) Add(id string) {
-	ids.Lock()
-	ids.Set.Add(id)
-	ids.Unlock()
-}
-
-func (ids *beingDispatchedIDs) Delete(id string) {
-	ids.Lock()
-	ids.Set.Delete(id)
-	ids.Unlock()
+	ids.LockMap.Set(id, struct{}{})
 }
 
 func (ids *beingDispatchedIDs) Has(id string) bool {
-	ids.Lock()
-	has := ids.Set.Has(id)
-	ids.Unlock()
-	return has
+	_, ok := ids.LockMap.Get(id)
+	return ok
+}
+
+func (ids *beingDispatchedIDs) RunWithinLock(id string, fn func(has bool)) {
+	ids.LockMap.RunWithinLock(id, func(v struct{}, has bool, set func(v struct{})) { fn(has) })
 }
 
 type loop struct {
@@ -226,15 +219,18 @@ func (l *loop) updateLoop() {
 		var result error
 		switch event.updateType {
 		case CancelTask, UpdateParam:
-			if l.beingDispatched.Has(event.id) {
-				result = &RepositoryError{Id: event.id, Kind: AlreadyDispatched}
-			} else {
-				if event.updateType == CancelTask {
-					_, result = l.repo.Cancel(event.id)
-				} else if event.updateType == UpdateParam {
-					_, result = l.repo.Update(event.id, event.param)
+			l.beingDispatched.RunWithinLock(event.id, func(has bool) {
+				if has {
+					result = &RepositoryError{Id: event.id, Kind: AlreadyDispatched}
+					return
+				} else {
+					if event.updateType == CancelTask {
+						_, result = l.repo.Cancel(event.id)
+					} else if event.updateType == UpdateParam {
+						_, result = l.repo.Update(event.id, event.param)
+					}
 				}
-			}
+			})
 		case MarkAsDone:
 			l.markAsDone(event)
 		}

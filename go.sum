@@ -15,9 +15,13 @@ github.com/ngicks/gommon/pkg/atomicstate v0.0.2 h1:b3SJD8+W/gJmdxnoLSY3jVW91RYHQ
 github.com/ngicks/gommon/pkg/atomicstate v0.0.2/go.mod h1:yTzNFijXyJ5lB2gjD/r6muG3hEB8HIioQaO7Fy2Yf4k=
 github.com/ngicks/gommon/pkg/common v0.1.0 h1:AuR9evtdT/j3SVDI2jC9FCmymISIiNU+kRvj0IpB6ik=
 github.com/ngicks/gommon/pkg/common v0.1.0/go.mod h1:cOK3mkJaG6SXytBTP5tE2iAXj9idOvXyQxgtvuDb2Ic=
+github.com/ngicks/gommon/pkg/lockmap v0.0.1-alpha2 h1:sPXzarwh9GkH5pYKo5mGAc4EECpIlS/lpK023wM7zOQ=
+github.com/ngicks/gommon/pkg/lockmap v0.0.1-alpha2/go.mod h1:cTdgaslXKGo68dvdAj+8At3kDNI4tMcEOzAt9czUN74=
 github.com/ngicks/gommon/pkg/randstr v0.0.1 h1:mWxoBSxf02/M/zJhfO/77UB7IOeS0p1Gx9DtuP0YV+0=
 github.com/ngicks/gommon/pkg/randstr v0.0.1/go.mod h1:IZ1Q1EiYCacKQcS4CVDN8Na+V+lcbkloMz/vTaPnh4o=
 github.com/ngicks/gommon/pkg/timing v0.0.3 h1:4McuEzQ+rzStbcczmR2YjP0sxWQStlI75B4ckNSZXec=
+github.com/ngicks/locker v0.0.0-20230116102153-fda89107dea5 h1:nmfvxjcbAK+buP0aOQysAy0ilyQOqp4BDRyQMsdkohI=
+github.com/ngicks/locker v0.0.0-20230116102153-fda89107dea5/go.mod h1:skyNVyps0fgbynjAKd8j+JlpuvfWI+pNTeqasl0LOYg=
 github.com/ngicks/type-param-common v0.2.0 h1:rP4mkZCj87l2QaP1U2E9Vjy9GbamBt1+UNd+pEMhyIo=
 github.com/ngicks/type-param-common v0.2.0/go.mod h1:0G7u69ThuvB3wRVxPYeO8U5sOghr8xFalZPquIm7KJI=
 github.com/ngicks/workerpool v0.0.1-alpha3 h1:ys9/qZBIxzexcSBl5XbMS7nTK3+DFRBSHNbYHdcFvOU=
