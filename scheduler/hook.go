@@ -34,6 +34,97 @@ func (h PassThroughHook) OnUpdateError(_ Task, _ UpdateType, err error) error {
 func (h PassThroughHook) OnUpdate(_ Task, _ UpdateType) {}
 func (h PassThroughHook) OnTaskDone(_ Task, _ error)    {}
 
+type PartialHook struct {
+	OnGetNextError  func(err error) error
+	OnGetNext       func(task Task)
+	OnDispatchError func(task Task, err error) error
+	OnDispatch      func(task Task)
+	OnUpdateError   func(task Task, updateType UpdateType, err error) error
+	OnUpdate        func(task Task, updateType UpdateType)
+	OnTaskDone      func(task Task, err error)
+}
+
+var _ LoopHooks = &ChainHook{}
+
+// ChainHook is series of PartialHook-s.
+// All of non-nil PartialHook methods are called with inputs in the normal iteration order of slice.
+// If more than 2 PartialHooks implements the method that returns the error,
+// input err is one that the previous hook returned.
+//
+// If no Chain element implements the method of the corresponding name, it falls back to the PassThroughHook.
+type ChainHook struct {
+	Chain           []PartialHook
+	passThroughHook PassThroughHook
+}
+
+func (h *ChainHook) OnGetNextError(err error) error {
+	hasImpl := false
+	for _, hook := range h.Chain {
+		if hook.OnGetNextError != nil {
+			hasImpl = true
+			err = hook.OnGetNextError(err)
+		}
+	}
+	if hasImpl {
+		return err
+	}
+	return h.passThroughHook.OnGetNextError(err)
+}
+func (h *ChainHook) OnGetNext(task Task) {
+	for _, hook := range h.Chain {
+		if hook.OnGetNext != nil {
+			hook.OnGetNext(task)
+		}
+	}
+}
+func (h *ChainHook) OnDispatchError(task Task, err error) error {
+	hasImpl := false
+	for _, hook := range h.Chain {
+		if hook.OnDispatchError != nil {
+			hasImpl = true
+			err = hook.OnDispatchError(task, err)
+		}
+	}
+	if hasImpl {
+		return err
+	}
+	return h.passThroughHook.OnDispatchError(task, err)
+}
+func (h *ChainHook) OnDispatch(task Task) {
+	for _, hook := range h.Chain {
+		if hook.OnDispatch != nil {
+			hook.OnDispatch(task)
+		}
+	}
+}
+func (h *ChainHook) OnUpdateError(task Task, updateType UpdateType, err error) error {
+	hasImpl := false
+	for _, hook := range h.Chain {
+		if hook.OnUpdateError != nil {
+			hasImpl = true
+			err = hook.OnUpdateError(task, updateType, err)
+		}
+	}
+	if hasImpl {
+		return err
+	}
+	return h.passThroughHook.OnUpdateError(task, updateType, err)
+}
+func (h *ChainHook) OnUpdate(task Task, updateType UpdateType) {
+	for _, hook := range h.Chain {
+		if hook.OnUpdate != nil {
+			hook.OnUpdate(task, updateType)
+		}
+	}
+}
+func (h *ChainHook) OnTaskDone(task Task, err error) {
+	for _, hook := range h.Chain {
+		if hook.OnTaskDone != nil {
+			hook.OnTaskDone(task, err)
+		}
+	}
+}
+
 type OnTaskDone = func(task Task, err error)
 
 type hookWrapper struct {
