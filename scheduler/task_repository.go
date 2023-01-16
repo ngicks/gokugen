@@ -8,6 +8,11 @@ import "time"
 var NeverExistenceId = "%%%%$$$$%%%%$$$$%%%%$$$$"
 
 type TaskRepository interface {
+	RepositoryLike
+	TimerLike
+}
+
+type RepositoryLike interface {
 	AddTask(param TaskParam) (Task, error)
 	GetById(id string) (Task, error)
 	Update(id string, param TaskParam) (updated bool, err error)
@@ -20,7 +25,6 @@ type TaskRepository interface {
 	// GetNext returns the next scheduled Task without changing repository contents.
 	// GetNext should not return cancelled tasks.
 	GetNext() (Task, error)
-	TimerLike
 }
 
 type TimerLike interface {
