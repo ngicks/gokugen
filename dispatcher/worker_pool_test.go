@@ -48,9 +48,9 @@ func TestWorkerPoolDispatcherAcceptance_limited(t *testing.T) {
 func TestWorkerPoolDispatcherAcceptance(t *testing.T) {
 	workerPoolDispatcher, unblockOneTask := setUpWorkerPool()
 
-	workerPoolDispatcher.WorkerPool.Add(100)
+	workerPoolDispatcher.WorkerPool.Add(10)
 	workerPoolDispatcher.workerPool.WaitUntil(func(alive, sleeping, active int) bool {
-		return alive == 100
+		return alive == 10
 	})
 
 	defer workerPoolDispatcher.WorkerPool.Wait()

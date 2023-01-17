@@ -2,7 +2,6 @@ package dispatcher
 
 import (
 	"context"
-	"sync/atomic"
 
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/workerpool"
@@ -15,8 +14,13 @@ type workFn struct {
 	workErr  chan error
 }
 
-func newWorkFn(ctx context.Context, fetcher func(ctx context.Context) (scheduler.Task, error)) *workFn {
-	return &workFn{
+func (f workFn) close() {
+	close(f.fetchErr)
+	close(f.workErr)
+}
+
+func newWorkFn(ctx context.Context, fetcher func(ctx context.Context) (scheduler.Task, error)) workFn {
+	return workFn{
 		ctx:      ctx,
 		fetcher:  fetcher,
 		fetchErr: make(chan error),
@@ -24,56 +28,53 @@ func newWorkFn(ctx context.Context, fetcher func(ctx context.Context) (scheduler
 	}
 }
 
-var _ workerpool.WorkExecuter[string, *workFn] = &executor{}
+var _ workerpool.WorkExecuter[string, workFn] = &executor{}
 
 type executor struct {
 	workRegistry scheduler.WorkRegistry
 }
 
-func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
+func (e *executor) Exec(ctx context.Context, id string, param workFn) error {
+	defer param.close()
+
 	combined, cancel := context.WithCancel(param.ctx)
 	defer cancel()
 
-	var contextErr atomic.Pointer[error]
 	go func() {
 		select {
+		case <-combined.Done():
 		case <-param.ctx.Done():
-			err := param.ctx.Err()
-			contextErr.Store(&err)
 		case <-ctx.Done():
-			err := ctx.Err()
-			contextErr.Store(&err)
 		}
 		cancel()
 	}()
 
-	t, err := param.fetcher(combined)
-	if err != nil {
-		param.fetchErr <- err
-		return err
+	t, fetchErr := param.fetcher(combined)
+	if fetchErr != nil {
+		param.fetchErr <- fetchErr
+		return fetchErr
 	}
 
 	fn, ok := e.workRegistry.Load(t.WorkId)
 	if !ok {
-		err := &scheduler.ErrWorkIdNotFound{Param: t.ToParam()}
-		param.fetchErr <- err
-		return err
+		notFoundErr := &scheduler.ErrWorkIdNotFound{Param: t.ToParam()}
+		param.fetchErr <- notFoundErr
+		return notFoundErr
 	}
 
 	param.fetchErr <- nil
 
 	select {
 	case <-combined.Done():
-		err := *contextErr.Load()
-		param.workErr <- err
-		return err
+		param.workErr <- combined.Err()
+		return combined.Err()
 	default:
 	}
 
-	err = fn(combined, t.Param)
+	fnErr := fn(combined, t.Param)
 
-	param.workErr <- err
-	return err
+	param.workErr <- fnErr
+	return fnErr
 }
 
 type WorkerPool interface {
@@ -88,14 +89,14 @@ var _ scheduler.Dispatcher = &WorkerPoolDispatcher{}
 // WorkerPoolDispatcher is an in-memory worker pool backed dispatcher.
 type WorkerPoolDispatcher struct {
 	WorkerPool   WorkerPool
-	workerPool   *workerpool.Pool[string, *workFn]
+	workerPool   *workerpool.Pool[string, workFn]
 	workRegistry scheduler.WorkRegistry
 }
 
 // NewWorkerPoolDispatcher returns in-memory worker pool dispatcher.
 // Initially worker pool has zero worker. You must call Add.
 func NewWorkerPoolDispatcher(workRegistry scheduler.WorkRegistry) *WorkerPoolDispatcher {
-	pool := workerpool.New[string, *workFn](
+	pool := workerpool.New[string, workFn](
 		&executor{workRegistry: workRegistry},
 		workerpool.NewUuidPool(),
 	)
@@ -113,9 +114,12 @@ func (d *WorkerPoolDispatcher) Dispatch(ctx context.Context, fetcher func(ctx co
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+
 	err := <-w.fetchErr
+
 	if err != nil {
 		return nil, err
 	}
+
 	return w.workErr, nil
 }
