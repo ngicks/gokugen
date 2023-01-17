@@ -20,6 +20,7 @@ github.com/ngicks/gommon/pkg/lockmap v0.0.1-alpha2/go.mod h1:cTdgaslXKGo68dvdAj+
 github.com/ngicks/gommon/pkg/randstr v0.0.1 h1:mWxoBSxf02/M/zJhfO/77UB7IOeS0p1Gx9DtuP0YV+0=
 github.com/ngicks/gommon/pkg/randstr v0.0.1/go.mod h1:IZ1Q1EiYCacKQcS4CVDN8Na+V+lcbkloMz/vTaPnh4o=
 github.com/ngicks/gommon/pkg/timing v0.0.3 h1:4McuEzQ+rzStbcczmR2YjP0sxWQStlI75B4ckNSZXec=
+github.com/ngicks/gommon/pkg/timing v0.0.3/go.mod h1:N276/vshVThImb6Mb020N1Gr0HN06ANg6BDLD03g4AA=
 github.com/ngicks/locker v0.0.0-20230116102153-fda89107dea5 h1:nmfvxjcbAK+buP0aOQysAy0ilyQOqp4BDRyQMsdkohI=
 github.com/ngicks/locker v0.0.0-20230116102153-fda89107dea5/go.mod h1:skyNVyps0fgbynjAKd8j+JlpuvfWI+pNTeqasl0LOYg=
 github.com/ngicks/type-param-common v0.2.0 h1:rP4mkZCj87l2QaP1U2E9Vjy9GbamBt1+UNd+pEMhyIo=
