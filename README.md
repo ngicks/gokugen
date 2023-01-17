@@ -4,7 +4,7 @@ go+刻限(kokugen)
 
 The term 刻限(kokugen) is a japanese word equivalent of appointed time, scheduled time, or due.
 
-gokugen is set of interfaces and a scheduler implementation.
+gokugen is set of interfaces and a scheduler implementation. Mainly focused on single-process scheduler.
 
 ## Idea
 
@@ -40,3 +40,12 @@ This repository breaks up implementation into pieces, adds slight improvements, 
   - Dispatch method blocks until at least one worker is available, and then returns a channel through which the result of Task execution would be notified.
 - Currently only in-memory WorkerPool backed Dispatcher is implemented in ./dispatcher as `WorkerPoolDispatcher`.
   - It limits number of Task worked on concurrently.
+
+## TODOs
+
+- Add repository impls
+  - [ ] Add Gorm Repository
+- Add functionality
+  - [ ] Add cron re-scheduler
+    - [ ] Add Task meta data.
+  - [ ] Add Task deadline
