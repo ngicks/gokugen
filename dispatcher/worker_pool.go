@@ -2,6 +2,7 @@ package dispatcher
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/workerpool"
@@ -30,7 +31,21 @@ type executor struct {
 }
 
 func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
-	t, err := param.fetcher(ctx)
+	combined, cancel := context.WithCancel(param.ctx)
+	defer cancel()
+
+	var paramCtxCancelled atomic.Bool
+	go func() {
+		select {
+		case <-param.ctx.Done():
+			paramCtxCancelled.Store(true)
+		case <-ctx.Done():
+			paramCtxCancelled.Store(false)
+		}
+		cancel()
+	}()
+
+	t, err := param.fetcher(combined)
 	if err != nil {
 		param.fetchErr <- err
 		return err
@@ -45,26 +60,22 @@ func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
 
 	param.fetchErr <- nil
 
-	combined, cancel := context.WithCancel(param.ctx)
-	defer cancel()
-
-	go func() {
-		select {
-		case <-combined.Done():
-		case <-ctx.Done():
-		}
-		cancel()
-	}()
-
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
+	case <-combined.Done():
+		var err error
+		if paramCtxCancelled.Load() {
+			err = param.ctx.Err()
+		} else {
+			err = ctx.Err()
+		}
+		param.workErr <- err
+		return err
 	default:
 	}
 
 	err = fn(combined, t.Param)
-	param.workErr <- err
 
+	param.workErr <- err
 	return err
 }
 
