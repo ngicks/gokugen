@@ -34,13 +34,15 @@ func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
 	combined, cancel := context.WithCancel(param.ctx)
 	defer cancel()
 
-	var paramCtxCancelled atomic.Bool
+	var contextErr atomic.Pointer[error]
 	go func() {
 		select {
 		case <-param.ctx.Done():
-			paramCtxCancelled.Store(true)
+			err := param.ctx.Err()
+			contextErr.Store(&err)
 		case <-ctx.Done():
-			paramCtxCancelled.Store(false)
+			err := ctx.Err()
+			contextErr.Store(&err)
 		}
 		cancel()
 	}()
@@ -62,12 +64,7 @@ func (e *executor) Exec(ctx context.Context, id string, param *workFn) error {
 
 	select {
 	case <-combined.Done():
-		var err error
-		if paramCtxCancelled.Load() {
-			err = param.ctx.Err()
-		} else {
-			err = ctx.Err()
-		}
+		err := *contextErr.Load()
 		param.workErr <- err
 		return err
 	default:
