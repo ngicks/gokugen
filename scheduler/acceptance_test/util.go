@@ -56,10 +56,10 @@ func IsTaskInitial(task scheduler.Task, nearNow time.Time) bool {
 }
 
 func IsTimeNearNow(t, now time.Time) bool {
-	return IsTimeWithinRange(t, now, time.Second)
+	return IsTimeAfterAndWithinRange(t, now, time.Second)
 }
 
-func IsTimeWithinRange(t time.Time, rangeStart time.Time, d time.Duration) bool {
+func IsTimeAfterAndWithinRange(t time.Time, rangeStart time.Time, d time.Duration) bool {
 	return t.Equal(rangeStart) || t.After(rangeStart) && t.Before(rangeStart.Add(d))
 }
 
