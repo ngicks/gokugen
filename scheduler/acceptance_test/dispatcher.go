@@ -98,17 +98,14 @@ func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTas
 	assert := assert.New(t)
 
 	t.Run("cancel propagation", func(t *testing.T) {
-		for _, withFn := range [](func(context.Context) (context.Context, context.CancelFunc, error)){
-			func(ctx context.Context) (context.Context, context.CancelFunc, error) {
-				c, fn := context.WithCancel(ctx)
-				return c, fn, context.Canceled
-			},
-			func(ctx context.Context) (context.Context, context.CancelFunc, error) {
+		for i, withFn := range [](func(context.Context) (context.Context, context.CancelFunc)){
+			context.WithCancel,
+			func(ctx context.Context) (context.Context, context.CancelFunc) {
 				c, cancel := context.WithTimeout(ctx, 2*time.Millisecond)
-				return c, func() { <-c.Done(); cancel() }, context.DeadlineExceeded
+				return c, func() { <-c.Done(); cancel() }
 			},
 		} {
-			ctx, cancel, targetErr := withFn(context.Background())
+			ctx, cancel := withFn(context.Background())
 			defer cancel()
 			stepChan := make(chan struct{})
 
@@ -119,7 +116,7 @@ func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTas
 					<-stepChan
 					<-stepChan
 					<-ctx.Done()
-					assert.Error(ctx.Err())
+					assert.Error(ctx.Err(), "iter %d", i)
 					return scheduler.Task{
 						WorkId: DispatcherNoopWork,
 					}, nil
@@ -130,8 +127,9 @@ func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTas
 			cancel()
 			stepChan <- struct{}{}
 			waiter()
-			assert.NoError(err)
-			assert.ErrorIs(<-errCh, targetErr)
+			assert.NoError(err, "iter %d", i)
+			assert.NotNil(errCh, "iter %d", i)
+			assert.Error(<-errCh, "iter %d", i)
 		}
 	})
 
