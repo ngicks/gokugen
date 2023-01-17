@@ -1,6 +1,7 @@
 package acceptancetest
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/ngicks/gokugen/scheduler"
@@ -20,10 +21,20 @@ func assertRepositoryErr(t *testing.T, id string, err error, fatal bool, kind sc
 		errorf("err must be nil: %s", id)
 		return true
 	}
-	repoErr, ok := err.(*scheduler.RepositoryError)
-	if !ok {
-		errorf("wrong error type. must be RepositoryError: %T", err)
-		return true
+	orgErr := err
+
+	var repoErr *scheduler.RepositoryError
+	var ok bool
+	for {
+		repoErr, ok = err.(*scheduler.RepositoryError)
+		if ok {
+			break
+		}
+		err = errors.Unwrap(err)
+		if err == nil {
+			errorf("wrong error type. must be a wrapped or unwrapped RepositoryError, but is %T", orgErr)
+			return true
+		}
 	}
 	if repoErr.Kind != kind {
 		errorf("wrong error kind. must be %s, but is %s", kind, repoErr.Kind)
