@@ -109,6 +109,13 @@ func NewWorkerPoolDispatcher(workRegistry scheduler.WorkRegistry) *WorkerPoolDis
 
 func (d *WorkerPoolDispatcher) Dispatch(ctx context.Context, fetcher func(ctx context.Context) (scheduler.Task, error)) (<-chan error, error) {
 	w := newWorkFn(ctx, fetcher)
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
 	select {
 	case d.workerPool.Sender() <- w:
 	case <-ctx.Done():

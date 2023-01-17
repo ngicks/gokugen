@@ -97,6 +97,20 @@ func TestLimitedDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unbloc
 func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTask func()) {
 	assert := assert.New(t)
 
+	t.Run("already cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		errCh, err := dispatcher.Dispatch(ctx, func(ctx context.Context) (scheduler.Task, error) {
+			return scheduler.Task{
+				WorkId: DispatcherNoopWork,
+			}, nil
+		})
+
+		assert.Nil(errCh)
+		assert.ErrorIs(err, context.Canceled)
+	})
+
 	t.Run("cancel propagation", func(t *testing.T) {
 		for i, withFn := range [](func(context.Context) (context.Context, context.CancelFunc)){
 			context.WithCancel,
