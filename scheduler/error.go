@@ -40,11 +40,16 @@ func IsRepositoryErr(err error, kind RepositoryErrorKind) bool {
 	if err == nil {
 		return false
 	}
-	repoErr, ok := err.(*RepositoryError)
-	if !ok {
-		return false
+	for {
+		repoErr, ok := err.(*RepositoryError)
+		if ok && repoErr.Kind == kind {
+			return true
+		}
+		err = errors.Unwrap(err)
+		if err == nil {
+			return false
+		}
 	}
-	return repoErr.Kind == kind
 }
 
 func IsAlreadyCancelled(err error) bool {
