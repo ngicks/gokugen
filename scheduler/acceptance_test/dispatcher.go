@@ -15,6 +15,7 @@ const (
 	DispatcherBlockingWorker = "%%%%%%%%%%%%%%%%%%%%"
 	DispatcherErrorWorker    = "++++++++++++++++++++"
 	DispatcherNoopWork       = "--------------------"
+	DispatcherNonExistent    = "~~~~~~~~~~~~~~~~~~~~"
 )
 
 var (
@@ -24,8 +25,8 @@ var (
 // TestLimitedDispatcher tests a limited dispatcher interface.
 // Implementations may skip this test if it does not limits it number of concurrently worked tasks.
 //
-// Dispatcher is expected to have 5 workers.
-func TestLimitedDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTask func()) {
+// Dispatcher is expected to be able to work on 5 tasks simultaneously.
+func TestLimitedDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTask func() error) {
 	t.Run("Dispatcher blocks at 6th task", func(t *testing.T) {
 		assert := assert.New(t)
 
@@ -94,7 +95,7 @@ func TestLimitedDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unbloc
 
 // TestDispatcher tests a dispatcher interface.
 // Implementations call this test from within their package code.
-func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTask func()) {
+func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTask func() (fnCtxErr error)) {
 	assert := assert.New(t)
 
 	t.Run("already cancelled", func(t *testing.T) {
@@ -145,6 +146,35 @@ func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTas
 			assert.NotNil(errCh, "iter %d", i)
 			assert.Error(<-errCh, "iter %d", i)
 		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		errCh, err := dispatcher.Dispatch(ctx, func(ctx context.Context) (scheduler.Task, error) {
+			return scheduler.Task{
+				WorkId: DispatcherBlockingWorker,
+			}, nil
+		})
+		assert.NoError(err)
+		cancel()
+		fnCtxErr := unblockOneTask()
+		assert.Error(fnCtxErr)
+		assert.NoError(<-errCh)
 	})
 
+	t.Run("sending non existent work id", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		errCh, err := dispatcher.Dispatch(ctx, func(ctx context.Context) (scheduler.Task, error) {
+			return scheduler.Task{
+				WorkId: DispatcherNonExistent,
+			}, nil
+		})
+
+		assert.NotNil(errCh)
+		assert.NoError(err)
+		workErr := <-errCh
+		assert.Error(workErr)
+		var errWorkId *scheduler.ErrWorkIdNotFound
+		assert.ErrorAs(workErr, &errWorkId)
+	})
 }

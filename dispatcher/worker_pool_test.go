@@ -9,15 +9,16 @@ import (
 	syncparam "github.com/ngicks/type-param-common/sync-param"
 )
 
-func setUpWorkerPool() (dispatcher *WorkerPoolDispatcher, unblockOneTask func()) {
+func setUpWorkerPool() (dispatcher *WorkerPoolDispatcher, unblockOneTask func() error) {
 	workRegistry := syncparam.Map[string, scheduler.WorkFn]{}
 
-	stepChan := make(chan struct{})
-	unblock := func() {
-		stepChan <- struct{}{}
+	ctxChan := make(chan context.Context)
+	unblock := func() error {
+		ctx := <-ctxChan
+		return ctx.Err()
 	}
 	workRegistry.Store(acceptancetest.DispatcherBlockingWorker, func(ctx context.Context, param []byte) error {
-		<-stepChan
+		ctxChan <- ctx
 		return nil
 	})
 	workRegistry.Store(acceptancetest.DispatcherNoopWork, func(ctx context.Context, param []byte) error {
