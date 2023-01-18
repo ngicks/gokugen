@@ -23,8 +23,8 @@ func newWorkFn(ctx context.Context, fetcher func(ctx context.Context) (scheduler
 	return workFn{
 		ctx:      ctx,
 		fetcher:  fetcher,
-		fetchErr: make(chan error),
-		workErr:  make(chan error),
+		fetchErr: make(chan error, 1),
+		workErr:  make(chan error, 1),
 	}
 }
 
