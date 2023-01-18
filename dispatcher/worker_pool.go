@@ -55,14 +55,14 @@ func (e *executor) Exec(ctx context.Context, id string, param workFn) error {
 		return fetchErr
 	}
 
+	param.fetchErr <- nil
+
 	fn, ok := e.workRegistry.Load(t.WorkId)
 	if !ok {
 		notFoundErr := &scheduler.ErrWorkIdNotFound{Param: t.ToParam()}
-		param.fetchErr <- notFoundErr
+		param.workErr <- notFoundErr
 		return notFoundErr
 	}
-
-	param.fetchErr <- nil
 
 	select {
 	case <-combined.Done():
