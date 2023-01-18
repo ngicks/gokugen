@@ -56,6 +56,9 @@ func (t Task) Update(param TaskParam, ignoreMicroSecs bool) Task {
 	if param.Param != nil {
 		t.Param = param.Param
 	}
+	if param.Priority != 0 {
+		t.Priority = param.Priority
+	}
 
 	return t
 }
