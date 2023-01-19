@@ -18,7 +18,7 @@ func assertRepositoryErr(t *testing.T, id string, err error, fatal bool, kind sc
 	}
 
 	if err == nil {
-		errorf("err must be nil: %s", id)
+		errorf("err must not be nil: %s", id)
 		return true
 	}
 	orgErr := err

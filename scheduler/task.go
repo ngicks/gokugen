@@ -56,8 +56,8 @@ func (t Task) Update(param TaskParam, ignoreMicroSecs bool) Task {
 	if param.Param != nil {
 		t.Param = param.Param
 	}
-	if param.Priority != 0 {
-		t.Priority = param.Priority
+	if param.Priority != nil {
+		t.Priority = *param.Priority
 	}
 
 	return t
@@ -80,11 +80,12 @@ func (t Task) Equal(other Task) bool {
 }
 
 func (t Task) ToParam() TaskParam {
+	p := t.Priority
 	return TaskParam{
 		ScheduledAt: t.ScheduledAt,
 		WorkId:      t.WorkId,
 		Param:       t.Param,
-		Priority:    t.Priority,
+		Priority:    &p,
 	}
 }
 
@@ -96,10 +97,17 @@ type Serializable struct {
 }
 
 type TaskParam struct {
+	// scheduled time.
+	// The zero value of ScheduledAt is considered to be non-initialized in AddTask context,
+	// and to be not a update target in Update context.
 	ScheduledAt time.Time
 	WorkId      string
 	Param       []byte
-	Priority    int
+	Priority    *int
+}
+
+func (p TaskParam) IsInitialized() bool {
+	return !p.ScheduledAt.IsZero() && p.WorkId != ""
 }
 
 func (p TaskParam) ToTask(ignoreMicros bool) Task {
@@ -115,10 +123,16 @@ func (p TaskParam) ToTask(ignoreMicros bool) Task {
 	} else {
 		scheduledAt = p.ScheduledAt
 	}
+
+	var priority int
+	if p.Priority != nil {
+		priority = *p.Priority
+	}
+
 	return Task{
 		ScheduledAt: scheduledAt,
 		WorkId:      p.WorkId,
 		Param:       param,
-		Priority:    p.Priority,
+		Priority:    priority,
 	}
 }

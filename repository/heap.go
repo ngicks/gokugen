@@ -56,7 +56,7 @@ type HeapRepository struct {
 	heap            *heap.FilterableHeap[*wrappedTask]
 	mapLike         map[string]*wrappedTask
 	beingDispatched map[string]*wrappedTask
-	getNow          common.GetNower
+	getNow          common.NowGetter
 	timer           common.Timer
 	isTimerStarted  bool
 }
@@ -66,7 +66,7 @@ func NewHeapRepository() *HeapRepository {
 		heap:            heap.NewFilterableHeap[*wrappedTask](),
 		mapLike:         make(map[string]*wrappedTask),
 		beingDispatched: make(map[string]*wrappedTask),
-		getNow:          common.GetNowImpl{},
+		getNow:          common.NowGetterReal{},
 		timer:           common.NewTimerReal(),
 	}
 }

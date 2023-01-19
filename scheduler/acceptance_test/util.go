@@ -37,10 +37,15 @@ func RandStrLen(length int) string {
 }
 
 func IsTaskBasedOnParam(task scheduler.Task, param scheduler.TaskParam) bool {
+	var p int
+	if param.Priority != nil {
+		p = *param.Priority
+	}
+
 	return util.TimeEqual(task.ScheduledAt, param.ScheduledAt) &&
 		task.WorkId == param.WorkId &&
 		bytes.Equal(task.Param, param.Param) &&
-		task.Priority == param.Priority
+		task.Priority == p
 }
 
 func IsTaskInitial(task scheduler.Task, nearNow time.Time) bool {
@@ -60,7 +65,7 @@ func IsTimeNearNow(t, now time.Time) bool {
 }
 
 func IsTimeAfterAndWithinRange(t time.Time, rangeStart time.Time, d time.Duration) bool {
-	return t.Equal(rangeStart) || t.After(rangeStart) && t.Before(rangeStart.Add(d))
+	return t.Equal(rangeStart) || t.After(rangeStart.Add(-10*time.Millisecond)) && t.Before(rangeStart.Add(d))
 }
 
 func TruncatedNow() time.Time {

@@ -14,11 +14,13 @@ import (
 )
 
 func randParam(scheduledAt time.Time) scheduler.TaskParam {
+	p := int(rand.Int31())
+
 	return scheduler.TaskParam{
 		ScheduledAt: scheduledAt,
 		WorkId:      "foo",
 		Param:       RandByte(),
-		Priority:    int(rand.Int31()),
+		Priority:    &p,
 	}
 }
 
@@ -227,12 +229,23 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 
 		t.Run("MarkAsDone with non-nil error will set error string", func(t *testing.T) {
 			task := addFarFutureTask(t)
-			repo.MarkAsDispatched(task.Id)
+
+			err := repo.MarkAsDispatched(task.Id)
+			if err != nil {
+				t.Fatalf("Marking-as-dispatched failed with initial task, %+v", err)
+			}
 
 			errorLabel := "mock error"
-			repo.MarkAsDone(task.Id, errors.New(errorLabel))
 
-			got, _ := repo.GetById(task.Id)
+			err = repo.MarkAsDone(task.Id, errors.New(errorLabel))
+			if err != nil {
+				t.Fatalf("Marking-as-done failed with dispatched task, %+v", err)
+			}
+
+			got, err := repo.GetById(task.Id)
+			if err != nil {
+				t.Fatalf("getting id failed, %+v", err)
+			}
 
 			if !strings.Contains(got.Err, errorLabel) {
 				t.Fatalf(
@@ -281,13 +294,20 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 				if err != nil {
 					t.Fatalf("must not return error: %+v", err)
 				}
-				<-repo.TimerChannel()
+
+				timerChan := repo.TimerChannel()
+				if timerChan == nil {
+					t.Fatalf("returned timer channel is nil")
+				}
+
+				<-timerChan
+
 				task, err := repo.GetNext()
 				if err != nil {
 					t.Fatalf("must not return error: %+v", err)
 				}
 				if !task.Equal(old) {
-					t.Fatalf("Pop returned the wrong task. expected = %+v, actual = %+v",
+					t.Fatalf("GetNext returned the wrong task. expected = %+v, actual = %+v",
 						old,
 						task,
 					)
@@ -382,11 +402,11 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 					250*time.Millisecond, 250*time.Millisecond,
 					func(id1, id2 string, now time.Time) error {
 						var err error
-						_, err = repo.Update(id1, scheduler.TaskParam{ScheduledAt: now.Add(500 * time.Millisecond)})
+						_, err = repo.Update(id1, scheduler.TaskParam{ScheduledAt: now.Add(250 * time.Millisecond)})
 						if err != nil {
 							return err
 						}
-						_, err = repo.Update(id2, scheduler.TaskParam{ScheduledAt: now.Add(750 * time.Millisecond)})
+						_, err = repo.Update(id2, scheduler.TaskParam{ScheduledAt: now.Add(500 * time.Millisecond)})
 						if err != nil {
 							return err
 						}
@@ -487,6 +507,8 @@ func testErrOnUpdateNonUpdatableTask(
 
 		err = updateAction(task.Id)
 		if AssertErrAlreadyDispatched(t, task.Id, err, false) {
+			task, _ = repo.GetById(task.Id)
+			t.Errorf("task = %+v", task)
 			didError = true
 		}
 	}
@@ -500,6 +522,8 @@ func testErrOnUpdateNonUpdatableTask(
 
 		err = updateAction(task.Id)
 		if AssertErrAlreadyCancelled(t, task.Id, err, false) {
+			task, _ = repo.GetById(task.Id)
+			t.Errorf("task = %+v", task)
 			didError = true
 		}
 	}
@@ -517,6 +541,8 @@ func testErrOnUpdateNonUpdatableTask(
 
 		err = updateAction(task.Id)
 		if AssertErrAlreadyDone(t, task.Id, err, false) {
+			task, _ = repo.GetById(task.Id)
+			t.Errorf("task = %+v", task)
 			didError = true
 		}
 	}
@@ -555,7 +581,7 @@ func testUpdateTimer(
 	<-repo.TimerChannel()
 	then := TruncatedNow()
 
-	if sub := then.Sub(now); sub < 500*time.Millisecond {
-		t.Fatalf("Timer is expected to emit after 500 milli secs but passed duration is %s", sub.String())
+	if sub := then.Sub(now); sub < 250*time.Millisecond {
+		t.Fatalf("Timer is expected to emit after 250 milli secs but passed duration is %s", sub.String())
 	}
 }

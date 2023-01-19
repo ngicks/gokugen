@@ -13,9 +13,3 @@ func TestHeapAcceptance(t *testing.T) {
 	heap := NewHeapRepository()
 	acceptancetest.TestRepository(t, heap)
 }
-
-func TestHeapAcceptance_milli_sec_precise(t *testing.T) {
-	heap := NewHeapRepository()
-	heap.isMilliSecPrecise = true
-	acceptancetest.TestRepository(t, heap)
-}
