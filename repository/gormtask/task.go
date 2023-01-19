@@ -3,7 +3,6 @@ package gormtask
 import (
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/ngicks/gokugen/scheduler"
 	"gorm.io/gorm"
 )
@@ -37,11 +36,6 @@ func FromTask(t scheduler.Task) GormTask {
 		DoneAt:       t.DoneAt,
 		Err:          t.Err,
 	}
-}
-
-func (t GormTask) GenerateId() GormTask {
-	t.Id = uuid.NewString()
-	return t
 }
 
 func (t GormTask) ToTask() scheduler.Task {

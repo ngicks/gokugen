@@ -48,10 +48,7 @@ func NewSqlite3(dbPath string, opts ...gorm.Option) (*GormRepository, error) {
 		return nil, err
 	}
 
-	return &GormRepository{
-		Core:      core,
-		HookTimer: hookTimer,
-	}, nil
+	return NewGorm(core, hookTimer), nil
 }
 
 func (r *GormRepository) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
