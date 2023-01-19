@@ -10,6 +10,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// GormRepository is a small wrapper around GormCore and HookTimer
+// that implements scheduler.TaskRepository.
+// It connects HookTimer to Core so that timer can be updated correctly,
+// and it expands Core's simpler interface to a bit complex one to fit
+// into scheduler.TaskRepository.
+//
+// GormCore is quite same as scheduler.TaskRepository at the moment.
+// Over time, GormRepository will strips down Core to make it simple and small.
 type GormRepository struct {
 	Core      GormCore
 	HookTimer HookTimer
