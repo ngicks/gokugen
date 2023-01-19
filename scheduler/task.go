@@ -1,121 +1,138 @@
 package scheduler
 
 import (
-	"context"
-	"sync/atomic"
+	"bytes"
 	"time"
 
-	atomicparam "github.com/ngicks/type-param-common/sync-param/atomic-param"
+	"github.com/ngicks/gokugen/scheduler/util"
 )
 
-type WorkFn = func(ctx context.Context, scheduled time.Time)
-
-// Task is simple set of data, which is consist of
-// scheduledTime, work, internal calling state and context canceller.
-//
-// work will be called with contex.Contex which will be closed when task is cancelled or scheduler is torn down.
 type Task struct {
-	scheduledTime time.Time
-	work          WorkFn
-	isDone        uint32
-	isCancelled   uint32
-	cancelCtx     atomicparam.Value[*context.CancelFunc]
+	Id           string     `json:"id"`      // Id is an id of the task.
+	WorkId       string     `json:"work_id"` // WorkId is work function id.
+	Param        []byte     `json:"param"`
+	Priority     int        `json:"priority"`
+	ScheduledAt  time.Time  `json:"scheduled_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+	CancelledAt  *time.Time `json:"cancelled_at,omitempty"`
+	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
+	DoneAt       *time.Time `json:"done_at,omitempty"`
+	Err          string     `json:"err"`
 }
 
-// NewTask creates a new Task instance.
-// scheduledTime is scheduled time when work should be invoked.
-// work is work of Task, this will be only called once.
-func NewTask(scheduledTime time.Time, work WorkFn) *Task {
-	cancelCtx := atomicparam.NewValue[*context.CancelFunc]()
-	cancelCtx.Store(nil)
-	return &Task{
-		scheduledTime: scheduledTime,
-		work:          work,
-		cancelCtx:     cancelCtx,
-	}
+func (t Task) IsInitialized() bool {
+	return t.Id != "" &&
+		t.WorkId != "" &&
+		!t.ScheduledAt.IsZero()
 }
 
-func (t *Task) Do(ctx context.Context) {
-	innerCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	if t.IsCancelled() {
-		return
+func (t Task) DropMicros() Task {
+	t.ScheduledAt = util.DropMicros(t.ScheduledAt)
+	t.CreatedAt = util.DropMicros(t.CreatedAt)
+	t.CancelledAt = util.DropMicrosPointer(t.CancelledAt)
+	t.DispatchedAt = util.DropMicrosPointer(t.DispatchedAt)
+	t.DoneAt = util.DropMicrosPointer(t.DoneAt)
+	return t
+}
+
+func (t Task) Less(j Task) bool {
+	if !t.ScheduledAt.Equal(j.ScheduledAt) {
+		return t.ScheduledAt.Before(j.ScheduledAt)
 	}
-	if atomic.CompareAndSwapUint32(&t.isDone, 0, 1) && t.work != nil {
-		t.cancelCtx.Store(&cancel)
-		// forget cancel immediately in case where Task is held long time after it is done.
-		defer t.cancelCtx.Store(nil)
-		// in case of race condition.
-		// Cancel might be called right between cancelFunc storage and above IsCancelled call.
-		if t.IsCancelled() {
-			return
+	return t.Priority > j.Priority
+}
+
+func (t Task) Update(param TaskParam, ignoreMicroSecs bool) Task {
+	if !param.ScheduledAt.IsZero() {
+		if ignoreMicroSecs {
+			t.ScheduledAt = util.DropMicros(param.ScheduledAt)
+		} else {
+			t.ScheduledAt = param.ScheduledAt
 		}
-		select {
-		case <-ctx.Done():
-			// Fast path: ctx is already cancelled.
-			return
-		default:
-		}
-		t.work(innerCtx, t.scheduledTime)
+	}
+	if param.WorkId != "" {
+		t.WorkId = param.WorkId
+	}
+	if param.Param != nil {
+		t.Param = param.Param
+	}
+	if param.Priority != nil {
+		t.Priority = *param.Priority
+	}
+
+	return t
+}
+
+func (t Task) Equal(other Task) bool {
+	if t.Id != other.Id {
+		return false
+	}
+
+	return (t.WorkId == other.WorkId &&
+		bytes.Equal(t.Param, other.Param) &&
+		t.Priority == other.Priority &&
+		t.ScheduledAt.Equal(other.ScheduledAt) &&
+		t.CreatedAt.Equal(other.CreatedAt) &&
+		util.TimePointerEqual(t.CancelledAt, other.CancelledAt, false) &&
+		util.TimePointerEqual(t.DispatchedAt, other.DispatchedAt, false) &&
+		util.TimePointerEqual(t.DoneAt, other.DoneAt, false) &&
+		t.Err == other.Err)
+}
+
+func (t Task) ToParam() TaskParam {
+	p := t.Priority
+	return TaskParam{
+		ScheduledAt: t.ScheduledAt,
+		WorkId:      t.WorkId,
+		Param:       t.Param,
+		Priority:    &p,
 	}
 }
 
-func (t *Task) GetScheduledTime() time.Time {
-	return t.scheduledTime
+// Serializable is serializable part
+type Serializable struct {
+	Id     string `json:"id"`
+	WorkId string `json:"work_id"`
+	Param  []byte `json:"param"`
 }
 
-func (t *Task) Cancel() (cancelled bool) {
-	cancelled = atomic.CompareAndSwapUint32(&t.isCancelled, 0, 1)
-	if !cancelled {
-		return
+type TaskParam struct {
+	// scheduled time.
+	// The zero value of ScheduledAt is considered to be non-initialized in AddTask context,
+	// and to be not a update target in Update context.
+	ScheduledAt time.Time
+	WorkId      string
+	Param       []byte
+	Priority    *int
+}
+
+func (p TaskParam) IsInitialized() bool {
+	return !p.ScheduledAt.IsZero() && p.WorkId != ""
+}
+
+func (p TaskParam) ToTask(ignoreMicros bool) Task {
+	var param []byte
+	if p.Param != nil {
+		param = make([]byte, len(p.Param))
+		copy(param, p.Param)
 	}
-	if cancel := t.cancelCtx.Load(); cancel != nil {
-		(*cancel)()
+
+	var scheduledAt time.Time
+	if ignoreMicros {
+		scheduledAt = util.DropMicros(p.ScheduledAt)
+	} else {
+		scheduledAt = p.ScheduledAt
 	}
-	return
-}
 
-func (t *Task) CancelWithReason(err error) (cancelled bool) {
-	return t.Cancel()
-}
-
-func (t *Task) IsCancelled() bool {
-	return atomic.LoadUint32(&t.isCancelled) == 1
-}
-
-func (t *Task) IsDone() bool {
-	return atomic.LoadUint32(&t.isDone) == 1
-}
-
-// TaskController is a small wrapper around Task.
-// Simply it removes Do method from Task and
-// expose other methods as it delegates them to inner Task.
-type TaskController struct {
-	t *Task
-}
-
-func NewTaskController(t *Task) *TaskController {
-	return &TaskController{
-		t: t,
+	var priority int
+	if p.Priority != nil {
+		priority = *p.Priority
 	}
-}
 
-func (t *TaskController) GetScheduledTime() time.Time {
-	return t.t.GetScheduledTime()
-}
-
-func (t *TaskController) Cancel() (cancelled bool) {
-	return t.t.Cancel()
-}
-
-func (t *TaskController) CancelWithReason(err error) (cancelled bool) {
-	return t.Cancel()
-}
-
-func (t *TaskController) IsCancelled() bool {
-	return t.t.IsCancelled()
-}
-
-func (t *TaskController) IsDone() bool {
-	return t.t.IsDone()
+	return Task{
+		ScheduledAt: scheduledAt,
+		WorkId:      p.WorkId,
+		Param:       param,
+		Priority:    priority,
+	}
 }

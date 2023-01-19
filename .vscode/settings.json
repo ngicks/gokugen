@@ -1,0 +1,27 @@
+{
+  "cSpell.words": [
+    "acceptancetest",
+    "atomicstate",
+    "Deque",
+    "Desync",
+    "gokugen",
+    "gommon",
+    "gopherpool",
+    "Gorm",
+    "gormtask",
+    "kokugen",
+    "Lessable",
+    "lockmap",
+    "Millis",
+    "Nanos",
+    "ngicks",
+    "Nower",
+    "primarykey",
+    "randstr",
+    "stretchr",
+    "syncparam",
+    "unexported",
+    "usecase",
+    "workerpool"
+  ]
+}
