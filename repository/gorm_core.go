@@ -171,9 +171,8 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 		if err != nil {
 			return false, err
 		}
-		errKind := errKind(task.ToTask(), errKindOption{})
-		if errKind != "" {
-			return false, &scheduler.RepositoryError{Id: id, Kind: errKind}
+		if err := ErrKindUpdate(task.ToTask()); err != nil {
+			return false, err
 		}
 	}
 	return updated, err
@@ -198,9 +197,8 @@ func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 		if err != nil {
 			return false, err
 		}
-		errKind := errKind(task.ToTask(), errKindOption{skipCancelledAt: true})
-		if errKind != "" {
-			return false, &scheduler.RepositoryError{Id: id, Kind: errKind}
+		if err := ErrKindCancel(task.ToTask()); err != nil {
+			return false, err
 		}
 	}
 	return cancelled, err
@@ -225,9 +223,8 @@ func (g *DefaultGormCore) MarkAsDispatched(id string) error {
 		if err != nil {
 			return err
 		}
-		errKind := errKind(task.ToTask(), errKindOption{})
-		if errKind != "" {
-			return &scheduler.RepositoryError{Id: id, Kind: errKind}
+		if err := ErrKindMarkAsDispatch(task.ToTask()); err != nil {
+			return err
 		}
 	}
 
@@ -259,12 +256,8 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 		if err != nil {
 			return err
 		}
-		errKind := errKind(
-			task.ToTask(),
-			errKindOption{returnOnEmptyDispatchedAt: true, skipDispatchedAt: true},
-		)
-		if errKind != "" {
-			return &scheduler.RepositoryError{Id: id, Kind: errKind}
+		if err := ErrKindMarkAsDone(task.ToTask()); err != nil {
+			return err
 		}
 	}
 	return updateErr

@@ -118,8 +118,8 @@ func (r *HeapRepository) Update(id string, param scheduler.TaskParam) (updated b
 		return false, &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
 
-	if errKind := errKind(wrapped.Task, errKindOption{}); errKind != "" {
-		return false, &scheduler.RepositoryError{Id: id, Kind: errKind}
+	if err := ErrKindUpdate(wrapped.Task); err != nil {
+		return false, err
 	}
 
 	old := wrapped.Task
@@ -146,10 +146,8 @@ func (r *HeapRepository) Cancel(id string) (cancelled bool, err error) {
 		return false, &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
 
-	if errKind := errKind(wrapped.Task, errKindOption{
-		skipCancelledAt: true,
-	}); errKind != "" {
-		return false, &scheduler.RepositoryError{Id: id, Kind: errKind}
+	if err := ErrKindCancel(wrapped.Task); err != nil {
+		return false, err
 	}
 
 	if wrapped.Task.CancelledAt != nil {
@@ -181,9 +179,10 @@ func (r *HeapRepository) MarkAsDispatched(id string) error {
 		return &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
 
-	if errKind := errKind(wrapped.Task, errKindOption{}); errKind != "" {
-		return &scheduler.RepositoryError{Id: id, Kind: errKind}
+	if err := ErrKindMarkAsDispatch(wrapped.Task); err != nil {
+		return err
 	}
+
 	wrapped.Task.DispatchedAt = util.Escape(r.getNow.GetNow())
 	if r.isMilliSecPrecise {
 		wrapped.Task = wrapped.Task.DropMicros()
@@ -211,11 +210,8 @@ func (r *HeapRepository) MarkAsDone(id string, err error) error {
 		return &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
 
-	if errKind := errKind(wrapped.Task, errKindOption{
-		returnOnEmptyDispatchedAt: true,
-		skipDispatchedAt:          true,
-	}); errKind != "" {
-		return &scheduler.RepositoryError{Id: id, Kind: errKind}
+	if err := ErrKindMarkAsDone(wrapped.Task); err != nil {
+		return err
 	}
 
 	delete(r.beingDispatched, id)
@@ -311,29 +307,4 @@ func (r *HeapRepository) RemoveCancelled() []scheduler.Task {
 	}
 
 	return removed
-}
-
-type errKindOption struct {
-	skipCancelledAt           bool
-	skipDispatchedAt          bool
-	skipDoneAt                bool
-	returnOnEmptyDispatchedAt bool
-}
-
-func errKind(t scheduler.Task, option errKindOption) scheduler.RepositoryErrorKind {
-	if !option.skipDoneAt && t.DoneAt != nil {
-		return scheduler.AlreadyDone
-	}
-	if !option.skipCancelledAt && t.CancelledAt != nil {
-		return scheduler.AlreadyCancelled
-	}
-	if !option.skipDispatchedAt && t.DispatchedAt != nil {
-		return scheduler.AlreadyDispatched
-	}
-
-	if option.returnOnEmptyDispatchedAt && t.DispatchedAt == nil {
-		return scheduler.NotDispatched
-	}
-
-	return ""
 }
