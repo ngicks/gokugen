@@ -42,10 +42,108 @@ func (t *wrappedTask) Push(slice *slice.Stack[*wrappedTask], v *wrappedTask) {
 func (t *wrappedTask) Pop(slice *slice.Stack[*wrappedTask]) *wrappedTask {
 	popped, ok := slice.Pop()
 	if !ok {
+		// let it panic here, with out of range message.
 		_ = (*(*[]*wrappedTask)(slice))[slice.Len()-1]
 	}
 	popped.Index = -1
 	return popped
+}
+
+type taskMap struct {
+	Scheduled map[string]*wrappedTask
+	Done      map[string]*wrappedTask
+	Cancelled map[string]*wrappedTask
+}
+
+func newTaskMap() taskMap {
+	return taskMap{
+		Scheduled: make(map[string]*wrappedTask),
+		Done:      make(map[string]*wrappedTask),
+		Cancelled: make(map[string]*wrappedTask),
+	}
+}
+
+func fromExternal(tm TaskMap) taskMap {
+	ret := newTaskMap()
+
+	for id, task := range tm.Scheduled {
+		ret.Scheduled[id] = &wrappedTask{Task: task, Index: -1}
+	}
+	for id, task := range tm.Cancelled {
+		ret.Cancelled[id] = &wrappedTask{Task: task, Index: -1}
+	}
+	for id, task := range tm.Done {
+		ret.Done[id] = &wrappedTask{Task: task, Index: -1}
+	}
+	return ret
+}
+
+func (tm taskMap) Dump() TaskMap {
+	ret := TaskMap{
+		Scheduled: make(map[string]scheduler.Task, len(tm.Scheduled)),
+		Cancelled: make(map[string]scheduler.Task, len(tm.Scheduled)),
+		Done:      make(map[string]scheduler.Task, len(tm.Scheduled)),
+	}
+	for id, task := range tm.Scheduled {
+		ret.Scheduled[id] = task.Task
+	}
+	for id, task := range tm.Cancelled {
+		ret.Cancelled[id] = task.Task
+	}
+	for id, task := range tm.Done {
+		ret.Done[id] = task.Task
+	}
+	return ret
+}
+
+func (tm taskMap) IsZero() bool {
+	return tm.Scheduled == nil || tm.Cancelled == nil || tm.Done == nil
+}
+
+func (tm *taskMap) Get(id string) (task *wrappedTask, ok bool) {
+	if t, ok := tm.Scheduled[id]; ok {
+		return t, true
+	}
+	if t, ok := tm.Done[id]; ok {
+		return t, true
+	}
+	if t, ok := tm.Cancelled[id]; ok {
+		return t, true
+	}
+	return nil, false
+}
+func (tm *taskMap) Add(task *wrappedTask) {
+	tm.Scheduled[task.Id] = task
+}
+func (tm *taskMap) SetCancelled(id string, now time.Time) {
+	t, ok := tm.Scheduled[id]
+	if ok {
+		t.CancelledAt = util.Escape(now)
+		tm.Cancelled[id] = t
+		delete(tm.Scheduled, id)
+	}
+}
+func (tm *taskMap) SetDone(id string, now time.Time, err error) {
+	t, ok := tm.Scheduled[id]
+	if ok {
+		t.DoneAt = util.Escape(now)
+		if err != nil {
+			t.Err = err.Error()
+		}
+		tm.Done[id] = t
+		delete(tm.Scheduled, id)
+	}
+}
+func (tm *taskMap) Delete(id string) {
+	delete(tm.Scheduled, id)
+	delete(tm.Cancelled, id)
+	delete(tm.Done, id)
+}
+func (tm *taskMap) RemoveDone() {
+	tm.Done = make(map[string]*wrappedTask)
+}
+func (tm *taskMap) RemoveCancelled() {
+	tm.Cancelled = make(map[string]*wrappedTask)
 }
 
 type HeapRepository struct {
@@ -53,22 +151,38 @@ type HeapRepository struct {
 
 	isMilliSecPrecise bool // if true, all internal times will be truncated to multiple of milli sec. mainly for testing.
 
-	heap            *heap.FilterableHeap[*wrappedTask]
-	mapLike         map[string]*wrappedTask
-	beingDispatched map[string]*wrappedTask
-	getNow          common.NowGetter
-	timer           common.Timer
-	isTimerStarted  bool
+	heap           *heap.FilterableHeap[*wrappedTask]
+	taskMap        taskMap
+	getNow         common.NowGetter
+	timer          common.Timer
+	isTimerStarted bool
+}
+
+func newHeapRepository(taskMap TaskMap) *HeapRepository {
+	h := &HeapRepository{
+		heap:   heap.NewFilterableHeap[*wrappedTask](),
+		getNow: common.NowGetterReal{},
+		timer:  common.NewTimerReal(),
+	}
+
+	if taskMap.IsZero() {
+		h.taskMap = newTaskMap()
+		return h
+	}
+
+	h.taskMap = fromExternal(taskMap)
+	for _, task := range h.taskMap.Scheduled {
+		h.heap.Push(task)
+	}
+	return h
 }
 
 func NewHeapRepository() *HeapRepository {
-	return &HeapRepository{
-		heap:            heap.NewFilterableHeap[*wrappedTask](),
-		mapLike:         make(map[string]*wrappedTask),
-		beingDispatched: make(map[string]*wrappedTask),
-		getNow:          common.NowGetterReal{},
-		timer:           common.NewTimerReal(),
-	}
+	return newHeapRepository(TaskMap{})
+}
+
+func NewHeapRepositoryFromMap(taskMap TaskMap) *HeapRepository {
+	return newHeapRepository(taskMap)
 }
 
 func (r *HeapRepository) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
@@ -88,7 +202,7 @@ func (r *HeapRepository) AddTask(param scheduler.TaskParam) (scheduler.Task, err
 	}
 
 	r.heap.Push(wrapped)
-	r.mapLike[wrapped.Id] = wrapped
+	r.taskMap.Add(wrapped)
 
 	if wrapped.Index == 0 {
 		r.resetTimer()
@@ -101,7 +215,7 @@ func (r *HeapRepository) GetById(id string) (scheduler.Task, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	wrapped, ok := r.mapLike[id]
+	wrapped, ok := r.taskMap.Get(id)
 	if !ok {
 		return scheduler.Task{}, &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
@@ -113,7 +227,7 @@ func (r *HeapRepository) Update(id string, param scheduler.TaskParam) (updated b
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	wrapped, ok := r.mapLike[id]
+	wrapped, ok := r.taskMap.Get(id)
 	if !ok {
 		return false, &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
@@ -141,7 +255,7 @@ func (r *HeapRepository) Cancel(id string) (cancelled bool, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	wrapped, ok := r.mapLike[id]
+	wrapped, ok := r.taskMap.Get(id)
 	if !ok {
 		return false, &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
@@ -154,7 +268,7 @@ func (r *HeapRepository) Cancel(id string) (cancelled bool, err error) {
 		return false, nil
 	}
 
-	wrapped.Task.CancelledAt = util.Escape(r.getNow.GetNow())
+	r.taskMap.SetCancelled(id, r.getNow.GetNow())
 
 	if r.isMilliSecPrecise {
 		wrapped.Task = wrapped.Task.DropMicros()
@@ -174,7 +288,7 @@ func (r *HeapRepository) MarkAsDispatched(id string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	wrapped, ok := r.mapLike[id]
+	wrapped, ok := r.taskMap.Get(id)
 	if !ok {
 		return &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
@@ -187,8 +301,6 @@ func (r *HeapRepository) MarkAsDispatched(id string) error {
 	if r.isMilliSecPrecise {
 		wrapped.Task = wrapped.Task.DropMicros()
 	}
-
-	r.beingDispatched[wrapped.Id] = wrapped
 
 	if wrapped.Index >= 0 {
 		index := wrapped.Index
@@ -205,7 +317,7 @@ func (r *HeapRepository) MarkAsDone(id string, err error) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	wrapped, ok := r.mapLike[id]
+	wrapped, ok := r.taskMap.Get(id)
 	if !ok {
 		return &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
@@ -214,12 +326,7 @@ func (r *HeapRepository) MarkAsDone(id string, err error) error {
 		return err
 	}
 
-	delete(r.beingDispatched, id)
-
-	wrapped.Task.DoneAt = util.Escape(r.getNow.GetNow())
-	if err != nil {
-		wrapped.Task.Err = err.Error()
-	}
+	r.taskMap.SetDone(id, r.getNow.GetNow(), err)
 
 	if r.isMilliSecPrecise {
 		wrapped.Task = wrapped.Task.DropMicros()
@@ -231,22 +338,13 @@ func (r *HeapRepository) GetNext() (scheduler.Task, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var peeked *wrappedTask
-	for {
-		peeked = r.heap.Peek()
-		if peeked == nil {
-			r.timer.Stop()
-			return scheduler.Task{}, &scheduler.RepositoryError{Kind: scheduler.Empty}
-		}
-		if peeked.CancelledAt != nil {
-			r.timer.Stop()
-			r.heap.Pop()
-		} else {
-			break
-		}
+	next := r.heap.Peek()
+	if next == nil {
+		r.timer.Stop()
+		return scheduler.Task{}, &scheduler.RepositoryError{Kind: scheduler.Empty}
 	}
-	r.resetTimer()
-	return peeked.Task, nil
+
+	return next.Task, nil
 }
 
 func (r *HeapRepository) StartTimer() {
@@ -282,29 +380,55 @@ func (r *HeapRepository) TimerChannel() <-chan time.Time {
 	return r.timer.C()
 }
 
-func (r *HeapRepository) RemoveCancelled() []scheduler.Task {
+func (r *HeapRepository) remove(done bool) map[string]scheduler.Task {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.timer.Stop()
 	defer r.resetTimer()
 
-	var count int
-	removed := make([]scheduler.Task, 0)
-	for k, v := range r.mapLike {
-		if count >= 10_000 {
-			break
-		}
-
-		if v.CancelledAt != nil {
-			delete(r.mapLike, k)
-			if v.Index >= 0 {
-				r.heap.Remove(v.Index)
-			}
-		}
-		removed = append(removed, v.Task)
-		count++
+	var target map[string]*wrappedTask
+	if done {
+		target = r.taskMap.Done
+	} else {
+		target = r.taskMap.Cancelled
 	}
 
-	return removed
+	ret := make(map[string]scheduler.Task, len(r.taskMap.Cancelled))
+	for id, task := range target {
+		ret[id] = task.Task
+	}
+
+	if done {
+		r.taskMap.RemoveDone()
+	} else {
+		r.taskMap.RemoveCancelled()
+	}
+
+	return ret
+}
+
+func (r *HeapRepository) RemoveCancelled() map[string]scheduler.Task {
+	return r.remove(false)
+}
+
+func (r *HeapRepository) RemoveDone() map[string]scheduler.Task {
+	return r.remove(true)
+}
+
+type TaskMap struct {
+	Scheduled map[string]scheduler.Task
+	Cancelled map[string]scheduler.Task
+	Done      map[string]scheduler.Task
+}
+
+func (tm TaskMap) IsZero() bool {
+	return tm.Scheduled == nil || tm.Cancelled == nil || tm.Done == nil
+}
+
+func (r *HeapRepository) Dump() TaskMap {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.taskMap.Dump()
 }
