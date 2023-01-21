@@ -9,17 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type GormCore interface {
-	AddTask(param scheduler.TaskParam) (gormtask.GormTask, error)
-	Cancel(id string) (cancelled bool, err error)
-	GetById(id string) (gormtask.GormTask, error)
-	GetNext() (gormtask.GormTask, error)
-	MarkAsDispatched(id string) error
-	MarkAsDone(id string, err error) error
-	Update(id string, param scheduler.TaskParam) (updated bool, err error)
-}
-
-var _ GormCore = &DefaultGormCore{}
+var _ scheduler.RepositoryLike = &DefaultGormCore{}
 
 type DefaultGormCore struct {
 	db        *gorm.DB
@@ -35,28 +25,27 @@ func NewDefaultGormCore(db *gorm.DB) *DefaultGormCore {
 	}
 }
 
-func (g *DefaultGormCore) AddTask(param scheduler.TaskParam) (gormtask.GormTask, error) {
-	orgTask := param.ToTask(false)
-	t := gormtask.FromTask(orgTask)
+func (g *DefaultGormCore) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
+	t := gormtask.FromTask(param.ToTask(false))
 	t.Id = uuid.NewString()
 
 	result := g.db.Create(&t)
 	if result.Error != nil {
-		return gormtask.GormTask{}, result.Error
+		return scheduler.Task{}, result.Error
 	}
-	return t, nil
+	return t.ToTask(), nil
 }
 
-func (g *DefaultGormCore) GetById(id string) (gormtask.GormTask, error) {
+func (g *DefaultGormCore) GetById(id string) (scheduler.Task, error) {
 	t := gormtask.GormTask{}
 	result := g.db.Where("id = ?", id).Limit(1).Find(&t)
 	if result.Error != nil {
-		return gormtask.GormTask{}, result.Error
+		return scheduler.Task{}, result.Error
 	}
 	if result.RowsAffected > 0 {
-		return t, nil
+		return t.ToTask(), nil
 	}
-	return gormtask.GormTask{}, &scheduler.RepositoryError{Kind: scheduler.IdNotFound}
+	return scheduler.Task{}, &scheduler.RepositoryError{Kind: scheduler.IdNotFound}
 }
 
 type chainType int
@@ -171,7 +160,7 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 		if err != nil {
 			return false, err
 		}
-		if err := ErrKindUpdate(task.ToTask()); err != nil {
+		if err := ErrKindUpdate(task); err != nil {
 			return false, err
 		}
 	}
@@ -197,7 +186,7 @@ func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 		if err != nil {
 			return false, err
 		}
-		if err := ErrKindCancel(task.ToTask()); err != nil {
+		if err := ErrKindCancel(task); err != nil {
 			return false, err
 		}
 	}
@@ -223,7 +212,7 @@ func (g *DefaultGormCore) MarkAsDispatched(id string) error {
 		if err != nil {
 			return err
 		}
-		if err := ErrKindMarkAsDispatch(task.ToTask()); err != nil {
+		if err := ErrKindMarkAsDispatch(task); err != nil {
 			return err
 		}
 	}
@@ -256,14 +245,14 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 		if err != nil {
 			return err
 		}
-		if err := ErrKindMarkAsDone(task.ToTask()); err != nil {
+		if err := ErrKindMarkAsDone(task); err != nil {
 			return err
 		}
 	}
 	return updateErr
 }
 
-func (g *DefaultGormCore) GetNext() (gormtask.GormTask, error) {
+func (g *DefaultGormCore) GetNext() (scheduler.Task, error) {
 	var t gormtask.GormTask
 	result := g.db.
 		Where("cancelled_at IS NULL").
@@ -274,12 +263,12 @@ func (g *DefaultGormCore) GetNext() (gormtask.GormTask, error) {
 		Find(&t)
 
 	if result.Error != nil {
-		return gormtask.GormTask{}, result.Error
+		return scheduler.Task{}, result.Error
 	}
 	if result.RowsAffected > 0 {
-		return t, nil
+		return t.ToTask(), nil
 	}
-	return gormtask.GormTask{}, &scheduler.RepositoryError{Kind: scheduler.Empty}
+	return scheduler.Task{}, &scheduler.RepositoryError{Kind: scheduler.Empty}
 }
 
 func (g *DefaultGormCore) GetNextMany() ([]gormtask.GormTask, error) {

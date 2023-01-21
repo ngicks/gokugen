@@ -4,36 +4,34 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ngicks/gokugen/repository/gormtask"
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/gommon/pkg/common"
 )
 
-// HookTimer hooks every method that would mutate Repository content, then updates the timer to next scheduled task.
+// HookTimer watches
 type HookTimer interface {
 	AddTask(param scheduler.TaskParam)
 	Cancel(id string)
 	MarkAsDispatched(id string)
 	Update(id string, param scheduler.TaskParam)
-	StartTimer()
-	StopTimer()
-	TimerChannel() <-chan time.Time
+	scheduler.TimerLike
 }
 
-var _ HookTimer = &HookTimerImpl{}
+var _ HookTimer = &RepositoryTimer{}
 
-type HookTimerImpl struct {
+type RepositoryTimer struct {
 	mu             sync.RWMutex
 	initialized    bool
-	cachedMin      gormtask.GormTask
-	core           GormCore
+	cachedMin      scheduler.Task
+	core           scheduler.RepositoryLike
 	isTimerStarted bool
 	NowGetter      common.NowGetter
 	Timer          common.Timer
 }
 
-func NewHookTimer(core GormCore) (*HookTimerImpl, error) {
+func NewHookTimer(core scheduler.RepositoryLike) (*RepositoryTimer, error) {
 	initialized := true
+
 	next, err := core.GetNext()
 	if err != nil {
 		if scheduler.IsEmpty(err) {
@@ -43,7 +41,7 @@ func NewHookTimer(core GormCore) (*HookTimerImpl, error) {
 		}
 	}
 
-	return &HookTimerImpl{
+	return &RepositoryTimer{
 		initialized: initialized,
 		cachedMin:   next,
 		core:        core,
@@ -52,7 +50,7 @@ func NewHookTimer(core GormCore) (*HookTimerImpl, error) {
 	}, nil
 }
 
-func (t *HookTimerImpl) updateWithLock() error {
+func (t *RepositoryTimer) updateWithLock() error {
 	if !t.isTimerStarted {
 		return nil
 	}
@@ -63,7 +61,7 @@ func (t *HookTimerImpl) updateWithLock() error {
 	return t.update()
 }
 
-func (t *HookTimerImpl) update() error {
+func (t *RepositoryTimer) update() error {
 	if !t.Timer.Stop() {
 		select {
 		case <-t.Timer.C():
@@ -83,9 +81,9 @@ func (t *HookTimerImpl) update() error {
 	return nil
 }
 
-func (t *HookTimerImpl) AddTask(param scheduler.TaskParam) {
+func (t *RepositoryTimer) AddTask(param scheduler.TaskParam) {
 	t.mu.RLock()
-	if !t.initialized || param.ToTask(false).Less(t.cachedMin.ToTask()) {
+	if !t.initialized || param.ToTask(false).Less(t.cachedMin) {
 		go t.mu.RUnlock()
 		t.updateWithLock()
 		return
@@ -93,7 +91,7 @@ func (t *HookTimerImpl) AddTask(param scheduler.TaskParam) {
 	t.mu.RUnlock()
 }
 
-func (t *HookTimerImpl) Cancel(id string) {
+func (t *RepositoryTimer) Cancel(id string) {
 	t.mu.RLock()
 	if t.cachedMin.Id == id {
 		go t.mu.RUnlock()
@@ -102,7 +100,7 @@ func (t *HookTimerImpl) Cancel(id string) {
 	}
 	t.mu.RUnlock()
 }
-func (t *HookTimerImpl) MarkAsDispatched(id string) {
+func (t *RepositoryTimer) MarkAsDispatched(id string) {
 	// usually dispatched element is scheduled item.
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -111,7 +109,7 @@ func (t *HookTimerImpl) MarkAsDispatched(id string) {
 		t.update()
 	}
 }
-func (t *HookTimerImpl) Update(id string, param scheduler.TaskParam) {
+func (t *RepositoryTimer) Update(id string, param scheduler.TaskParam) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -128,7 +126,7 @@ func (t *HookTimerImpl) Update(id string, param scheduler.TaskParam) {
 		if param.ScheduledAt.IsZero() {
 			param.ScheduledAt = t.cachedMin.ScheduledAt
 		}
-		if param.ToTask(false).Less(t.cachedMin.ToTask()) {
+		if param.ToTask(false).Less(t.cachedMin) {
 			t.update()
 			return
 		}
@@ -147,14 +145,14 @@ func (t *HookTimerImpl) Update(id string, param scheduler.TaskParam) {
 	}
 }
 
-func (t *HookTimerImpl) StartTimer() {
+func (t *RepositoryTimer) StartTimer() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.isTimerStarted = true
 	t.update()
 }
 
-func (t *HookTimerImpl) StopTimer() {
+func (t *RepositoryTimer) StopTimer() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -167,6 +165,6 @@ func (t *HookTimerImpl) StopTimer() {
 	t.isTimerStarted = false
 }
 
-func (t *HookTimerImpl) TimerChannel() <-chan time.Time {
+func (t *RepositoryTimer) TimerChannel() <-chan time.Time {
 	return t.Timer.C()
 }
