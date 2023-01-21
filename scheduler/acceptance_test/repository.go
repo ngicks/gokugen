@@ -32,6 +32,11 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 
 	addFarFutureTask := addFarFutureTask(repo, now)
 
+	t.Run("GetNext on empty Repository returns Empty Repository Error", func(t *testing.T) {
+		_, err := repo.GetNext()
+		AssertErrEmpty(t, "", err, true)
+	})
+
 	t.Run("AddTask", func(t *testing.T) {
 		for i := 0; i < 100; i++ {
 			param := randParam(now.AddDate(0, 0, i+5))

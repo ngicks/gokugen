@@ -43,16 +43,6 @@ func assertRepositoryErr(t *testing.T, id string, err error, fatal bool, kind sc
 	return false
 }
 
-func AssertErrIdNotFound(t *testing.T, id string, err error, fatal bool) (didErr bool) {
-	t.Helper()
-	return assertRepositoryErr(t, id, err, fatal, scheduler.IdNotFound)
-}
-
-func AssertErrAlreadyDispatched(t *testing.T, id string, err error, fatal bool) (didErr bool) {
-	t.Helper()
-	return assertRepositoryErr(t, id, err, fatal, scheduler.AlreadyDispatched)
-}
-
 func AssertErrAlreadyCancelled(t *testing.T, id string, err error, fatal bool) (didErr bool) {
 	t.Helper()
 	return assertRepositoryErr(t, id, err, fatal, scheduler.AlreadyCancelled)
@@ -63,7 +53,22 @@ func AssertErrAlreadyDone(t *testing.T, id string, err error, fatal bool) (didEr
 	return assertRepositoryErr(t, id, err, fatal, scheduler.AlreadyDone)
 }
 
+func AssertErrAlreadyDispatched(t *testing.T, id string, err error, fatal bool) (didErr bool) {
+	t.Helper()
+	return assertRepositoryErr(t, id, err, fatal, scheduler.AlreadyDispatched)
+}
+
+func AssertErrEmpty(t *testing.T, id string, err error, fatal bool) (didErr bool) {
+	t.Helper()
+	return assertRepositoryErr(t, id, err, fatal, scheduler.Empty)
+}
+
 func AssertErrNotDispatched(t *testing.T, id string, err error, fatal bool) (didErr bool) {
 	t.Helper()
 	return assertRepositoryErr(t, id, err, fatal, scheduler.NotDispatched)
+}
+
+func AssertErrIdNotFound(t *testing.T, id string, err error, fatal bool) (didErr bool) {
+	t.Helper()
+	return assertRepositoryErr(t, id, err, fatal, scheduler.IdNotFound)
 }
