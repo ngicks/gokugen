@@ -12,17 +12,30 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+const inMemoryDb = ":memory:"
+
 func TestGormAcceptance(t *testing.T) {
-	dir, err := os.MkdirTemp(os.TempDir(), "test-gokugen-gorm-sqlite3-*")
-	if err != nil {
-		panic(err)
+	var sqliteFilename string
+
+	if os.Getenv("GOKUGEN_SQLITE3_INMEMORY") != "" {
+		sqliteFilename = inMemoryDb
+	} else {
+		dir, err := os.MkdirTemp(os.TempDir(), "test-gokugen-gorm-sqlite3-*")
+		if err != nil {
+			panic(err)
+		}
+
+		// in-memory sqlite3 db seemingly takes much power. Some CI env become slow with it.
+		sqliteFilename = filepath.Join(dir, "sqlite3.db")
 	}
 
-	t.Logf("%s", dir)
-	// in-memory sqlite3 db seemingly takes much power. Some CI env become slow with it.
-	sqliteFilename := filepath.Join(dir, "sqlite3.db")
+	t.Logf("%s", sqliteFilename)
 
-	defer os.Remove(sqliteFilename)
+	defer func() {
+		if sqliteFilename != inMemoryDb {
+			os.Remove(sqliteFilename)
+		}
+	}()
 
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
