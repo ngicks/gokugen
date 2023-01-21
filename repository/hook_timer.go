@@ -10,7 +10,7 @@ import (
 
 // HookTimer watches repository mutation and resets its timer if necessary.
 type HookTimer interface {
-	// SetRepository sets Repository. Calling this twice may cause a runtime panic.
+	// SetRepository sets Repository. Twice or later calls may be ignored.
 	SetRepository(core scheduler.RepositoryLike)
 	AddTask(param scheduler.TaskParam)
 	Cancel(id string)
@@ -42,7 +42,7 @@ func (t *RepositoryTimer) SetRepository(core scheduler.RepositoryLike) {
 	defer t.mu.Unlock()
 
 	if t.core != nil {
-		panic("SetRepository is called twice")
+		return
 	}
 
 	t.core = core
