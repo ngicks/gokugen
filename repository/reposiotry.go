@@ -7,11 +7,20 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-// Repository is a thin wrapper that connects scheduler.Repository and HookTimer.
-// Every mutation is observed and updates timer if necessary.
+// Repository is a thin wrapper that connects scheduler.RepositoryLike and HookTimer.
+// Every mutation is observed and that would update the timer if necessary.
 type Repository struct {
 	Core      scheduler.RepositoryLike
 	HookTimer HookTimer
+}
+
+func New(core scheduler.RepositoryLike, hookTimer HookTimer) *Repository {
+	r := &Repository{
+		Core:      core,
+		HookTimer: hookTimer,
+	}
+	r.HookTimer.SetRepository(r.Core)
+	return r
 }
 
 func (r *Repository) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {

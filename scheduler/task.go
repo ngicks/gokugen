@@ -98,8 +98,8 @@ type Serializable struct {
 
 type TaskParam struct {
 	// scheduled time.
-	// The zero value of ScheduledAt is considered to be non-initialized in AddTask context,
-	// and to be not a update target in Update context.
+	// The zero value of ScheduledAt is considered to be a non-initialized field in AddTask context,
+	// and not to be a update target in Update context.
 	ScheduledAt time.Time
 	WorkId      string
 	Param       []byte

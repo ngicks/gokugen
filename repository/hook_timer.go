@@ -8,8 +8,10 @@ import (
 	"github.com/ngicks/gommon/pkg/common"
 )
 
-// HookTimer watches
+// HookTimer watches repository mutation and resets its timer if necessary.
 type HookTimer interface {
+	// SetRepository sets Repository. Calling this twice may cause a runtime panic.
+	SetRepository(core scheduler.RepositoryLike)
 	AddTask(param scheduler.TaskParam)
 	Cancel(id string)
 	MarkAsDispatched(id string)
@@ -21,7 +23,6 @@ var _ HookTimer = &RepositoryTimer{}
 
 type RepositoryTimer struct {
 	mu             sync.RWMutex
-	initialized    bool
 	cachedMin      scheduler.Task
 	core           scheduler.RepositoryLike
 	isTimerStarted bool
@@ -29,32 +30,25 @@ type RepositoryTimer struct {
 	Timer          common.Timer
 }
 
-func NewHookTimer(core scheduler.RepositoryLike) (*RepositoryTimer, error) {
-	initialized := true
+func NewHookTimer() *RepositoryTimer {
+	return &RepositoryTimer{
+		NowGetter: common.NowGetterReal{},
+		Timer:     common.NewTimerReal(),
+	}
+}
 
-	next, err := core.GetNext()
-	if err != nil {
-		if scheduler.IsEmpty(err) {
-			initialized = false
-		} else {
-			return nil, err
-		}
+func (t *RepositoryTimer) SetRepository(core scheduler.RepositoryLike) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.core != nil {
+		panic("SetRepository is called twice")
 	}
 
-	return &RepositoryTimer{
-		initialized: initialized,
-		cachedMin:   next,
-		core:        core,
-		NowGetter:   common.NowGetterReal{},
-		Timer:       common.NewTimerReal(),
-	}, nil
+	t.core = core
 }
 
 func (t *RepositoryTimer) updateWithLock() error {
-	if !t.isTimerStarted {
-		return nil
-	}
-
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -62,6 +56,10 @@ func (t *RepositoryTimer) updateWithLock() error {
 }
 
 func (t *RepositoryTimer) update() error {
+	if !t.isTimerStarted {
+		return nil
+	}
+
 	if !t.Timer.Stop() {
 		select {
 		case <-t.Timer.C():
@@ -70,11 +68,12 @@ func (t *RepositoryTimer) update() error {
 	}
 
 	next, err := t.core.GetNext()
+	// resets to zero-value if err.
+	t.cachedMin = next
+
 	if err != nil {
 		return err
 	}
-	t.initialized = true
-	t.cachedMin = next
 
 	t.Timer.Reset(next.ScheduledAt.Sub(t.NowGetter.GetNow()))
 
@@ -83,8 +82,8 @@ func (t *RepositoryTimer) update() error {
 
 func (t *RepositoryTimer) AddTask(param scheduler.TaskParam) {
 	t.mu.RLock()
-	if !t.initialized || param.ToTask(false).Less(t.cachedMin) {
-		go t.mu.RUnlock()
+	if t.cachedMin.Id == "" || param.ToTask(false).Less(t.cachedMin) {
+		t.mu.RUnlock()
 		t.updateWithLock()
 		return
 	}
@@ -93,13 +92,14 @@ func (t *RepositoryTimer) AddTask(param scheduler.TaskParam) {
 
 func (t *RepositoryTimer) Cancel(id string) {
 	t.mu.RLock()
-	if t.cachedMin.Id == id {
-		go t.mu.RUnlock()
+	if t.cachedMin.Id == "" || t.cachedMin.Id == id {
+		t.mu.RUnlock()
 		t.updateWithLock()
 		return
 	}
 	t.mu.RUnlock()
 }
+
 func (t *RepositoryTimer) MarkAsDispatched(id string) {
 	// usually dispatched element is scheduled item.
 	t.mu.Lock()
@@ -112,6 +112,11 @@ func (t *RepositoryTimer) MarkAsDispatched(id string) {
 func (t *RepositoryTimer) Update(id string, param scheduler.TaskParam) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	if t.cachedMin.Id == "" {
+		t.update()
+		return
+	}
 
 	if id == t.cachedMin.Id {
 		if param.Priority == nil && param.ScheduledAt.IsZero() {
@@ -126,6 +131,7 @@ func (t *RepositoryTimer) Update(id string, param scheduler.TaskParam) {
 		if param.ScheduledAt.IsZero() {
 			param.ScheduledAt = t.cachedMin.ScheduledAt
 		}
+		param.Param = nil // avoid buf clone.
 		if param.ToTask(false).Less(t.cachedMin) {
 			t.update()
 			return
