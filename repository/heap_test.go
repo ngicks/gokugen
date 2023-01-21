@@ -2,6 +2,7 @@ package repository
 
 import (
 	"encoding/json"
+	"errors"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -50,8 +51,17 @@ func testHeapCloneN(t *testing.T, taskCount int) {
 
 	heap := NewHeapRepository()
 
-	_, err := addRandomTask(heap, taskCount)
+	tasks, err := addRandomTask(heap, taskCount)
 	require.NoError(err)
+
+	if taskCount != 0 {
+		heap.MarkAsDispatched(tasks[taskCount/2].Id)
+		heap.Cancel(tasks[taskCount/3].Id)
+		heap.MarkAsDispatched(tasks[taskCount/4].Id)
+		heap.MarkAsDone(tasks[taskCount/4].Id, nil)
+		heap.MarkAsDispatched(tasks[taskCount/5].Id)
+		heap.MarkAsDone(tasks[taskCount/5].Id, errors.New("foobar"))
+	}
 
 	dumped := heap.Dump()
 
@@ -83,5 +93,4 @@ func testHeapCloneN(t *testing.T, taskCount int) {
 			t.Fatalf("not qual. diff = %s", diff)
 		}
 	}
-
 }

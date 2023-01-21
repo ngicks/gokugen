@@ -172,7 +172,10 @@ func newHeapRepository(taskMap TaskMap) *HeapRepository {
 
 	h.taskMap = fromExternal(taskMap)
 	for _, task := range h.taskMap.Scheduled {
-		h.heap.Push(task)
+		if task.DispatchedAt == nil {
+			// keeping invariants where MarkAsDispatched removes element from heap.
+			h.heap.Push(task)
+		}
 	}
 	return h
 }
