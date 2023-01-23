@@ -12,7 +12,9 @@ require (
 	github.com/ngicks/gommon/pkg/timing v0.0.3
 	github.com/ngicks/type-param-common v0.2.0
 	github.com/ngicks/workerpool v0.0.1-alpha3
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.1
+	github.com/tidwall/gjson v1.14.4
 	gorm.io/driver/sqlite v1.4.4
 	gorm.io/gorm v1.24.3
 )
@@ -27,6 +29,8 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/ngicks/locker v0.0.0-20230116102153-fda89107dea5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.5 // indirect
 	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

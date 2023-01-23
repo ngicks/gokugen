@@ -8,16 +8,17 @@ import (
 )
 
 type Task struct {
-	Id           string     `json:"id"`      // Id is an id of the task.
-	WorkId       string     `json:"work_id"` // WorkId is work function id.
-	Param        []byte     `json:"param"`
-	Priority     int        `json:"priority"`
-	ScheduledAt  time.Time  `json:"scheduled_at"`
-	CreatedAt    time.Time  `json:"created_at"`
-	CancelledAt  *time.Time `json:"cancelled_at,omitempty"`
-	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
-	DoneAt       *time.Time `json:"done_at,omitempty"`
-	Err          string     `json:"err"`
+	Id           string            `json:"id"`      // Id is an id of the task.
+	WorkId       string            `json:"work_id"` // WorkId is work function id.
+	Param        []byte            `json:"param"`
+	Priority     int               `json:"priority"`
+	ScheduledAt  time.Time         `json:"scheduled_at"`
+	CreatedAt    time.Time         `json:"created_at"`
+	CancelledAt  *time.Time        `json:"cancelled_at,omitempty"`
+	DispatchedAt *time.Time        `json:"dispatched_at,omitempty"`
+	DoneAt       *time.Time        `json:"done_at,omitempty"`
+	Err          string            `json:"err"`
+	Meta         map[string][]byte `json:"meta"`
 }
 
 func (t Task) IsInitialized() bool {
@@ -59,6 +60,15 @@ func (t Task) Update(param TaskParam, ignoreMicroSecs bool) Task {
 	if param.Priority != nil {
 		t.Priority = *param.Priority
 	}
+	if param.Meta != nil {
+		if t.Meta == nil {
+			t.Meta = param.Meta
+		} else {
+			for k, v := range param.Meta {
+				t.Meta[k] = v
+			}
+		}
+	}
 
 	return t
 }
@@ -66,6 +76,18 @@ func (t Task) Update(param TaskParam, ignoreMicroSecs bool) Task {
 func (t Task) Equal(other Task) bool {
 	if t.Id != other.Id {
 		return false
+	}
+
+	mapEqual := func(l, r map[string][]byte) bool {
+		if len(l) != len(r) {
+			return false
+		}
+		for k, v := range l {
+			if !bytes.Equal(v, r[k]) {
+				return false
+			}
+		}
+		return true
 	}
 
 	return (t.WorkId == other.WorkId &&
@@ -76,7 +98,8 @@ func (t Task) Equal(other Task) bool {
 		util.TimePointerEqual(t.CancelledAt, other.CancelledAt, false) &&
 		util.TimePointerEqual(t.DispatchedAt, other.DispatchedAt, false) &&
 		util.TimePointerEqual(t.DoneAt, other.DoneAt, false) &&
-		t.Err == other.Err)
+		t.Err == other.Err &&
+		mapEqual(t.Meta, other.Meta))
 }
 
 func (t Task) ToParam() TaskParam {
@@ -104,6 +127,7 @@ type TaskParam struct {
 	WorkId      string
 	Param       []byte
 	Priority    *int
+	Meta        map[string][]byte
 }
 
 func (p TaskParam) IsInitialized() bool {
@@ -134,5 +158,6 @@ func (p TaskParam) ToTask(ignoreMicros bool) Task {
 		WorkId:      p.WorkId,
 		Param:       param,
 		Priority:    priority,
+		Meta:        p.Meta,
 	}
 }

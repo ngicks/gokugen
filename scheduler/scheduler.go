@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ngicks/gommon/pkg/atomicstate"
+	"github.com/ngicks/type-param-common/set"
 )
 
 type Scheduler struct {
@@ -15,6 +16,7 @@ type Scheduler struct {
 	repo         TaskRepository
 	hooks        *hookWrapper
 
+	meta *set.Set[string]
 	loop loop
 }
 
@@ -36,6 +38,7 @@ func New(
 		repo:         repo,
 		hooks:        wrappedHook,
 
+		meta: set.New[string](),
 		loop: newLoop(dispatcher, repo, wrappedHook),
 	}
 
@@ -73,4 +76,12 @@ func (s *Scheduler) AddOnTaskDone(fn *OnTaskDone) {
 
 func (s *Scheduler) RemoveOnTaskDone(fn *OnTaskDone) {
 	s.hooks.removeOnTaskDone(fn)
+}
+
+func (s *Scheduler) RegisterMetaKey(key string) (registered bool) {
+	if s.meta.Has(key) {
+		return false
+	}
+	s.meta.Add(key)
+	return true
 }

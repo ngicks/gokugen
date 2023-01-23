@@ -93,7 +93,8 @@ Things are decomposed to 3 elements.
     - [ ] Add Task meta data.
     - [ ] Add Task deadline
 - Refactor / Fix
-  - [ ] HeapRepository need some more efforts.
-    - [ ] Delete
-  - [ ] Strip down GormCore to make it simpler and smaller interface.
+  - [x] HeapRepository need some more efforts.
+    - [x] Delete
+    - [x] Dump and Resume. Now HeapRepository can be saved to anywhere and resumed from saved internal data.
+  - [x] ~~Strip down GormCore to make it simpler and smaller interface.~~
   - [ ] Add tests for scheduler.
