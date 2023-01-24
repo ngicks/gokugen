@@ -11,10 +11,18 @@ import (
 	"github.com/tidwall/gjson"
 )
 
+type RescheduleMeta struct {
+	Id    string `json:"id"`
+	Param []byte `json:"param"`
+}
+
 // RescheduleRule is set of scheduling rule, Schedule.
-// It can be directly unmarshalled from json map that keys are string,
-// and values are one of string literal that represents cron tab,
-// json serialized CronSchedule, LimitedSchedule, or IntervalSchedule.
+// It can be directly unmarshalled from json map where keys are string,
+// and values are one of below:
+//   - string literal that represents cron tab
+//   - json serialized CronSchedule,
+//   - LimitedSchedule,
+//   - or IntervalSchedule.
 type RescheduleRule map[string]Schedule
 
 func (r *RescheduleRule) UnmarshalJSON(data []byte) error {
@@ -26,7 +34,7 @@ func (r *RescheduleRule) UnmarshalJSON(data []byte) error {
 	}
 
 	for k, v := range rawMap {
-		sched, err := UnmarshalScheduler(v)
+		sched, err := UnmarshalSchedule(v)
 		if err != nil {
 			return err
 		}
@@ -47,15 +55,10 @@ const (
 type Schedule interface {
 	// Next returns next schedule time.
 	Next(param []byte) (next time.Time, nextParam []byte, err error)
-}
-type ScheduleType string
-
-type SavedSchedule struct {
-	Type     ScheduleType    `json:"type"`
-	Schedule json.RawMessage `json:"schedule"`
+	Initial(from time.Time) (param []byte)
 }
 
-func UnmarshalScheduler(data []byte) (Schedule, error) {
+func UnmarshalSchedule(data []byte) (Schedule, error) {
 	if data[0] == '"' {
 		sched, err := cron.ParseStandard(string(bytes.Trim(data, "\"")))
 		if err != nil {
@@ -92,6 +95,11 @@ type CronSchedule struct {
 	Spec cron.Schedule `json:"spec"`
 }
 
+func (s *CronSchedule) Initial(from time.Time) (param []byte) {
+	bin, _ := CronScheduleParam{from, from}.MarshalBinary()
+	return bin
+}
+
 func (s *CronSchedule) UnmarshalJSON(data []byte) error {
 	// must be in sync with CronSchedule
 	type cronSched struct {
@@ -106,7 +114,13 @@ func (s *CronSchedule) UnmarshalJSON(data []byte) error {
 
 	var impl cron.Schedule
 	// NOTE: watch every addition of schedule implementation of robfig/cron
-	if gjson.Get(string(sched.Spec), "Second").Exists() {
+	if sched.Spec[0] == '"' {
+		spec, err := cron.ParseStandard(string(bytes.Trim(sched.Spec, "\"")))
+		if err != nil {
+			return err
+		}
+		impl = spec
+	} else if gjson.Get(string(sched.Spec), "Second").Exists() {
 		var cronSched cron.SpecSchedule
 		err := json.Unmarshal(sched.Spec, &cronSched)
 		if err != nil {
@@ -190,6 +204,12 @@ type LimitedSchedule struct {
 	N        int64    `json:"n"`
 }
 
+func (s *LimitedSchedule) Initial(from time.Time) (param []byte) {
+	rest := s.Schedule.Initial(from)
+	bin, _ := LimitedScheduleParam{s.N, rest}.MarshalBinary()
+	return bin
+}
+
 func (s *LimitedSchedule) UnmarshalJSON(data []byte) error {
 	// must be in sync with LimitedSchedule
 	type lim struct {
@@ -204,7 +224,7 @@ func (s *LimitedSchedule) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	sched, err := UnmarshalScheduler(l.Schedule)
+	sched, err := UnmarshalSchedule(l.Schedule)
 	if err != nil {
 		return err
 	}
@@ -276,6 +296,11 @@ func (p *LimitedScheduleParam) UnmarshalBinary(data []byte) error {
 
 type IntervalSchedule struct {
 	Dur time.Duration `json:"dur"`
+}
+
+func (s *IntervalSchedule) Initial(from time.Time) (param []byte) {
+	bin, _ := IntervalScheduleParam{from, from}.MarshalBinary()
+	return bin
 }
 
 func (s *IntervalSchedule) Next(param []byte) (next time.Time, nextParam []byte, err error) {

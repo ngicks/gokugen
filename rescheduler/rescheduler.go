@@ -1,6 +1,12 @@
 package rescheduler
 
-import "github.com/ngicks/gokugen/scheduler"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"github.com/ngicks/gokugen/scheduler"
+)
 
 const metaKey = "gokugen.rescheduler"
 
@@ -27,6 +33,26 @@ func New(s *scheduler.Scheduler, rule RescheduleRule) *Rescheduler {
 	return r
 }
 
+func (r *Rescheduler) AddTask(ruleId string, from time.Time, param scheduler.TaskParam) (scheduler.Task, error) {
+	rule, ok := r.rule[ruleId]
+	if !ok {
+		return scheduler.Task{}, fmt.Errorf("unknown reschedule id = %s", ruleId)
+	}
+	nextTime, nextParam, err := rule.Next(rule.Initial(from))
+	if err != nil {
+		return scheduler.Task{}, err
+	}
+	bin, err := json.Marshal(RescheduleMeta{ruleId, nextParam})
+	if err != nil {
+		return scheduler.Task{}, err
+	}
+
+	param.ScheduledAt = nextTime
+	param.Meta[metaKey] = bin
+
+	return r.sched.AddTask(param)
+}
+
 func (r *Rescheduler) Down() {
 	if r.cb == nil {
 		return
@@ -36,5 +62,27 @@ func (r *Rescheduler) Down() {
 }
 
 func (r *Rescheduler) OnTaskDone(task scheduler.Task, err error) {
+	if err != nil {
+		// TODO: add on-error predicate
+		return
+	}
+	var meta RescheduleMeta
+	err = json.Unmarshal(task.Meta[metaKey], &meta)
+	if err != nil {
+		return
+	}
+	rule, ok := r.rule[meta.Id]
+	if !ok {
+		return
+	}
 
+	nextTime, nextParam, err := rule.Next(meta.Param)
+	if err != nil {
+		return
+	}
+
+	param := task.ToParam()
+	param.ScheduledAt = nextTime
+	param.Meta[metaKey] = nextParam
+	r.sched.AddTask(param)
 }

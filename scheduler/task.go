@@ -102,6 +102,16 @@ func (t Task) Equal(other Task) bool {
 		mapEqual(t.Meta, other.Meta))
 }
 
+func cloneMeta(meta map[string][]byte) map[string][]byte {
+	cloned := make(map[string][]byte, len(meta))
+	for k, v := range meta {
+		bin := make([]byte, len(v))
+		copy(bin, v)
+		cloned[k] = bin
+	}
+	return cloned
+}
+
 func (t Task) ToParam() TaskParam {
 	p := t.Priority
 	return TaskParam{
@@ -109,14 +119,16 @@ func (t Task) ToParam() TaskParam {
 		WorkId:      t.WorkId,
 		Param:       t.Param,
 		Priority:    &p,
+		Meta:        cloneMeta(t.Meta),
 	}
 }
 
 // Serializable is serializable part
 type Serializable struct {
-	Id     string `json:"id"`
-	WorkId string `json:"work_id"`
-	Param  []byte `json:"param"`
+	Id     string            `json:"id"`
+	WorkId string            `json:"work_id"`
+	Param  []byte            `json:"param"`
+	Meta   map[string][]byte `json:"meta"`
 }
 
 type TaskParam struct {
