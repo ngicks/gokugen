@@ -25,6 +25,7 @@
     "robfig",
     "stretchr",
     "syncparam",
+    "tidwall",
     "unexported",
     "unmarshalled",
     "usecase",

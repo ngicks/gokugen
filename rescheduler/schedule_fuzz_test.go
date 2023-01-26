@@ -1,6 +1,7 @@
 package rescheduler
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
@@ -10,16 +11,16 @@ func FuzzCronScheduleParam(f *testing.F) {
 	f.Fuzz(func(t *testing.T, input1, input2 int64) {
 		p := CronScheduleParam{
 			Prev: time.UnixMilli(input1),
-			Next: time.UnixMilli(input1),
+			Next: time.UnixMilli(input2),
 		}
 
-		bin, err := p.MarshalBinary()
+		bin, err := json.Marshal(p)
 		if err != nil {
 			t.Fatalf("MarshalBinary: must not be err. %+v", err)
 		}
 
 		var back CronScheduleParam
-		err = back.UnmarshalBinary(bin)
+		err = json.Unmarshal(bin, &back)
 		if err != nil {
 			t.Fatalf("UnmarshalBinary: must not be err. %+v", err)
 		}
@@ -34,16 +35,16 @@ func FuzzLimitedScheduleParam(f *testing.F) {
 	f.Fuzz(func(t *testing.T, input1 int64, input2 []byte) {
 		p := LimitedScheduleParam{
 			N:    input1,
-			Rest: input2,
+			Rest: string(input2),
 		}
 
-		bin, err := p.MarshalBinary()
+		bin, err := json.Marshal(p)
 		if err != nil {
 			t.Fatalf("MarshalBinary: must not be err. %+v", err)
 		}
 
 		var back LimitedScheduleParam
-		err = back.UnmarshalBinary(bin)
+		err = json.Unmarshal(bin, &back)
 		if err != nil {
 			t.Fatalf("UnmarshalBinary: must not be err. %+v", err)
 		}

@@ -54,7 +54,7 @@ func assertBinIsCronScheduleParam(t *testing.T, data []byte, now time.Time) (ok 
 	ok = true
 
 	var p rescheduler.CronScheduleParam
-	err := p.UnmarshalBinary(data)
+	err := json.Unmarshal(data, &p)
 	if err != nil {
 		ok = false
 		t.Errorf("must not be err: %+v", err)
@@ -99,11 +99,11 @@ func TestInitial(t *testing.T) {
 			bin := v.Initial(now)
 
 			var p rescheduler.LimitedScheduleParam
-			err := p.UnmarshalBinary(bin)
+			err := json.Unmarshal(bin, &p)
 			assert.NoError(err)
 			assert.Equal(v.N, p.N)
 
-			assertBinIsCronScheduleParam(t, p.Rest, now)
+			assertBinIsCronScheduleParam(t, []byte(p.Rest), now)
 		}
 	})
 	t.Run("IntervalSchedule", func(t *testing.T) {

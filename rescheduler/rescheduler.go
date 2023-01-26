@@ -2,55 +2,99 @@ package rescheduler
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-const metaKey = "gokugen.rescheduler"
+const metaKey = "github.com/ngicks/gokugen/rescheduler"
 
-type Rescheduler struct {
-	sched *scheduler.Scheduler
-	cb    *func(task scheduler.Task, err error)
-	rule  RescheduleRule
+var _ Scheduler = &scheduler.Scheduler{}
+
+// Scheduler is an interface compatible with scheduler.Scheduler.
+// This allows wrapped schedulers.
+type Scheduler interface {
+	AddTask(param scheduler.TaskParam) (scheduler.Task, error)
+	AddOnTaskDone(fn *func(task scheduler.Task, err error))
+	RemoveOnTaskDone(fn *func(task scheduler.Task, err error))
 }
 
-func New(s *scheduler.Scheduler, rule RescheduleRule) *Rescheduler {
+type ReschedulerHook interface {
+	OnReschedule(t scheduler.Task, scheduleErr error)
+	OnTaskError(t scheduler.Task, err error) (shouldContinue bool)
+}
+
+type NoopHook struct{}
+
+func (h NoopHook) OnReschedule(t scheduler.Task, scheduleErr error) {}
+func (h NoopHook) OnTaskError(t scheduler.Task, err error) (shouldContinue bool) {
+	return false
+}
+
+type Rescheduler struct {
+	sched Scheduler
+	cb    *func(task scheduler.Task, err error)
+	rule  RescheduleRule
+	hook  ReschedulerHook
+}
+
+func New(sched Scheduler, rule RescheduleRule, hook ReschedulerHook) *Rescheduler {
 	r := &Rescheduler{
-		sched: s,
+		sched: sched,
 		rule:  rule,
+		hook:  hook,
 	}
 
-	r.sched.RegisterMetaKey(metaKey)
 	// This is needed to be a distinct pointer...Maybe.
 	cb := func(task scheduler.Task, err error) {
 		r.OnTaskDone(task, err)
 	}
 	r.cb = &cb
-	s.AddOnTaskDone(r.cb)
+	sched.AddOnTaskDone(r.cb)
 
 	return r
 }
 
 func (r *Rescheduler) AddTask(ruleId string, from time.Time, param scheduler.TaskParam) (scheduler.Task, error) {
+	param = param.Clone()
+
 	rule, ok := r.rule[ruleId]
 	if !ok {
-		return scheduler.Task{}, fmt.Errorf("unknown reschedule id = %s", ruleId)
+		return scheduler.Task{}, &RuleNotFoundErr{ruleId}
 	}
-	nextTime, nextParam, err := rule.Next(rule.Initial(from))
+
+	return r.step(ruleId, rule.Initial(from), param)
+}
+
+func (r *Rescheduler) step(ruleId string, oldParam []byte, taskParam scheduler.TaskParam) (scheduler.Task, error) {
+	t, err := r.stepInner(ruleId, oldParam, taskParam)
+	r.hook.OnReschedule(t, err)
+	return t, err
+}
+
+func (r *Rescheduler) stepInner(ruleId string, oldParam []byte, taskParam scheduler.TaskParam) (scheduler.Task, error) {
+	rule, ok := r.rule[ruleId]
+	if !ok {
+		return scheduler.Task{}, &RuleNotFoundErr{ruleId}
+	}
+
+	nextTime, nextParam, err := rule.Next(oldParam)
 	if err != nil {
-		return scheduler.Task{}, err
+		return scheduler.Task{}, &RuleNextErr{ruleId, oldParam, err}
 	}
+
 	bin, err := json.Marshal(RescheduleMeta{ruleId, nextParam})
 	if err != nil {
-		return scheduler.Task{}, err
+		// this must not happen.
+		panic(err)
 	}
 
-	param.ScheduledAt = nextTime
-	param.Meta[metaKey] = bin
+	taskParam.ScheduledAt = nextTime
+	taskParam.Meta[metaKey] = bin
 
-	return r.sched.AddTask(param)
+	task, err := r.sched.AddTask(taskParam)
+	r.hook.OnReschedule(task, err)
+	return task, nil
 }
 
 func (r *Rescheduler) Down() {
@@ -62,27 +106,22 @@ func (r *Rescheduler) Down() {
 }
 
 func (r *Rescheduler) OnTaskDone(task scheduler.Task, err error) {
-	if err != nil {
-		// TODO: add on-error predicate
-		return
-	}
-	var meta RescheduleMeta
-	err = json.Unmarshal(task.Meta[metaKey], &meta)
-	if err != nil {
-		return
-	}
-	rule, ok := r.rule[meta.Id]
+	metaData, ok := task.Meta[metaKey]
 	if !ok {
 		return
 	}
 
-	nextTime, nextParam, err := rule.Next(meta.Param)
-	if err != nil {
+	// Deferred error check. If meta is not set, it has nothing to do with it.
+	if err != nil && !r.hook.OnTaskError(task, err) {
 		return
 	}
 
-	param := task.ToParam()
-	param.ScheduledAt = nextTime
-	param.Meta[metaKey] = nextParam
-	r.sched.AddTask(param)
+	var meta RescheduleMeta
+	err = json.Unmarshal(metaData, &meta)
+	if err != nil {
+		r.hook.OnReschedule(scheduler.Task{}, &MetaUnmarshalErr{err, task})
+		return
+	}
+
+	r.step(meta.Id, meta.Param, task.ToParam().Clone())
 }

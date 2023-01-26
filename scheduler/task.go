@@ -105,9 +105,7 @@ func (t Task) Equal(other Task) bool {
 func cloneMeta(meta map[string][]byte) map[string][]byte {
 	cloned := make(map[string][]byte, len(meta))
 	for k, v := range meta {
-		bin := make([]byte, len(v))
-		copy(bin, v)
-		cloned[k] = bin
+		cloned[k] = v
 	}
 	return cloned
 }
@@ -119,7 +117,7 @@ func (t Task) ToParam() TaskParam {
 		WorkId:      t.WorkId,
 		Param:       t.Param,
 		Priority:    &p,
-		Meta:        cloneMeta(t.Meta),
+		Meta:        t.Meta,
 	}
 }
 
@@ -140,6 +138,26 @@ type TaskParam struct {
 	Param       []byte
 	Priority    *int
 	Meta        map[string][]byte
+}
+
+func cloneSlice[T any](s []T) []T {
+	cloned := make([]T, len(s))
+	copy(cloned, s)
+	return cloned
+}
+
+func (p TaskParam) Clone() TaskParam {
+	var priority int
+	if p.Priority != nil {
+		priority = *p.Priority
+	}
+	return TaskParam{
+		ScheduledAt: p.ScheduledAt,
+		WorkId:      p.WorkId,
+		Param:       cloneSlice(p.Param),
+		Priority:    &priority,
+		Meta:        cloneMeta(p.Meta),
+	}
 }
 
 func (p TaskParam) IsInitialized() bool {
