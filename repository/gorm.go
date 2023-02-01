@@ -2,7 +2,8 @@ package repository
 
 import (
 	"github.com/ngicks/gokugen/repository/gormtask"
-	"gorm.io/driver/sqlite"
+	// "gorm.io/driver/sqlite" // CGO version
+	"github.com/glebarez/sqlite" // This would increase binary size around 2 MiB. If you don't like it, implement your own core
 	"gorm.io/gorm"
 )
 

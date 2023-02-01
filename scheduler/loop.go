@@ -66,10 +66,11 @@ func (l *loop) StopTimer() {
 	l.repo.StopTimer()
 }
 
-func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error {
+func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) (err error) {
 	l.mu.Lock()
 	isRunning := l.isRunning || l.isStopping
 	l.mu.Unlock()
+
 	if isRunning {
 		return ErrAlreadyRunning
 	}
@@ -90,6 +91,18 @@ func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error
 
 	defer func() {
 		cancel()
+
+		// downstream may be blocking on sending on errCh at this moment.
+	exhaustive:
+		for {
+			select {
+			case err_ := <-l.errCh:
+				err = err_
+			default:
+				break exhaustive
+			}
+		}
+
 		<-doneCh
 	}()
 
@@ -108,16 +121,6 @@ func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error
 			l.isStopping = true
 			l.isRunning = false
 			l.mu.Unlock()
-
-		exhaustive:
-			for {
-				select {
-				case err := <-l.errCh:
-					return err
-				default:
-					break exhaustive
-				}
-			}
 
 			return nil
 		case <-l.repo.TimerChannel():

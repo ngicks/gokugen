@@ -18,7 +18,7 @@ type Task struct {
 	DispatchedAt *time.Time        `json:"dispatched_at,omitempty"`
 	DoneAt       *time.Time        `json:"done_at,omitempty"`
 	Err          string            `json:"err"`
-	Meta         map[string][]byte `json:"meta"`
+	Meta         map[string]string `json:"meta"`
 }
 
 func (t Task) IsInitialized() bool {
@@ -78,12 +78,12 @@ func (t Task) Equal(other Task) bool {
 		return false
 	}
 
-	mapEqual := func(l, r map[string][]byte) bool {
+	mapEqual := func(l, r map[string]string) bool {
 		if len(l) != len(r) {
 			return false
 		}
 		for k, v := range l {
-			if !bytes.Equal(v, r[k]) {
+			if v != r[k] {
 				return false
 			}
 		}
@@ -102,8 +102,8 @@ func (t Task) Equal(other Task) bool {
 		mapEqual(t.Meta, other.Meta))
 }
 
-func cloneMeta(meta map[string][]byte) map[string][]byte {
-	cloned := make(map[string][]byte, len(meta))
+func cloneMeta(meta map[string]string) map[string]string {
+	cloned := make(map[string]string, len(meta))
 	for k, v := range meta {
 		cloned[k] = v
 	}
@@ -137,7 +137,7 @@ type TaskParam struct {
 	WorkId      string
 	Param       []byte
 	Priority    *int
-	Meta        map[string][]byte
+	Meta        map[string]string
 }
 
 func cloneSlice[T any](s []T) []T {
