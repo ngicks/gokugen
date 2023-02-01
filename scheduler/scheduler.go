@@ -3,16 +3,11 @@ package scheduler
 import (
 	"context"
 
-	"github.com/ngicks/gommon/pkg/atomicstate"
 	"github.com/ngicks/type-param-common/set"
 )
 
 type Scheduler struct {
-	*atomicstate.RunningStateChecker
-	runningState *atomicstate.RunningStateSetter
-
 	workRegistry WorkRegistry
-	dispatcher   Dispatcher
 	repo         TaskRepository
 	hooks        *hookWrapper
 
@@ -26,15 +21,10 @@ func New(
 	repo TaskRepository,
 	hooks LoopHooks,
 ) *Scheduler {
-	checker, setter := atomicstate.NewRunningState()
 
 	wrappedHook := newHookWrapper(hooks)
 	s := &Scheduler{
-		RunningStateChecker: checker,
-		runningState:        setter,
-
 		workRegistry: workRegistry,
-		dispatcher:   dispatcher,
 		repo:         repo,
 		hooks:        wrappedHook,
 
@@ -46,12 +36,6 @@ func New(
 }
 
 func (s *Scheduler) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error {
-	if s.RunningStateChecker.IsRunning() {
-		return ErrAlreadyRunning
-	}
-	s.runningState.SetRunning()
-	defer s.runningState.SetRunning(false)
-
 	return s.loop.Run(ctx, startTimer, stopTimerOnClose)
 }
 

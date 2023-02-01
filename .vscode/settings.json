@@ -4,6 +4,7 @@
     "atomicstate",
     "Deque",
     "Desync",
+    "eventqueue",
     "gjson",
     "gokugen",
     "gommon",

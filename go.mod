@@ -5,11 +5,11 @@ go 1.18
 require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
-	github.com/ngicks/gommon/pkg/atomicstate v0.0.2
+	github.com/ngicks/eventqueue v0.0.0-20230201120429-e7ab0631f6b5
 	github.com/ngicks/gommon/pkg/common v0.2.0
 	github.com/ngicks/gommon/pkg/lockmap v0.0.1-alpha2
 	github.com/ngicks/gommon/pkg/randstr v0.0.1
-	github.com/ngicks/gommon/pkg/timing v0.0.3
+	github.com/ngicks/gommon/pkg/timing v0.0.4
 	github.com/ngicks/type-param-common v0.2.0
 	github.com/ngicks/workerpool v0.0.1-alpha3
 	github.com/robfig/cron/v3 v3.0.1
@@ -23,6 +23,7 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gammazero/deque v0.2.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

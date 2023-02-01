@@ -7,6 +7,7 @@ import "time"
 // This is mainly for testing.
 var NeverExistentId = "%%%%$$$$%%%%$$$$%%%%$$$$"
 
+// TaskRepository is the combination of Repository and Timer interfaces.
 type TaskRepository interface {
 	RepositoryLike
 	TimerLike
@@ -23,17 +24,17 @@ type RepositoryLike interface {
 	MarkAsDone(id string, err error) error
 
 	// GetNext returns the next scheduled Task without changing repository contents.
-	// GetNext should not return cancelled tasks.
+	// GetNext must not return cancelled, dispatched, done tasks.
 	GetNext() (Task, error)
 }
 
 type TimerLike interface {
 	// StartTimer starts the internal timer. A channel returned from TimerChannel emits only if it is started.
-	// In started state, the timer channel updates to the next scheduled element at every Repository mutations.
+	// In started state, the timer channel updates to the next scheduled element, on start and at every Repository mutations.
 	StartTimer()
 	// StopTimer stops timer channels returned from TimerChannel.
 	StopTimer()
-	// TimerChannel returns the internal timer channel. The timer could be either of started, or stopped state.
+	// TimerChannel returns the internal timer channel. The timer can be either of started, or stopped state.
 	// It will emits if and only if in started state.
 	TimerChannel() <-chan time.Time
 }

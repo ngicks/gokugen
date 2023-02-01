@@ -35,6 +35,10 @@ type loop struct {
 	repo       TaskRepository
 	hooks      LoopHooks
 
+	isRunning  bool
+	isStopping bool
+	mu         sync.Mutex
+
 	beingDispatched beingDispatchedIDs
 	errCh           chan error
 
@@ -63,8 +67,22 @@ func (l *loop) StopTimer() {
 }
 
 func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error {
-	updateCtx, cancel := context.WithCancel(ctx)
+	l.mu.Lock()
+	isRunning := l.isRunning || l.isStopping
+	l.mu.Unlock()
+	if isRunning {
+		return ErrAlreadyRunning
+	}
+	defer func() {
+		l.mu.Lock()
+		l.isRunning = false
+		l.isStopping = false
+		l.mu.Unlock()
+	}()
+
+	updateCtx, cancel := context.WithCancel(context.Background())
 	doneCh := make(chan struct{})
+
 	go func() {
 		l.runUpdateLoop(updateCtx)
 		close(doneCh)
@@ -86,6 +104,21 @@ func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error
 	for {
 		select {
 		case <-ctx.Done():
+			l.mu.Lock()
+			l.isStopping = true
+			l.isRunning = false
+			l.mu.Unlock()
+
+		exhaustive:
+			for {
+				select {
+				case err := <-l.errCh:
+					return err
+				default:
+					break exhaustive
+				}
+			}
+
 			return nil
 		case <-l.repo.TimerChannel():
 			err := l.dispatch(ctx)
@@ -94,6 +127,55 @@ func (l *loop) Run(ctx context.Context, startTimer, stopTimerOnClose bool) error
 			}
 		case err := <-l.errCh:
 			return err
+		}
+	}
+}
+
+func (l *loop) runUpdateLoop(ctx context.Context) {
+	qCtx, cancel := context.WithCancel(context.Background())
+
+	doneChan := make(chan struct{})
+	go func() {
+		l.updateEventQueue.Run(qCtx)
+		close(doneChan)
+	}()
+	defer func() {
+		<-doneChan
+	}()
+
+	go func() {
+		<-ctx.Done()
+		l.updateEventQueue.Drain()
+		cancel()
+	}()
+
+	for {
+		select {
+		case <-qCtx.Done():
+			return
+		case event := <-l.updateEventQueue.Subscribe():
+			var result error
+			switch event.updateType {
+			case CancelTask, UpdateParam:
+				l.beingDispatched.RunWithinLock(event.id, func(has bool) {
+					if has {
+						result = &RepositoryError{Id: event.id, Kind: AlreadyDispatched}
+						return
+					} else {
+						if event.updateType == CancelTask {
+							_, result = l.repo.Cancel(event.id)
+						} else if event.updateType == UpdateParam {
+							_, result = l.repo.Update(event.id, event.param)
+						}
+					}
+				})
+			case MarkAsDone:
+				l.markAsDone(event)
+			}
+
+			if event.responseCh != nil {
+				event.responseCh <- result
+			}
 		}
 	}
 }
@@ -133,7 +215,7 @@ func (l *loop) dispatch(ctx context.Context) error {
 
 	if err != nil {
 		l.beingDispatched.Delete(task.Id)
-		if IsAlreadyCancelled(err) {
+		if err == ctx.Err() || IsAlreadyCancelled(err) {
 			return nil
 		}
 
@@ -158,7 +240,6 @@ func (l *loop) dispatch(ctx context.Context) error {
 	l.hooks.OnUpdate(updated, MarkAsDispatched)
 
 	l.updateEventQueue.Reserve(
-		task.Id,
 		func() updateEvent {
 			err := <-resultCh
 			return updateEvent{
@@ -173,76 +254,15 @@ func (l *loop) dispatch(ctx context.Context) error {
 	return nil
 }
 
-func (l *loop) runUpdateLoop(ctx context.Context) error {
-	queueContext, cancel := context.WithCancel(ctx)
+func (l *loop) IsRunning() bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 
-	startCh := make(chan struct{}, 1)
-	doneCh := make(chan struct{})
-	wg := sync.WaitGroup{}
-
-	wg.Add(1)
-	go func() {
-		l.updateEventQueue.Run(queueContext, startCh)
-		close(doneCh)
-		wg.Done()
-	}()
-
-	wg.Add(1)
-	go func() {
-		select {
-		case <-ctx.Done():
-		case <-doneCh:
-		}
-		cancel()
-		wg.Done()
-	}()
-
-	defer func() {
-		cancel()
-		wg.Wait()
-	}()
-
-	<-startCh
-
-	l.updateLoop()
-
-	return nil
-}
-
-func (l *loop) updateLoop() {
-	for {
-		event, ok := <-l.updateEventQueue.Subscribe()
-		if !ok {
-			return
-		}
-
-		var result error
-		switch event.updateType {
-		case CancelTask, UpdateParam:
-			l.beingDispatched.RunWithinLock(event.id, func(has bool) {
-				if has {
-					result = &RepositoryError{Id: event.id, Kind: AlreadyDispatched}
-					return
-				} else {
-					if event.updateType == CancelTask {
-						_, result = l.repo.Cancel(event.id)
-					} else if event.updateType == UpdateParam {
-						_, result = l.repo.Update(event.id, event.param)
-					}
-				}
-			})
-		case MarkAsDone:
-			l.markAsDone(event)
-		}
-
-		if event.responseCh != nil {
-			event.responseCh <- result
-		}
-	}
+	return l.isRunning
 }
 
 func (l *loop) Cancel(id string) error {
-	if l.updateEventQueue.IsClosed() {
+	if !l.IsRunning() {
 		return ErrNotRunning
 	}
 
@@ -256,7 +276,7 @@ func (l *loop) Cancel(id string) error {
 }
 
 func (l *loop) Update(id string, param TaskParam) error {
-	if l.updateEventQueue.IsClosed() {
+	if !l.IsRunning() {
 		return ErrNotRunning
 	}
 
