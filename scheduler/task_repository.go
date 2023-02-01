@@ -2,10 +2,10 @@ package scheduler
 
 import "time"
 
-// NeverExistenceId is a valid id
+// NeverExistentId is an id that is valid,
 // but must never be stored or never be generated inside the TaskRepository.
 // This is mainly for testing.
-var NeverExistenceId = "%%%%$$$$%%%%$$$$%%%%$$$$"
+var NeverExistentId = "%%%%$$$$%%%%$$$$%%%%$$$$"
 
 type TaskRepository interface {
 	RepositoryLike

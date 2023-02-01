@@ -103,8 +103,8 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 			}
 		})
 		t.Run("trying to fetch nonexistent id", func(t *testing.T) {
-			_, err := repo.GetById(scheduler.NeverExistenceId)
-			AssertErrIdNotFound(t, scheduler.NeverExistenceId, err, true)
+			_, err := repo.GetById(scheduler.NeverExistentId)
+			AssertErrIdNotFound(t, scheduler.NeverExistentId, err, true)
 		})
 	})
 
@@ -160,8 +160,8 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 		})
 
 		t.Run("trying to update nonexistent id", func(t *testing.T) {
-			_, err := repo.Update(scheduler.NeverExistenceId, scheduler.TaskParam{})
-			AssertErrIdNotFound(t, scheduler.NeverExistenceId, err, true)
+			_, err := repo.Update(scheduler.NeverExistentId, scheduler.TaskParam{})
+			AssertErrIdNotFound(t, scheduler.NeverExistentId, err, true)
 		})
 	})
 
@@ -209,8 +209,8 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 		})
 
 		t.Run("trying to cancel nonexistent id", func(t *testing.T) {
-			_, err := repo.Cancel(scheduler.NeverExistenceId)
-			AssertErrIdNotFound(t, scheduler.NeverExistenceId, err, true)
+			_, err := repo.Cancel(scheduler.NeverExistentId)
+			AssertErrIdNotFound(t, scheduler.NeverExistentId, err, true)
 		})
 	})
 
@@ -220,8 +220,8 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 		})
 
 		t.Run("trying to mark-as-dispatched nonexistent id", func(t *testing.T) {
-			err := repo.MarkAsDispatched(scheduler.NeverExistenceId)
-			AssertErrIdNotFound(t, scheduler.NeverExistenceId, err, true)
+			err := repo.MarkAsDispatched(scheduler.NeverExistentId)
+			AssertErrIdNotFound(t, scheduler.NeverExistentId, err, true)
 		})
 	})
 
@@ -282,8 +282,8 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 		})
 
 		t.Run("trying to mark-as-done nonexistent id", func(t *testing.T) {
-			err := repo.MarkAsDone(scheduler.NeverExistenceId, nil)
-			AssertErrIdNotFound(t, scheduler.NeverExistenceId, err, true)
+			err := repo.MarkAsDone(scheduler.NeverExistentId, nil)
+			AssertErrIdNotFound(t, scheduler.NeverExistentId, err, true)
 		})
 	})
 

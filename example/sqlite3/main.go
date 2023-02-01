@@ -113,7 +113,7 @@ func main() {
 	fmt.Printf("updated = %t, err = %+v\n", updated, err)
 	printTask(tasks[0].Id)
 
-	_, err = sqlite3Repo.Update(scheduler.NeverExistenceId, scheduler.TaskParam{Priority: util.Escape(25)})
+	_, err = sqlite3Repo.Update(scheduler.NeverExistentId, scheduler.TaskParam{Priority: util.Escape(25)})
 	fmt.Printf("%+v\n", err)
 
 	c, err := sqlite3Repo.Cancel(tasks[0].Id)
