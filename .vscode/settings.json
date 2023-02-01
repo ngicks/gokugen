@@ -1,4 +1,5 @@
 {
+  "go.lintTool": "golangci-lint",
   "cSpell.words": [
     "acceptancetest",
     "atomicstate",
@@ -6,11 +7,13 @@
     "Desync",
     "eventqueue",
     "gjson",
+    "glebarez",
     "gokugen",
     "gommon",
     "gopherpool",
     "Gorm",
     "gormtask",
+    "INMEMORY",
     "jsonrow",
     "kokugen",
     "Lessable",
@@ -18,6 +21,7 @@
     "Millis",
     "Nanos",
     "ngicks",
+    "nolint",
     "Nower",
     "primarykey",
     "randstr",

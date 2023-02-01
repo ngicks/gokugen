@@ -31,7 +31,10 @@ func FuzzCronScheduleParam(f *testing.F) {
 	})
 }
 func FuzzLimitedScheduleParam(f *testing.F) {
-	f.Add(time.Now().UnixMilli(), []byte("abcdefghijklmnopqrstuvwxyz1234567890-=[];',./!@#$%^&*()_+{}:|<>?"))
+	f.Add(
+		time.Now().UnixMilli(),
+		[]byte("abcdefghijklmnopqrstuvwxyz1234567890-=[];',./!@#$%^&*()_+{}:|<>?"),
+	)
 	f.Fuzz(func(t *testing.T, input1 int64, input2 []byte) {
 		p := LimitedScheduleParam{
 			N:    input1,

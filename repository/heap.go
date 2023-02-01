@@ -149,7 +149,8 @@ func (tm *taskMap) RemoveCancelled() {
 type HeapRepository struct {
 	mu sync.RWMutex
 
-	isMilliSecPrecise bool // if true, all internal times will be truncated to multiple of milli sec. mainly for testing.
+	// if true, all internal times will be truncated to multiple of milli sec. mainly for testing.
+	isMilliSecPrecise bool
 
 	heap           *heap.FilterableHeap[*wrappedTask]
 	taskMap        taskMap

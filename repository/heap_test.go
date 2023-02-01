@@ -55,12 +55,12 @@ func testHeapCloneN(t *testing.T, taskCount int) {
 	require.NoError(err)
 
 	if taskCount != 0 {
-		heap.MarkAsDispatched(tasks[taskCount/2].Id)
-		heap.Cancel(tasks[taskCount/3].Id)
-		heap.MarkAsDispatched(tasks[taskCount/4].Id)
-		heap.MarkAsDone(tasks[taskCount/4].Id, nil)
-		heap.MarkAsDispatched(tasks[taskCount/5].Id)
-		heap.MarkAsDone(tasks[taskCount/5].Id, errors.New("foobar"))
+		_ = heap.MarkAsDispatched(tasks[taskCount/2].Id)
+		_, _ = heap.Cancel(tasks[taskCount/3].Id)
+		_ = heap.MarkAsDispatched(tasks[taskCount/4].Id)
+		_ = heap.MarkAsDone(tasks[taskCount/4].Id, nil)
+		_ = heap.MarkAsDispatched(tasks[taskCount/5].Id)
+		_ = heap.MarkAsDone(tasks[taskCount/5].Id, errors.New("foobar"))
 	}
 
 	dumped := heap.Dump()
@@ -74,7 +74,8 @@ func testHeapCloneN(t *testing.T, taskCount int) {
 
 	recoveredHeap := NewHeapRepositoryFromMap(recovered)
 
-	// wrappedTask.Index can generate diff. It is an index of slice used in min-heap. Index can be different one.
+	// wrappedTask.Index can generate diff.
+	// It is an index of slice used in min-heap. Index can be different one.
 	if diff := cmp.Diff(heap.taskMap.Dump(), recoveredHeap.taskMap.Dump()); diff != "" {
 		t.Fatalf("not equal. diff = %s", diff)
 	}

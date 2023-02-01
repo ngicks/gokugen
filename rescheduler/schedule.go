@@ -92,7 +92,8 @@ func UnmarshalSchedule(data []byte) (Schedule, error) {
 }
 
 type CronSchedule struct {
-	Row  string        `json:"row,omitempty"` // non empty only if unmarshalled from cron expression string.
+	// non empty only if unmarshalled from cron expression string.
+	Row  string        `json:"row,omitempty"`
 	Spec cron.Schedule `json:"spec"`
 }
 

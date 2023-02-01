@@ -85,14 +85,20 @@ func TestInitial(t *testing.T) {
 
 		for _, v := range []rescheduler.LimitedSchedule{
 			{
-				Schedule: util.Must(rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\""))),
-				N:        1,
+				Schedule: util.Must(
+					rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
+				),
+				N: 1,
 			}, {
-				Schedule: util.Must(rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\""))),
-				N:        10,
+				Schedule: util.Must(
+					rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
+				),
+				N: 10,
 			}, {
-				Schedule: util.Must(rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\""))),
-				N:        500,
+				Schedule: util.Must(
+					rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
+				),
+				N: 500,
 			},
 		} {
 			now := time.Now()

@@ -8,20 +8,21 @@ import (
 )
 
 type GormTask struct {
-	Id            string            `json:"id" gorm:"primaryKey,not null"` // Id is an id of the task.
-	WorkId        string            `json:"work_id" gorm:"not null"`       // WorkId is work function id.
-	Param         string            `json:"param"`
-	ScheduledAt   time.Time         `json:"scheduled_at" gorm:"not null,index:sched,sort:asc"`
-	Priority      int               `json:"priority" gorm:"not null,index:sched,sort:desc"`
-	CreatedAt     time.Time         `json:"created_at" gorm:"not null,autoCreateTime:milli"`
-	CancelledAt   *time.Time        `json:"cancelled_at,omitempty"`
-	DispatchedAt  *time.Time        `json:"dispatched_at,omitempty"`
-	DoneAt        *time.Time        `json:"done_at,omitempty"`
-	Err           string            `json:"err"`
-	Meta          map[string][]byte `json:"meta"`
-	UpdatedAt     int64             `gorm:"autoUpdateTime:milli"`
-	DeletedAt     gorm.DeletedAt    `json:"deleted_at" gorm:"index:deleted"`
-	UpdatedFields []string          `json:"-" gorm:"-:all"`
+	// Id is an id of the task.
+	Id string `json:"id" gorm:"primaryKey,not null"`
+	// WorkId is work function id.
+	WorkId       string            `json:"work_id" gorm:"not null"`
+	Param        string            `json:"param"`
+	ScheduledAt  time.Time         `json:"scheduled_at" gorm:"not null,index:sched,sort:asc"`
+	Priority     int               `json:"priority" gorm:"not null,index:sched,sort:desc"`
+	CreatedAt    time.Time         `json:"created_at" gorm:"not null,autoCreateTime:milli"`
+	CancelledAt  *time.Time        `json:"cancelled_at,omitempty"`
+	DispatchedAt *time.Time        `json:"dispatched_at,omitempty"`
+	DoneAt       *time.Time        `json:"done_at,omitempty"`
+	Err          string            `json:"err"`
+	Meta         map[string][]byte `json:"meta"`
+	UpdatedAt    int64             `gorm:"autoUpdateTime:milli"`
+	DeletedAt    gorm.DeletedAt    `json:"deleted_at" gorm:"index:deleted"`
 }
 
 func FromTask(t scheduler.Task) GormTask {

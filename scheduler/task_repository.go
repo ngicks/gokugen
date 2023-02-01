@@ -29,12 +29,15 @@ type RepositoryLike interface {
 }
 
 type TimerLike interface {
-	// StartTimer starts the internal timer. A channel returned from TimerChannel emits only if it is started.
-	// In started state, the timer channel updates to the next scheduled element, on start and at every Repository mutations.
+	// StartTimer starts the internal timer.
+	// A channel returned from TimerChannel emits only if it is started.
+	// In started state, the timer channel updates to the next scheduled element,
+	// on start and at every Repository mutations.
 	StartTimer()
 	// StopTimer stops timer channels returned from TimerChannel.
 	StopTimer()
-	// TimerChannel returns the internal timer channel. The timer can be either of started, or stopped state.
+	// TimerChannel returns the internal timer channel.
+	// The timer can be either of started, or stopped state.
 	// It will emits if and only if in started state.
 	TimerChannel() <-chan time.Time
 }

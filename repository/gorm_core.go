@@ -64,7 +64,11 @@ type pair struct {
 	where    chainType
 }
 
-func (g *DefaultGormCore) update(id string, selected []pair, grouped []pair, task gormtask.GormTask) (updated bool, err error) {
+func (g *DefaultGormCore) update(
+	id string,
+	selected, grouped []pair,
+	task gormtask.GormTask,
+) (updated bool, err error) {
 	hasId := g.db.Select("id").Where("id = ?", id).Find(&gormtask.GormTask{})
 	if hasId.Error != nil {
 		return false, hasId.Error

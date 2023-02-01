@@ -25,7 +25,8 @@ func getDbFilename() string {
 			panic(err)
 		}
 
-		// in-memory sqlite3 db seemingly causes some CI env slow. Default is an ordinary disk file in temp dir.
+		// in-memory sqlite3 db seemingly causes some CI env slow.
+		// Default is an ordinary disk file in temp dir.
 		return filepath.Join(dir, "sqlite3.db")
 	}
 }

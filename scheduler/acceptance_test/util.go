@@ -65,7 +65,9 @@ func IsTimeNearNow(t, now time.Time) bool {
 }
 
 func IsTimeAfterAndWithinRange(t time.Time, rangeStart time.Time, d time.Duration) bool {
-	return t.Equal(rangeStart) || t.After(rangeStart.Add(-10*time.Millisecond)) && t.Before(rangeStart.Add(d))
+	return t.Equal(rangeStart) ||
+		t.After(rangeStart.Add(-10*time.Millisecond)) &&
+			t.Before(rangeStart.Add(d))
 }
 
 func TruncatedNow() time.Time {

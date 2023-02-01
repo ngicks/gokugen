@@ -26,28 +26,38 @@ var (
 // Implementations may skip this test if it does not limits it number of concurrently worked tasks.
 //
 // Dispatcher is expected to be able to work on 5 tasks simultaneously.
-func TestLimitedDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTask func() error) {
+func TestLimitedDispatcher(
+	t *testing.T,
+	dispatcher scheduler.Dispatcher,
+	unblockOneTask func() error,
+) {
 	t.Run("Dispatcher blocks at 6th task", func(t *testing.T) {
 		assert := assert.New(t)
 
 		var retChannels [5](<-chan error)
 		for i := 0; i < 5; i++ {
-			errChan, err := dispatcher.Dispatch(context.Background(), func(ctx context.Context) (scheduler.Task, error) {
-				return scheduler.Task{
-					WorkId: DispatcherBlockingWorker,
-				}, nil
-			})
+			errChan, err := dispatcher.Dispatch(
+				context.Background(),
+				func(ctx context.Context) (scheduler.Task, error) {
+					return scheduler.Task{
+						WorkId: DispatcherBlockingWorker,
+					}, nil
+				},
+			)
 
 			assert.NoError(err)
 			retChannels[i] = errChan
 		}
 
 		waiter := timing.CreateWaiterCh(func() {
-			errCh, err := dispatcher.Dispatch(context.Background(), func(ctx context.Context) (scheduler.Task, error) {
-				return scheduler.Task{
-					WorkId: DispatcherBlockingWorker,
-				}, nil
-			})
+			errCh, err := dispatcher.Dispatch(
+				context.Background(),
+				func(ctx context.Context) (scheduler.Task, error) {
+					return scheduler.Task{
+						WorkId: DispatcherBlockingWorker,
+					}, nil
+				},
+			)
 			assert.NoError(err)
 			go func() {
 				<-errCh
@@ -60,7 +70,7 @@ func TestLimitedDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unbloc
 		case <-time.After(time.Millisecond):
 		}
 
-		unblockOneTask()
+		_ = unblockOneTask()
 
 		// at least one.
 		recvOne := func() {
@@ -88,14 +98,18 @@ func TestLimitedDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unbloc
 		}
 
 		for i := 0; i < 5; i++ {
-			unblockOneTask()
+			_ = unblockOneTask()
 		}
 	})
 }
 
 // TestDispatcher tests a dispatcher interface.
 // Implementations call this test from within their package code.
-func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTask func() (fnCtxErr error)) {
+func TestDispatcher(
+	t *testing.T,
+	dispatcher scheduler.Dispatcher,
+	unblockOneTask func() (fnCtxErr error),
+) {
 	assert := assert.New(t)
 
 	t.Run("already cancelled", func(t *testing.T) {
@@ -127,15 +141,18 @@ func TestDispatcher(t *testing.T, dispatcher scheduler.Dispatcher, unblockOneTas
 			var errCh <-chan error
 			var err error
 			waiter := timing.CreateWaiterFn(func() {
-				errCh, err = dispatcher.Dispatch(ctx, func(ctx context.Context) (scheduler.Task, error) {
-					<-stepChan
-					<-stepChan
-					<-ctx.Done()
-					assert.Error(ctx.Err(), "iter %d", i)
-					return scheduler.Task{
-						WorkId: DispatcherNoopWork,
-					}, nil
-				})
+				errCh, err = dispatcher.Dispatch(
+					ctx,
+					func(ctx context.Context) (scheduler.Task, error) {
+						<-stepChan
+						<-stepChan
+						<-ctx.Done()
+						assert.Error(ctx.Err(), "iter %d", i)
+						return scheduler.Task{
+							WorkId: DispatcherNoopWork,
+						}, nil
+					},
+				)
 			})
 
 			stepChan <- struct{}{}

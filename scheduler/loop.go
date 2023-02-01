@@ -136,7 +136,7 @@ func (l *loop) runUpdateLoop(ctx context.Context) {
 
 	doneChan := make(chan struct{})
 	go func() {
-		l.updateEventQueue.Run(qCtx)
+		_, _ = l.updateEventQueue.Run(qCtx)
 		close(doneChan)
 	}()
 	defer func() {

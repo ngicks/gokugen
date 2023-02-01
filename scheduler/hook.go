@@ -51,7 +51,8 @@ var _ LoopHooks = &ChainHook{}
 // If more than 2 PartialHooks implements the method that returns the error,
 // input err is one that the previous hook returned.
 //
-// If no Chain element implements the method of the corresponding name, it falls back to the PassThroughHook.
+// If no Chain element implements the method of the corresponding name,
+// it falls back to the PassThroughHook.
 type ChainHook struct {
 	Chain           []PartialHook
 	passThroughHook PassThroughHook

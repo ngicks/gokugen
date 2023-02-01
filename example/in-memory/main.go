@@ -44,7 +44,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go inMemoryScheduler.Run(ctx, true, true)
+	go func() { _ = inMemoryScheduler.Run(ctx, true, true) }()
 
 	now := time.Now()
 	var task2, task3 scheduler.Task

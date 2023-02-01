@@ -84,7 +84,7 @@ func (t *RepositoryTimer) AddTask(param scheduler.TaskParam) {
 	t.mu.RLock()
 	if t.cachedMin.Id == "" || param.ToTask(false).Less(t.cachedMin) {
 		t.mu.RUnlock()
-		t.updateWithLock()
+		_ = t.updateWithLock()
 		return
 	}
 	t.mu.RUnlock()
@@ -94,7 +94,7 @@ func (t *RepositoryTimer) Cancel(id string) {
 	t.mu.RLock()
 	if t.cachedMin.Id == "" || t.cachedMin.Id == id {
 		t.mu.RUnlock()
-		t.updateWithLock()
+		_ = t.updateWithLock()
 		return
 	}
 	t.mu.RUnlock()
@@ -106,7 +106,7 @@ func (t *RepositoryTimer) MarkAsDispatched(id string) {
 	defer t.mu.Unlock()
 
 	if id == t.cachedMin.Id {
-		t.update()
+		_ = t.update()
 	}
 }
 func (t *RepositoryTimer) Update(id string, param scheduler.TaskParam) {
@@ -114,7 +114,7 @@ func (t *RepositoryTimer) Update(id string, param scheduler.TaskParam) {
 	defer t.mu.Unlock()
 
 	if t.cachedMin.Id == "" {
-		t.update()
+		_ = t.update()
 		return
 	}
 
@@ -133,20 +133,22 @@ func (t *RepositoryTimer) Update(id string, param scheduler.TaskParam) {
 		}
 		param.Param = nil // avoid buf clone.
 		if param.ToTask(false).Less(t.cachedMin) {
-			t.update()
+			_ = t.update()
 			return
 		}
 	}
 	// 1) id is updated to be before
-	updatedToBefore := !param.ScheduledAt.IsZero() && param.ScheduledAt.Before(t.cachedMin.ScheduledAt)
+	updatedToBefore := !param.ScheduledAt.IsZero() &&
+		param.ScheduledAt.Before(t.cachedMin.ScheduledAt)
 	if updatedToBefore {
-		t.update()
+		_ = t.update()
 		return
 	}
 	// 2) id is scheduled at the same time as cachedMin is, and priority is updated.
-	updatedToHigherPriority := (param.Priority != nil && param.ScheduledAt.IsZero() && *param.Priority > t.cachedMin.Priority)
+	updatedToHigherPriority := (param.Priority != nil && param.ScheduledAt.IsZero() &&
+		*param.Priority > t.cachedMin.Priority)
 	if updatedToHigherPriority {
-		t.update()
+		_ = t.update()
 		return
 	}
 }
@@ -155,7 +157,7 @@ func (t *RepositoryTimer) StartTimer() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.isTimerStarted = true
-	t.update()
+	_ = t.update()
 }
 
 func (t *RepositoryTimer) StopTimer() {

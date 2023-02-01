@@ -55,7 +55,11 @@ func New(sched Scheduler, rule RescheduleRule, hook ReschedulerHook) *Reschedule
 	return r
 }
 
-func (r *Rescheduler) AddTask(ruleId string, from time.Time, param scheduler.TaskParam) (scheduler.Task, error) {
+func (r *Rescheduler) AddTask(
+	ruleId string,
+	from time.Time,
+	param scheduler.TaskParam,
+) (scheduler.Task, error) {
 	param = param.Clone()
 
 	rule, ok := r.rule[ruleId]
@@ -66,13 +70,21 @@ func (r *Rescheduler) AddTask(ruleId string, from time.Time, param scheduler.Tas
 	return r.step(ruleId, rule.Initial(from), param)
 }
 
-func (r *Rescheduler) step(ruleId string, oldParam []byte, taskParam scheduler.TaskParam) (scheduler.Task, error) {
+func (r *Rescheduler) step(
+	ruleId string,
+	oldParam []byte,
+	taskParam scheduler.TaskParam,
+) (scheduler.Task, error) {
 	t, err := r.stepInner(ruleId, oldParam, taskParam)
 	r.hook.OnReschedule(t, err)
 	return t, err
 }
 
-func (r *Rescheduler) stepInner(ruleId string, oldParam []byte, taskParam scheduler.TaskParam) (scheduler.Task, error) {
+func (r *Rescheduler) stepInner(
+	ruleId string,
+	oldParam []byte,
+	taskParam scheduler.TaskParam,
+) (scheduler.Task, error) {
 	rule, ok := r.rule[ruleId]
 	if !ok {
 		return scheduler.Task{}, &RuleNotFoundErr{ruleId}
@@ -90,7 +102,7 @@ func (r *Rescheduler) stepInner(ruleId string, oldParam []byte, taskParam schedu
 	}
 
 	taskParam.ScheduledAt = nextTime
-	taskParam.Meta[metaKey] = bin
+	taskParam.Meta[metaKey] = string(bin)
 
 	task, err := r.sched.AddTask(taskParam)
 	r.hook.OnReschedule(task, err)
@@ -117,11 +129,11 @@ func (r *Rescheduler) OnTaskDone(task scheduler.Task, err error) {
 	}
 
 	var meta RescheduleMeta
-	err = json.Unmarshal(metaData, &meta)
+	err = json.Unmarshal([]byte(metaData), &meta)
 	if err != nil {
 		r.hook.OnReschedule(scheduler.Task{}, &MetaUnmarshalErr{err, task})
 		return
 	}
 
-	r.step(meta.Id, meta.Param, task.ToParam().Clone())
+	_, _ = r.step(meta.Id, meta.Param, task.ToParam().Clone())
 }

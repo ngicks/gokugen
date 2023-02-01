@@ -17,16 +17,25 @@ func setUpWorkerPool() (dispatcher *WorkerPoolDispatcher, unblockOneTask func() 
 		ctx := <-ctxChan
 		return ctx.Err()
 	}
-	workRegistry.Store(acceptancetest.DispatcherBlockingWorker, func(ctx context.Context, param []byte) error {
-		ctxChan <- ctx
-		return nil
-	})
-	workRegistry.Store(acceptancetest.DispatcherNoopWork, func(ctx context.Context, param []byte) error {
-		return nil
-	})
-	workRegistry.Store(acceptancetest.DispatcherErrorWorker, func(ctx context.Context, param []byte) error {
-		return acceptancetest.ErrDispatcherSample
-	})
+	workRegistry.Store(
+		acceptancetest.DispatcherBlockingWorker,
+		func(ctx context.Context, param []byte) error {
+			ctxChan <- ctx
+			return nil
+		},
+	)
+	workRegistry.Store(
+		acceptancetest.DispatcherNoopWork,
+		func(ctx context.Context, param []byte) error {
+			return nil
+		},
+	)
+	workRegistry.Store(
+		acceptancetest.DispatcherErrorWorker,
+		func(ctx context.Context, param []byte) error {
+			return acceptancetest.ErrDispatcherSample
+		},
+	)
 
 	workerPoolDispatcher := NewWorkerPoolDispatcher(&workRegistry)
 

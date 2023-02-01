@@ -92,7 +92,10 @@ func main() {
 	}
 	fmt.Printf("next: %+v\n", next)
 
-	updated, err := sqlite3Repo.Update(tasks[0].Id, scheduler.TaskParam{Param: []byte("hi hu mi"), Priority: util.Escape(25)})
+	updated, err := sqlite3Repo.Update(
+		tasks[0].Id,
+		scheduler.TaskParam{Param: []byte("hi hu mi"), Priority: util.Escape(25)},
+	)
 	fmt.Printf("updated = %t, err = %+v\n", updated, err)
 
 	printTask := func(id string) {
@@ -105,15 +108,24 @@ func main() {
 
 	printTask(tasks[0].Id)
 
-	updated, err = sqlite3Repo.Update(tasks[0].Id, scheduler.TaskParam{Param: []byte("hi hu mi"), Priority: util.Escape(25)})
+	updated, err = sqlite3Repo.Update(
+		tasks[0].Id,
+		scheduler.TaskParam{Param: []byte("hi hu mi"), Priority: util.Escape(25)},
+	)
 	fmt.Printf("updated = %t, err = %+v\n", updated, err)
 	printTask(tasks[0].Id)
 
-	updated, err = sqlite3Repo.Update(tasks[0].Id, scheduler.TaskParam{Param: []byte("hi hu mi"), Priority: util.Escape(50)})
+	updated, err = sqlite3Repo.Update(
+		tasks[0].Id,
+		scheduler.TaskParam{Param: []byte("hi hu mi"), Priority: util.Escape(50)},
+	)
 	fmt.Printf("updated = %t, err = %+v\n", updated, err)
 	printTask(tasks[0].Id)
 
-	_, err = sqlite3Repo.Update(scheduler.NeverExistentId, scheduler.TaskParam{Priority: util.Escape(25)})
+	_, err = sqlite3Repo.Update(
+		scheduler.NeverExistentId,
+		scheduler.TaskParam{Priority: util.Escape(25)},
+	)
 	fmt.Printf("%+v\n", err)
 
 	c, err := sqlite3Repo.Cancel(tasks[0].Id)

@@ -7,7 +7,13 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-func assertRepositoryErr(t *testing.T, id string, err error, fatal bool, kind scheduler.RepositoryErrorKind) (didErr bool) {
+func assertRepositoryErr(
+	t *testing.T,
+	id string,
+	err error,
+	fatal bool,
+	kind scheduler.RepositoryErrorKind,
+) (didErr bool) {
 	t.Helper()
 
 	var errorf func(format string, args ...any)
@@ -32,7 +38,10 @@ func assertRepositoryErr(t *testing.T, id string, err error, fatal bool, kind sc
 		}
 		err = errors.Unwrap(err)
 		if err == nil {
-			errorf("wrong error type. must be a wrapped or unwrapped RepositoryError, but is %T", orgErr)
+			errorf(
+				"wrong error type. must be a wrapped or unwrapped RepositoryError, but is %T",
+				orgErr,
+			)
 			return true
 		}
 	}

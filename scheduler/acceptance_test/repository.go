@@ -50,7 +50,10 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 
 			if !IsTaskBasedOnParam(task, param) {
 				didError = true
-				t.Errorf("task does not inherits properties of param, expected = %+v, actual = %+v", param, task)
+				t.Errorf(
+					"task does not inherits properties of param, expected = %+v, actual = %+v",
+					param, task,
+				)
 			}
 
 			if task.Id == "" {
@@ -191,7 +194,10 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 			}
 
 			if got.CancelledAt == nil || !IsTimeNearNow(*got.CancelledAt, now) {
-				t.Fatalf("CancelledAt is incorrect, expected after %s, but is %v", now, got.CancelledAt)
+				t.Fatalf(
+					"CancelledAt is incorrect, expected after %s, but is %v",
+					now, got.CancelledAt,
+				)
 			}
 		})
 
@@ -215,9 +221,12 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 	})
 
 	t.Run("MarkAsDispatched", func(t *testing.T) {
-		t.Run("trying to mark-as-dispatched id that is already unable-to-update state", func(t *testing.T) {
-			testErrOnUpdateNonUpdatableTask(t, repo, addFarFutureTask, repo.MarkAsDispatched)
-		})
+		t.Run(
+			"trying to mark-as-dispatched id that is already unable-to-update state",
+			func(t *testing.T) {
+				testErrOnUpdateNonUpdatableTask(t, repo, addFarFutureTask, repo.MarkAsDispatched)
+			},
+		)
 
 		t.Run("trying to mark-as-dispatched nonexistent id", func(t *testing.T) {
 			err := repo.MarkAsDispatched(scheduler.NeverExistentId)
@@ -226,11 +235,14 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 	})
 
 	t.Run("MarkAsDone", func(t *testing.T) {
-		t.Run("only eligible state for MarkAsDone is marked-as-dispatched state", func(t *testing.T) {
-			task := addFarFutureTask(t)
-			err := repo.MarkAsDone(task.Id, nil)
-			AssertErrNotDispatched(t, task.Id, err, true)
-		})
+		t.Run(
+			"only eligible state for MarkAsDone is marked-as-dispatched state",
+			func(t *testing.T) {
+				task := addFarFutureTask(t)
+				err := repo.MarkAsDone(task.Id, nil)
+				AssertErrNotDispatched(t, task.Id, err, true)
+			},
+		)
 
 		t.Run("MarkAsDone with non-nil error will set error string", func(t *testing.T) {
 			task := addFarFutureTask(t)
@@ -260,26 +272,29 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 			}
 		})
 
-		t.Run("trying to mark-as-done id that is already unable-to-update state", func(t *testing.T) {
-			testErrOnUpdateNonUpdatableTask(
-				t,
-				repo,
-				addFarFutureTask,
-				func(id string) error {
-					return repo.MarkAsDone(id, nil)
-				},
-				skipAlreadyDispatched,
-			)
-			testErrOnUpdateNonUpdatableTask(
-				t,
-				repo,
-				addFarFutureTask,
-				func(id string) error {
-					return repo.MarkAsDone(id, errors.New("mocked error"))
-				},
-				skipAlreadyDispatched,
-			)
-		})
+		t.Run(
+			"trying to mark-as-done id that is already unable-to-update state",
+			func(t *testing.T) {
+				testErrOnUpdateNonUpdatableTask(
+					t,
+					repo,
+					addFarFutureTask,
+					func(id string) error {
+						return repo.MarkAsDone(id, nil)
+					},
+					skipAlreadyDispatched,
+				)
+				testErrOnUpdateNonUpdatableTask(
+					t,
+					repo,
+					addFarFutureTask,
+					func(id string) error {
+						return repo.MarkAsDone(id, errors.New("mocked error"))
+					},
+					skipAlreadyDispatched,
+				)
+			},
+		)
 
 		t.Run("trying to mark-as-done nonexistent id", func(t *testing.T) {
 			err := repo.MarkAsDone(scheduler.NeverExistentId, nil)
@@ -288,7 +303,7 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 	})
 
 	t.Run(
-		"normal usecase, sequence of AddTask, Pop, MarkAsDispatched, and MarkAsFailed or MarkAsDone",
+		"normal usecase, sequence of AddTask, Pop, MarkAsDispatched, and MarkAsFailed or MarkAsDone", // nolint
 		func(t *testing.T) {
 			repo.StartTimer()
 			defer repo.StopTimer()
@@ -351,7 +366,7 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 					t.Fatal("incorrect update, expected non empty Err but is empty")
 				}
 
-				repo.Cancel(task.Id)
+				_, _ = repo.Cancel(task.Id)
 			}
 		},
 	)
@@ -366,8 +381,8 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 				now := util.DropMicros(TruncatedNow())
 				task, _ := repo.AddTask(randParam(now.Add(500 * time.Millisecond)))
 				if peeked, _ := repo.GetNext(); peeked.Id != task.Id {
-					t.Fatalf("Peek did not change its min element"+
-						" even if AddTask is called with min ScheduledAt. expected = %s, actual = %s",
+					t.Fatalf("Peek did not change its min element even if "+
+						"AddTask is called with min ScheduledAt. expected = %s, actual = %s",
 						task.Id,
 						peeked.Id,
 					)
@@ -377,10 +392,13 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 				then := TruncatedNow()
 
 				if sub := then.Sub(now); sub < 500*time.Millisecond {
-					t.Fatalf("Timer is expected to emit after 500 milli secs but passed duration is %s", sub.String())
+					t.Fatalf(
+						"Timer is expected to emit after 500 milli secs but passed duration is %s",
+						sub.String(),
+					)
 				}
 
-				repo.Cancel(task.Id)
+				_, _ = repo.Cancel(task.Id)
 
 				now = TruncatedNow()
 				task1, _ := repo.AddTask(randParam(now.Add(time.Second)))
@@ -390,11 +408,14 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 				then = TruncatedNow()
 
 				if sub := then.Sub(now); sub < 500*time.Millisecond {
-					t.Fatalf("Timer is expected to emit after 500 milli secs but passed duration is %s", sub.String())
+					t.Fatalf(
+						"Timer is expected to emit after 500 milli secs but passed duration is %s",
+						sub.String(),
+					)
 				}
 
-				repo.Cancel(task1.Id)
-				repo.Cancel(task2.Id)
+				_, _ = repo.Cancel(task1.Id)
+				_, _ = repo.Cancel(task2.Id)
 			},
 		)
 
@@ -407,11 +428,17 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 					250*time.Millisecond, 250*time.Millisecond,
 					func(id1, id2 string, now time.Time) error {
 						var err error
-						_, err = repo.Update(id1, scheduler.TaskParam{ScheduledAt: now.Add(250 * time.Millisecond)})
+						_, err = repo.Update(
+							id1,
+							scheduler.TaskParam{ScheduledAt: now.Add(250 * time.Millisecond)},
+						)
 						if err != nil {
 							return err
 						}
-						_, err = repo.Update(id2, scheduler.TaskParam{ScheduledAt: now.Add(500 * time.Millisecond)})
+						_, err = repo.Update(
+							id2,
+							scheduler.TaskParam{ScheduledAt: now.Add(500 * time.Millisecond)},
+						)
 						if err != nil {
 							return err
 						}
@@ -471,11 +498,14 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 			)
 		}
 
-		repo.Cancel(task.Id)
+		_, _ = repo.Cancel(task.Id)
 	})
 }
 
-func addFarFutureTask(repo scheduler.TaskRepository, now time.Time) func(t *testing.T) scheduler.Task {
+func addFarFutureTask(
+	repo scheduler.TaskRepository,
+	now time.Time,
+) func(t *testing.T) scheduler.Task {
 	return func(t *testing.T) scheduler.Task {
 		task, err := repo.AddTask(randParam(now.AddDate(0, 2, 0)))
 		if err != nil {
@@ -559,7 +589,8 @@ func testErrOnUpdateNonUpdatableTask(
 
 // testUpdateTimer tests repository actions changes timer.
 // It schedules 2 tasks, scheduled to be off in d1 and d2 from now.
-// updateAction must update states so that the min element is scheduled after 500 milli secs from now.
+// updateAction must update states so that the min element is scheduled
+// after 500 milli secs from now.
 func testUpdateTimer(
 	t *testing.T,
 	repo scheduler.TaskRepository,
@@ -575,8 +606,10 @@ func testUpdateTimer(
 	task1, _ := repo.AddTask(randParam(now.Add(d1)))
 	task2, _ := repo.AddTask(randParam(now.Add(d2)))
 
-	defer repo.Cancel(task1.Id)
-	defer repo.Cancel(task2.Id)
+	defer func() {
+		_, _ = repo.Cancel(task1.Id)
+		_, _ = repo.Cancel(task2.Id)
+	}()
 
 	err := updateAction(task1.Id, task2.Id, now)
 	if err != nil {
@@ -587,6 +620,9 @@ func testUpdateTimer(
 	then := TruncatedNow()
 
 	if sub := then.Sub(now); sub < 250*time.Millisecond {
-		t.Fatalf("Timer is expected to emit after 250 milli secs but passed duration is %s", sub.String())
+		t.Fatalf(
+			"Timer is expected to emit after 250 milli secs but passed duration is %s",
+			sub.String(),
+		)
 	}
 }

@@ -19,7 +19,10 @@ func (f workFn) close() {
 	close(f.workErr)
 }
 
-func newWorkFn(ctx context.Context, fetcher func(ctx context.Context) (scheduler.Task, error)) workFn {
+func newWorkFn(
+	ctx context.Context,
+	fetcher func(ctx context.Context) (scheduler.Task, error),
+) workFn {
 	return workFn{
 		ctx:      ctx,
 		fetcher:  fetcher,
@@ -107,7 +110,10 @@ func NewWorkerPoolDispatcher(workRegistry scheduler.WorkRegistry) *WorkerPoolDis
 	}
 }
 
-func (d *WorkerPoolDispatcher) Dispatch(ctx context.Context, fetcher func(ctx context.Context) (scheduler.Task, error)) (<-chan error, error) {
+func (d *WorkerPoolDispatcher) Dispatch(
+	ctx context.Context,
+	fetcher func(ctx context.Context) (scheduler.Task, error),
+) (<-chan error, error) {
 	w := newWorkFn(ctx, fetcher)
 
 	select {
