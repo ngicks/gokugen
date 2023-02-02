@@ -2,6 +2,7 @@ package rescheduler
 
 import (
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/ngicks/gokugen/scheduler"
@@ -28,28 +29,33 @@ type NoopHook struct{}
 
 func (h NoopHook) OnReschedule(t scheduler.Task, scheduleErr error) {}
 func (h NoopHook) OnTaskError(t scheduler.Task, err error) (shouldContinue bool) {
-	return false
+	return true
 }
 
 type Rescheduler struct {
 	sched Scheduler
-	cb    *func(task scheduler.Task, err error)
+	cb    *func(task scheduler.Task, err error) // cb points to r.onTaskDone
 	rule  RescheduleRule
 	hook  ReschedulerHook
 }
 
-func New(sched Scheduler, rule RescheduleRule, hook ReschedulerHook) *Rescheduler {
+func New(sched Scheduler, rule RescheduleRule, opts ...Option) *Rescheduler {
 	r := &Rescheduler{
 		sched: sched,
 		rule:  rule,
-		hook:  hook,
 	}
 
-	// This is needed to be a distinct pointer...Maybe.
-	cb := func(task scheduler.Task, err error) {
-		r.OnTaskDone(task, err)
+	for _, opt := range opts {
+		opt(r)
 	}
-	r.cb = &cb
+
+	if r.hook == nil {
+		r.hook = NoopHook{}
+	}
+
+	// This is needed to be a distinct pointer.
+	fn := r.onTaskDone
+	r.cb = &fn
 	sched.AddOnTaskDone(r.cb)
 
 	return r
@@ -117,15 +123,18 @@ func (r *Rescheduler) Down() {
 	r.cb = nil
 }
 
-func (r *Rescheduler) OnTaskDone(task scheduler.Task, err error) {
+func (r *Rescheduler) onTaskDone(task scheduler.Task, err error) {
 	metaData, ok := task.Meta[metaKey]
 	if !ok {
 		return
 	}
 
 	// Deferred error check. If meta is not set, it has nothing to do with it.
-	if err != nil && !r.hook.OnTaskError(task, err) {
-		return
+	if err != nil {
+		var e *Done
+		if errors.As(err, &e) || !r.hook.OnTaskError(task, err) {
+			return
+		}
 	}
 
 	var meta RescheduleMeta

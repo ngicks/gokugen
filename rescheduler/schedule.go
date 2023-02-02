@@ -265,6 +265,13 @@ func (s *IntervalSchedule) Next(param []byte) (next time.Time, nextParam []byte,
 		return time.Time{}, nil, err
 	}
 
+	if s.Dur < 0 {
+		return time.Time{},
+			nil,
+			fmt.Errorf("negative duration. " +
+				"IntervalSchedule received a param that contains negative Dur")
+	}
+
 	next = p.Next.Add(s.Dur)
 
 	nextParam, err = json.Marshal(IntervalScheduleParam{

@@ -73,49 +73,108 @@ func assertBinIsCronScheduleParam(t *testing.T, data []byte, now time.Time) (ok 
 	return
 }
 
-func TestInitial(t *testing.T) {
-	t.Run("CronSchedule", func(t *testing.T) {
-		var s rescheduler.CronSchedule
+func TestSchedule_Initial_CronSchedule(t *testing.T) {
+	var s rescheduler.CronSchedule
+	now := time.Now()
+	bin := s.Initial(now)
+	assertBinIsCronScheduleParam(t, bin, now)
+}
+
+func TestSchedule_Initial_LimitedSchedule(t *testing.T) {
+	assert := assert.New(t)
+
+	for _, v := range []rescheduler.LimitedSchedule{
+		{
+			Schedule: util.Must(
+				rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
+			),
+			N: 1,
+		}, {
+			Schedule: util.Must(
+				rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
+			),
+			N: 10,
+		}, {
+			Schedule: util.Must(
+				rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
+			),
+			N: 500,
+		},
+	} {
 		now := time.Now()
-		bin := s.Initial(now)
-		assertBinIsCronScheduleParam(t, bin, now)
-	})
-	t.Run("LimitedSchedule", func(t *testing.T) {
-		assert := assert.New(t)
+		bin := v.Initial(now)
 
-		for _, v := range []rescheduler.LimitedSchedule{
-			{
-				Schedule: util.Must(
-					rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
-				),
-				N: 1,
-			}, {
-				Schedule: util.Must(
-					rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
-				),
-				N: 10,
-			}, {
-				Schedule: util.Must(
-					rescheduler.UnmarshalSchedule([]byte("\"CRON_TZ=Asia/Tokyo 0 5 * * *\"")),
-				),
-				N: 500,
-			},
-		} {
-			now := time.Now()
-			bin := v.Initial(now)
+		var p rescheduler.LimitedScheduleParam
+		err := json.Unmarshal(bin, &p)
+		assert.NoError(err)
+		assert.Equal(v.N, p.N)
 
-			var p rescheduler.LimitedScheduleParam
-			err := json.Unmarshal(bin, &p)
-			assert.NoError(err)
-			assert.Equal(v.N, p.N)
+		assertBinIsCronScheduleParam(t, []byte(p.Rest), now)
+	}
+}
 
-			assertBinIsCronScheduleParam(t, []byte(p.Rest), now)
+func TestSchedule_Next_LimitedSchedule(t *testing.T) {
+	assert := assert.New(t)
+
+	for _, sched := range []rescheduler.LimitedSchedule{
+		{
+			Schedule: rescheduler.NoopSchedule{},
+			N:        0,
+		},
+		{
+			Schedule: rescheduler.NoopSchedule{},
+			N:        1,
+		},
+		{
+			Schedule: rescheduler.NoopSchedule{},
+			N:        10,
+		}, {
+			Schedule: rescheduler.NoopSchedule{},
+			N:        500,
+		},
+	} {
+		nextParam := sched.Initial(time.Now())
+		var lastErr error
+		for i := 0; i <= int(sched.N); i++ {
+			assert.NoError(lastErr, "index: %d, param = %+v", i, sched)
+			_, nextParam, lastErr = sched.Next(nextParam)
 		}
-	})
-	t.Run("IntervalSchedule", func(t *testing.T) {
-		now := time.Now()
-		var s rescheduler.IntervalSchedule
-		bin := s.Initial(now)
-		assertBinIsCronScheduleParam(t, bin, now)
-	})
+		var d *rescheduler.Done
+		assert.ErrorAs(lastErr, &d)
+	}
+}
+
+func TestSchedule_Initial_IntervalSchedule(t *testing.T) {
+	now := time.Now()
+	var s rescheduler.IntervalSchedule
+	bin := s.Initial(now)
+	assertBinIsCronScheduleParam(t, bin, now)
+}
+
+func TestSchedule_Next_IntervalSchedule(t *testing.T) {
+	assert := assert.New(t)
+
+	for _, dur := range []time.Duration{0, 10, time.Hour, 24 * time.Hour} {
+		sched := rescheduler.IntervalSchedule{
+			Dur: dur,
+		}
+		var prev time.Time
+		nextParam := sched.Initial(time.Now())
+		for i := 0; i <= 100; i++ {
+			var next time.Time
+			var err error
+			next, nextParam, err = sched.Next(nextParam)
+			assert.NoError(err)
+			if !prev.IsZero() {
+				assert.Equal(prev.Add(dur), next)
+			}
+			prev = next
+		}
+	}
+
+	sched := rescheduler.IntervalSchedule{Dur: -1}
+	ini := sched.Initial(time.Now())
+	_, _, err := sched.Next(ini)
+	assert.Error(err)
+	assert.Contains(err.Error(), "negative duration")
 }

@@ -20,7 +20,7 @@ type Done struct {
 }
 
 func (e *Done) Error() string {
-	return fmt.Sprintf("end of life. id = %s, reason = %s", e.Id, e.Reason)
+	return fmt.Sprintf("done. id = %s, reason = %s", e.Id, e.Reason)
 }
 
 type RuleNextErr struct {
