@@ -236,8 +236,11 @@ func (r *HeapRepository) Update(id string, param scheduler.TaskParam) (updated b
 		return false, &scheduler.RepositoryError{Id: id, Kind: scheduler.IdNotFound}
 	}
 
-	if err := ErrKindUpdate(wrapped.Task); err != nil {
-		return false, err
+	if !param.HasOnlyMeta() {
+		err := ErrKindUpdate(wrapped.Task)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	old := wrapped.Task

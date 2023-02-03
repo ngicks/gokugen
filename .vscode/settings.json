@@ -3,6 +3,7 @@
   "cSpell.words": [
     "acceptancetest",
     "atomicstate",
+    "corge",
     "Deque",
     "Desync",
     "eventqueue",
@@ -24,8 +25,10 @@
     "nolint",
     "Nower",
     "primarykey",
+    "quux",
     "randstr",
     "readtext",
+    "resched",
     "rescheduler",
     "robfig",
     "stretchr",

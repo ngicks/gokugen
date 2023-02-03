@@ -32,6 +32,12 @@ var possibleParams = []ParamAndFiller{
 		},
 		fillParm,
 	},
+	{
+		scheduler.TaskParam{
+			Meta: map[string]string{"foo": "bar"},
+		},
+		fillMeta,
+	},
 }
 
 func fillScheduledAt(t scheduler.Task) scheduler.Task {
@@ -48,5 +54,20 @@ var randomBytes = RandByteLen(128)
 
 func fillParm(t scheduler.Task) scheduler.Task {
 	t.Param = append([]byte{}, randomBytes...)
+	return t
+}
+
+var randomMeta map[string]string
+
+func init() {
+	mm := make(map[string]string)
+	for i := 0; i < int(RandByteLen(1)[0]); i++ {
+		mm[string(RandByteLen(16))] = string(RandByteLen(16))
+	}
+	randomMeta = mm
+}
+
+func fillMeta(t scheduler.Task) scheduler.Task {
+	t.Meta = randomMeta
 	return t
 }

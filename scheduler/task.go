@@ -140,6 +140,17 @@ type TaskParam struct {
 	Meta        map[string]string
 }
 
+// HasOnlyMeta reports if p only has Meta field.
+// It returns true if all fields but Meta is zero value, false otherwise.
+// This is used mainly in TaskRepository implementations.
+func (p TaskParam) HasOnlyMeta() bool {
+	return p.ScheduledAt.IsZero() &&
+		p.WorkId == "" &&
+		p.Param == nil &&
+		p.Priority == nil &&
+		p.Meta != nil // not zero!
+}
+
 func cloneSlice[T any](s []T) []T {
 	cloned := make([]T, len(s))
 	copy(cloned, s)

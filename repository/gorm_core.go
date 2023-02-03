@@ -134,27 +134,37 @@ func composeWhere(db, tx *gorm.DB, pairs []pair) *gorm.DB {
 }
 
 func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated bool, err error) {
-	selected := []pair{
-		{"dispatched_at", nil, false, where},
-		{"cancelled_at", nil, false, where},
-		{"done_at", nil, false, where},
+	var selected []pair
+	if param.HasOnlyMeta() {
+		selected = []pair{}
+	} else {
+		selected = []pair{
+			{"dispatched_at", nil, false, where},
+			{"cancelled_at", nil, false, where},
+			{"done_at", nil, false, where},
+		}
 	}
 
-	grouped := make([]pair, 0, 4)
+	task := gormtask.FromTask(param.ToTask(false))
+
+	grouped := make([]pair, 0, 5)
 	if !param.ScheduledAt.IsZero() {
-		grouped = append(grouped, pair{"scheduled_at", param.ScheduledAt, true, notOr})
+		grouped = append(grouped, pair{"scheduled_at", task.ScheduledAt, true, notOr})
 	}
 	if param.WorkId != "" {
-		grouped = append(grouped, pair{"work_id", param.WorkId, true, notOr})
+		grouped = append(grouped, pair{"work_id", task.WorkId, true, notOr})
 	}
 	if param.Param != nil {
-		grouped = append(grouped, pair{"param", string(param.Param), true, notOr})
+		grouped = append(grouped, pair{"param", task.Param, true, notOr})
 	}
 	if param.Priority != nil {
-		grouped = append(grouped, pair{"priority", *param.Priority, true, notOr})
+		grouped = append(grouped, pair{"priority", task.Priority, true, notOr})
+	}
+	if param.Meta != nil {
+		grouped = append(grouped, pair{"meta", task.Meta, true, notOr})
 	}
 
-	updated, err = g.update(id, selected, grouped, gormtask.FromTask(param.ToTask(false)))
+	updated, err = g.update(id, selected, grouped, task)
 	if err != nil {
 		return false, err
 	}

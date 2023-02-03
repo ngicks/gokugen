@@ -5,25 +5,23 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen/scheduler"
-	"gorm.io/gorm"
 )
 
 type GormTask struct {
 	// Id is an id of the task.
 	Id string `json:"id" gorm:"primaryKey,not null"`
 	// WorkId is work function id.
-	WorkId       string         `json:"work_id" gorm:"not null"`
-	Param        string         `json:"param"`
-	ScheduledAt  time.Time      `json:"scheduled_at" gorm:"not null,index:sched,sort:asc"`
-	Priority     int            `json:"priority" gorm:"not null,index:sched,sort:desc"`
-	CreatedAt    time.Time      `json:"created_at" gorm:"not null,autoCreateTime:milli"`
-	CancelledAt  *time.Time     `json:"cancelled_at,omitempty"`
-	DispatchedAt *time.Time     `json:"dispatched_at,omitempty"`
-	DoneAt       *time.Time     `json:"done_at,omitempty"`
-	Err          string         `json:"err"`
-	Meta         []byte         `json:"meta"`
-	UpdatedAt    int64          `gorm:"autoUpdateTime:milli"`
-	DeletedAt    gorm.DeletedAt `json:"deleted_at" gorm:"index:deleted"`
+	WorkId       string     `json:"work_id" gorm:"not null"`
+	Param        string     `json:"param"`
+	ScheduledAt  time.Time  `json:"scheduled_at" gorm:"not null,index:sched,sort:asc"`
+	Priority     int        `json:"priority" gorm:"not null,index:sched,sort:desc"`
+	CreatedAt    time.Time  `json:"created_at" gorm:"not null,autoCreateTime:milli"`
+	CancelledAt  *time.Time `json:"cancelled_at,omitempty"`
+	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
+	DoneAt       *time.Time `json:"done_at,omitempty"`
+	Err          string     `json:"err"`
+	Meta         string     `json:"meta"`
+	UpdatedAt    int64      `gorm:"autoUpdateTime:milli"`
 }
 
 func FromTask(t scheduler.Task) GormTask {
@@ -43,13 +41,13 @@ func FromTask(t scheduler.Task) GormTask {
 		DispatchedAt: t.DispatchedAt,
 		DoneAt:       t.DoneAt,
 		Err:          t.Err,
-		Meta:         marshalledMeta,
+		Meta:         string(marshalledMeta),
 	}
 }
 
 func (t GormTask) ToTask() scheduler.Task {
 	meta := make(map[string]string)
-	if err := json.Unmarshal(t.Meta, &meta); err != nil {
+	if err := json.Unmarshal([]byte(t.Meta), &meta); err != nil {
 		panic(err)
 	}
 

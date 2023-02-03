@@ -157,9 +157,61 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 
 		t.Run("trying to update id that is already unable-to-update state", func(t *testing.T) {
 			testErrOnUpdateNonUpdatableTask(t, repo, addFarFutureTask, func(id string) error {
-				_, err := repo.Update(id, scheduler.TaskParam{})
+				_, err := repo.Update(id, scheduler.TaskParam{WorkId: "yay-yay"})
 				return err
 			})
+		})
+
+		t.Run("If param only has Meta, update is allowed", func(t *testing.T) {
+			{
+				task := addFarFutureTask(t)
+				err := repo.MarkAsDispatched(task.Id)
+				if err != nil {
+					t.Errorf("MarkAsDispatched must not return error: %+v", err)
+				}
+
+				updated, err := repo.Update(
+					task.Id,
+					scheduler.TaskParam{Meta: map[string]string{"foo": "bar"}},
+				)
+				if !updated {
+					t.Errorf("must be updated. err = %+v", err)
+				}
+			}
+			{
+				task := addFarFutureTask(t)
+				_, err := repo.Cancel(task.Id)
+				if err != nil {
+					t.Errorf("Cancel must not return error: %+v", err)
+				}
+
+				updated, err := repo.Update(
+					task.Id,
+					scheduler.TaskParam{Meta: map[string]string{"baz": "qux"}},
+				)
+				if !updated {
+					t.Errorf("must be updated. err = %+v", err)
+				}
+			}
+			{
+				task := addFarFutureTask(t)
+				err := repo.MarkAsDispatched(task.Id)
+				if err != nil {
+					t.Fatalf("MarkAsDispatched must not return error: %+v", err)
+				}
+				err = repo.MarkAsDone(task.Id, nil)
+				if err != nil {
+					t.Fatalf("MarkAsDone must not return error: %+v", err)
+				}
+
+				updated, err := repo.Update(
+					task.Id,
+					scheduler.TaskParam{Meta: map[string]string{"quux": "corge"}},
+				)
+				if !updated {
+					t.Errorf("must be updated. err = %+v", err)
+				}
+			}
 		})
 
 		t.Run("trying to update nonexistent id", func(t *testing.T) {
