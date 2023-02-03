@@ -51,22 +51,22 @@ func (g *DefaultGormCore) GetById(id string) (scheduler.Task, error) {
 type chainType int
 
 const (
-	not   chainType = -1
-	where chainType = 1
-	or    chainType = 2
-	notOr chainType = -2
+	notAnd chainType = -1
+	and    chainType = 1
+	or     chainType = 2
+	notOr  chainType = -2
 )
 
-type pair struct {
-	l        string
-	r        any
+type columnSelection struct {
+	column   string
+	value    any
 	selected bool
-	where    chainType
+	chainTy  chainType
 }
 
 func (g *DefaultGormCore) update(
 	id string,
-	selected, grouped []pair,
+	selected, grouped []columnSelection,
 	task gormtask.GormTask,
 ) (updated bool, err error) {
 	hasId := g.db.Select("id").Where("id = ?", id).Find(&gormtask.GormTask{})
@@ -85,12 +85,12 @@ func (g *DefaultGormCore) update(
 	selects := make([]string, 0, len(selected)+len(grouped))
 	for i := 0; i < len(selected); i++ {
 		if selected[i].selected {
-			selects = append(selects, selected[i].l)
+			selects = append(selects, selected[i].column)
 		}
 	}
 	for i := 0; i < len(grouped); i++ {
 		if grouped[i].selected {
-			selects = append(selects, grouped[i].l)
+			selects = append(selects, grouped[i].column)
 		}
 	}
 
@@ -111,57 +111,57 @@ func (g *DefaultGormCore) update(
 	return result.RowsAffected > 0, nil
 }
 
-func composeWhere(db, tx *gorm.DB, pairs []pair) *gorm.DB {
-	for _, pair := range pairs {
-		query := pair.l
-		if pair.r == nil {
+func composeWhere(db, tx *gorm.DB, wheres []columnSelection) *gorm.DB {
+	for _, where := range wheres {
+		query := where.column
+		if where.value == nil {
 			query += " IS ?"
 		} else {
 			query += " = ?"
 		}
-		switch pair.where {
-		case where:
-			tx = tx.Where(query, pair.r)
-		case not:
-			tx = tx.Not(query, pair.r)
+		switch where.chainTy {
+		case and:
+			tx = tx.Where(query, where.value)
+		case notAnd:
+			tx = tx.Not(query, where.value)
 		case or:
-			tx = tx.Or(query, pair.r)
+			tx = tx.Or(query, where.value)
 		case notOr:
-			tx = tx.Or(db.Not(query, pair.r))
+			tx = tx.Or(db.Not(query, where.value))
 		}
 	}
 	return tx
 }
 
 func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated bool, err error) {
-	var selected []pair
+	var selected []columnSelection
 	if param.HasOnlyMeta() {
-		selected = []pair{}
+		selected = []columnSelection{}
 	} else {
-		selected = []pair{
-			{"dispatched_at", nil, false, where},
-			{"cancelled_at", nil, false, where},
-			{"done_at", nil, false, where},
+		selected = []columnSelection{
+			{"dispatched_at", nil, false, and},
+			{"cancelled_at", nil, false, and},
+			{"done_at", nil, false, and},
 		}
 	}
 
 	task := gormtask.FromTask(param.ToTask(false))
 
-	grouped := make([]pair, 0, 5)
+	grouped := make([]columnSelection, 0, 5)
 	if !param.ScheduledAt.IsZero() {
-		grouped = append(grouped, pair{"scheduled_at", task.ScheduledAt, true, notOr})
+		grouped = append(grouped, columnSelection{"scheduled_at", task.ScheduledAt, true, notOr})
 	}
 	if param.WorkId != "" {
-		grouped = append(grouped, pair{"work_id", task.WorkId, true, notOr})
+		grouped = append(grouped, columnSelection{"work_id", task.WorkId, true, notOr})
 	}
 	if param.Param != nil {
-		grouped = append(grouped, pair{"param", task.Param, true, notOr})
+		grouped = append(grouped, columnSelection{"param", task.Param, true, notOr})
 	}
 	if param.Priority != nil {
-		grouped = append(grouped, pair{"priority", task.Priority, true, notOr})
+		grouped = append(grouped, columnSelection{"priority", task.Priority, true, notOr})
 	}
 	if param.Meta != nil {
-		grouped = append(grouped, pair{"meta", task.Meta, true, notOr})
+		grouped = append(grouped, columnSelection{"meta", task.Meta, true, notOr})
 	}
 
 	updated, err = g.update(id, selected, grouped, task)
@@ -184,10 +184,10 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 	cancelled, err = g.update(
 		id,
-		[]pair{
-			{"dispatched_at", nil, false, where},
-			{l: "cancelled_at", r: nil, selected: true, where: where},
-			{"done_at", nil, false, where},
+		[]columnSelection{
+			{"dispatched_at", nil, false, and},
+			{column: "cancelled_at", value: nil, selected: true, chainTy: and},
+			{"done_at", nil, false, and},
 		},
 		nil,
 		gormtask.GormTask{CancelledAt: util.Escape(g.nowGetter.GetNow())},
@@ -209,10 +209,10 @@ func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 func (g *DefaultGormCore) MarkAsDispatched(id string) error {
 	updated, err := g.update(
 		id,
-		[]pair{
-			{"dispatched_at", nil, true, where},
-			{"cancelled_at", nil, false, where},
-			{"done_at", nil, false, where},
+		[]columnSelection{
+			{"dispatched_at", nil, true, and},
+			{"cancelled_at", nil, false, and},
+			{"done_at", nil, false, and},
 		},
 		nil,
 		gormtask.GormTask{DispatchedAt: util.Escape(g.nowGetter.GetNow())},
@@ -241,11 +241,11 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 
 	updated, updateErr := g.update(
 		id,
-		[]pair{
-			{"dispatched_at", nil, false, not},
-			{"cancelled_at", nil, false, where},
-			{"done_at", nil, true, where},
-			{"err", "", true, where},
+		[]columnSelection{
+			{"dispatched_at", nil, false, notAnd},
+			{"cancelled_at", nil, false, and},
+			{"done_at", nil, true, and},
+			{"err", "", true, and},
 		},
 		nil,
 		gormtask.GormTask{DoneAt: util.Escape(g.nowGetter.GetNow()), Err: errStr},
