@@ -1,12 +1,15 @@
 package repository
 
 import (
+	"time"
+
 	"github.com/google/uuid"
-	"github.com/ngicks/gokugen/repository/gormtask"
+	"github.com/ngicks/gokugen/repository/gormmodel"
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/gommon/pkg/common"
 	"github.com/ngicks/type-param-common/util"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var _ scheduler.RepositoryLike = &DefaultGormCore{}
@@ -26,7 +29,7 @@ func NewDefaultGormCore(db *gorm.DB) *DefaultGormCore {
 }
 
 func (g *DefaultGormCore) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
-	t := gormtask.FromTask(param.ToTask(false))
+	t := gormmodel.FromTask(param.ToTask(false))
 	t.Id = uuid.NewString()
 
 	result := g.db.Create(&t)
@@ -37,8 +40,8 @@ func (g *DefaultGormCore) AddTask(param scheduler.TaskParam) (scheduler.Task, er
 }
 
 func (g *DefaultGormCore) GetById(id string) (scheduler.Task, error) {
-	t := gormtask.GormTask{}
-	result := g.db.Where("id = ?", id).Limit(1).Find(&t)
+	t := gormmodel.Task{}
+	result := g.db.Preload(clause.Associations).Where("id = ?", id).Limit(1).Find(&t)
 	if result.Error != nil {
 		return scheduler.Task{}, result.Error
 	}
@@ -64,12 +67,18 @@ type columnSelection struct {
 	chainTy  chainType
 }
 
+type assoc struct {
+	name    string
+	replace any
+}
+
 func (g *DefaultGormCore) update(
 	id string,
+	associations []assoc,
 	selected, grouped []columnSelection,
-	task gormtask.GormTask,
+	task gormmodel.Task,
 ) (updated bool, err error) {
-	hasId := g.db.Select("id").Where("id = ?", id).Find(&gormtask.GormTask{})
+	hasId := g.db.Select("id").Where("id = ?", id).Find(&gormmodel.Task{})
 	if hasId.Error != nil {
 		return false, hasId.Error
 	}
@@ -77,10 +86,21 @@ func (g *DefaultGormCore) update(
 		return false, &scheduler.RepositoryError{Kind: scheduler.IdNotFound}
 	}
 
-	var t gormtask.GormTask
 	tx := g.db.
-		Model(&t).
-		Where("id = ?", id)
+		Model(&gormmodel.Task{Id: id})
+
+	if associations != nil {
+		for _, assocConfig := range associations {
+			assoc := g.db.Model(&gormmodel.Task{Id: id}).Association(assocConfig.name)
+			err := assoc.Replace(assocConfig.replace)
+			if err != nil {
+				return false, err
+			}
+			if assoc.DB.RowsAffected > 0 {
+				updated = true
+			}
+		}
+	}
 
 	selects := make([]string, 0, len(selected)+len(grouped))
 	for i := 0; i < len(selected); i++ {
@@ -108,7 +128,10 @@ func (g *DefaultGormCore) update(
 	if result.Error != nil {
 		return false, result.Error
 	}
-	return result.RowsAffected > 0, nil
+	if result.RowsAffected > 0 {
+		updated = true
+	}
+	return updated, nil
 }
 
 func composeWhere(db, tx *gorm.DB, wheres []columnSelection) *gorm.DB {
@@ -145,7 +168,7 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 		}
 	}
 
-	task := gormtask.FromTask(param.ToTask(false))
+	task := gormmodel.FromTask(param.ToTask(false))
 
 	grouped := make([]columnSelection, 0, 5)
 	if !param.ScheduledAt.IsZero() {
@@ -160,11 +183,13 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 	if param.Priority != nil {
 		grouped = append(grouped, columnSelection{"priority", task.Priority, true, notOr})
 	}
+	var associations []assoc
 	if param.Meta != nil {
-		grouped = append(grouped, columnSelection{"meta", task.Meta, true, notOr})
+		associations = append(associations, assoc{name: "Meta", replace: task.Meta})
+		grouped = append(grouped, columnSelection{"meta", nil, true, 0})
 	}
 
-	updated, err = g.update(id, selected, grouped, task)
+	updated, err = g.update(id, associations, selected, grouped, task)
 	if err != nil {
 		return false, err
 	}
@@ -181,16 +206,61 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 	return updated, err
 }
 
+func (g *DefaultGormCore) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error) {
+	matcher := gormmodel.FromTaskMatcher(t)
+
+	selection := make([]columnSelection, 0, 11)
+
+	addWhere := func(columnName string, value any) {
+		selection = append(selection, columnSelection{"id", value, false, and})
+	}
+
+	matcher.VisitNonZero(gormmodel.TaskVisitor{
+		Id:           func(v string) { addWhere("id", v) },
+		WorkId:       func(v string) { addWhere("work_id", v) },
+		Param:        func(v string) { addWhere("param", v) },
+		ScheduledAt:  func(v time.Time) { addWhere("scheduled_at", v) },
+		CreatedAt:    func(v time.Time) { addWhere("created_at", v) },
+		CancelledAt:  func(v *time.Time) { addWhere("cancelled_at", v) },
+		DispatchedAt: func(v *time.Time) { addWhere("dispatched_at", v) },
+		DoneAt:       func(v *time.Time) { addWhere("done_at", v) },
+		Err:          func(v string) { addWhere("err", v) },
+		Meta:         func(v gormmodel.Meta) { addWhere("meta", v) },
+		Priority:     func(v *int) { addWhere("priority", v) },
+	})
+
+	out := make([]gormmodel.Task, 0)
+	result := g.db.Model(&gormmodel.Task{}).Find(&out)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	matched := make([]scheduler.Task, len(out))
+	for i := 0; i < len(out); i++ {
+		matched[i] = out[i].ToTask()
+	}
+
+	return matched, nil
+}
+
+func (g *DefaultGormCore) FindMetaContain(key, value string) ([]scheduler.Task, error) {
+	matched := make([]scheduler.Task, 0)
+
+	return matched, nil
+}
+
 func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 	cancelled, err = g.update(
 		id,
+		nil,
 		[]columnSelection{
 			{"dispatched_at", nil, false, and},
 			{column: "cancelled_at", value: nil, selected: true, chainTy: and},
 			{"done_at", nil, false, and},
 		},
 		nil,
-		gormtask.GormTask{CancelledAt: util.Escape(g.nowGetter.GetNow())},
+		gormmodel.Task{CancelledAt: util.Escape(g.nowGetter.GetNow())},
 	)
 	if err != nil {
 		return false, err
@@ -209,13 +279,14 @@ func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 func (g *DefaultGormCore) MarkAsDispatched(id string) error {
 	updated, err := g.update(
 		id,
+		nil,
 		[]columnSelection{
 			{"dispatched_at", nil, true, and},
 			{"cancelled_at", nil, false, and},
 			{"done_at", nil, false, and},
 		},
 		nil,
-		gormtask.GormTask{DispatchedAt: util.Escape(g.nowGetter.GetNow())},
+		gormmodel.Task{DispatchedAt: util.Escape(g.nowGetter.GetNow())},
 	)
 
 	if err != nil {
@@ -241,6 +312,7 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 
 	updated, updateErr := g.update(
 		id,
+		nil,
 		[]columnSelection{
 			{"dispatched_at", nil, false, notAnd},
 			{"cancelled_at", nil, false, and},
@@ -248,7 +320,7 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 			{"err", "", true, and},
 		},
 		nil,
-		gormtask.GormTask{DoneAt: util.Escape(g.nowGetter.GetNow()), Err: errStr},
+		gormmodel.Task{DoneAt: util.Escape(g.nowGetter.GetNow()), Err: errStr},
 	)
 
 	if updateErr != nil {
@@ -267,8 +339,9 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 }
 
 func (g *DefaultGormCore) GetNext() (scheduler.Task, error) {
-	var t gormtask.GormTask
+	var t gormmodel.Task
 	result := g.db.
+		Preload(clause.Associations).
 		Where("cancelled_at IS NULL").
 		Where("dispatched_at IS NULL").
 		Where("done_at IS NULL").
@@ -285,9 +358,10 @@ func (g *DefaultGormCore) GetNext() (scheduler.Task, error) {
 	return scheduler.Task{}, &scheduler.RepositoryError{Kind: scheduler.Empty}
 }
 
-func (g *DefaultGormCore) GetNextMany() ([]gormtask.GormTask, error) {
-	t := make([]gormtask.GormTask, 0, 100)
+func (g *DefaultGormCore) GetNextMany() ([]gormmodel.Task, error) {
+	t := make([]gormmodel.Task, 0, 100)
 	result := g.db.
+		Preload(clause.Associations).
 		Where("cancelled_at IS NULL").
 		Where("dispatched_at IS NULL").
 		Where("done_at IS NULL").

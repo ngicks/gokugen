@@ -17,7 +17,7 @@ import (
 const inMemoryDb = "file::memory:?cache=shared"
 
 func getDbFilename() string {
-	if os.Getenv("GOKUGEN_SQLITE3_INMEMORY") != "" {
+	if e := os.Getenv("GOKUGEN_SQLITE3_INMEMORY"); e != "" && e != "0" {
 		return inMemoryDb
 	} else {
 		dir, err := os.MkdirTemp(os.TempDir(), "test-gokugen-gorm-sqlite3-*")
@@ -39,6 +39,7 @@ func TestGormAcceptance(t *testing.T) {
 	defer func() {
 		if sqliteFilename != inMemoryDb {
 			os.Remove(sqliteFilename)
+			os.Remove(filepath.Dir(sqliteFilename))
 		}
 	}()
 

@@ -96,25 +96,24 @@ func TestRescheduler_New_and_Down(t *testing.T) {
 	}
 
 	for _, r := range rr {
+		errMsg := "The function pointer registered to " +
+			"the scheduler.Scheduler must be distinct but is not"
+
 		assert.Len(
 			r.hook.(*recorderHook).onTaskErrorT, 1,
-			"The function pointer registered to "+
-				"the scheduler.Scheduler must be distinct but is not",
+			errMsg,
 		)
 		assert.Len(
 			r.hook.(*recorderHook).onTaskErrorE, 1,
-			"The function pointer registered to "+
-				"the scheduler.Scheduler must be distinct but is not",
+			errMsg,
 		)
 		assert.Len(
 			r.hook.(*recorderHook).onRescheduleT, 1,
-			"The function pointer registered to "+
-				"the scheduler.Scheduler must be distinct but is not",
+			errMsg,
 		)
 		assert.Len(
 			r.hook.(*recorderHook).onRescheduleE, 1,
-			"The function pointer registered to "+
-				"the scheduler.Scheduler must be distinct but is not",
+			errMsg,
 		)
 	}
 

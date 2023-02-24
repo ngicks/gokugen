@@ -21,6 +21,7 @@ func randParam(scheduledAt time.Time) scheduler.TaskParam {
 		WorkId:      "foo",
 		Param:       RandByte(),
 		Priority:    &p,
+		Meta:        map[string]string{"metameta": "metameta"},
 	}
 }
 
@@ -433,7 +434,7 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 				now := util.DropMicros(TruncatedNow())
 				task, _ := repo.AddTask(randParam(now.Add(500 * time.Millisecond)))
 				if peeked, _ := repo.GetNext(); peeked.Id != task.Id {
-					t.Fatalf("Peek did not change its min element even if "+
+					t.Fatalf("GetNext did not change its min element even if "+
 						"AddTask is called with min ScheduledAt. expected = %s, actual = %s",
 						task.Id,
 						peeked.Id,

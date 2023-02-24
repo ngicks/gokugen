@@ -21,6 +21,57 @@ type Task struct {
 	Meta         map[string]string `json:"meta"`
 }
 
+func (t Task) VisitNonZero(visitor TaskVisitor) {
+
+	if t.Id != "" && visitor.Id != nil {
+		visitor.Id(t.Id)
+	}
+	if t.WorkId != "" && visitor.WorkId != nil {
+		visitor.WorkId(t.WorkId)
+	}
+	if t.Param != nil && visitor.Param != nil {
+		visitor.Param(t.Param)
+	}
+	if t.Priority != 0 && visitor.Priority != nil {
+		visitor.Priority(t.Priority)
+	}
+	if !t.ScheduledAt.IsZero() && visitor.ScheduledAt != nil {
+		visitor.ScheduledAt(t.ScheduledAt)
+	}
+	if !t.CreatedAt.IsZero() && visitor.CreatedAt != nil {
+		visitor.CreatedAt(t.CreatedAt)
+	}
+	if t.CancelledAt != nil && visitor.CancelledAt != nil {
+		visitor.CancelledAt(t.CancelledAt)
+	}
+	if t.DispatchedAt != nil && visitor.DispatchedAt != nil {
+		visitor.DispatchedAt(t.DispatchedAt)
+	}
+	if t.DoneAt != nil && visitor.DoneAt != nil {
+		visitor.DoneAt(t.DoneAt)
+	}
+	if t.Err != "" && visitor.Err != nil {
+		visitor.Err(t.Err)
+	}
+	if t.Meta != nil && visitor.Meta != nil {
+		visitor.Meta(t.Meta)
+	}
+}
+
+type TaskVisitor struct {
+	Id           func(string)
+	WorkId       func(string)
+	Param        func([]byte)
+	Priority     func(int)
+	ScheduledAt  func(time.Time)
+	CreatedAt    func(time.Time)
+	CancelledAt  func(*time.Time)
+	DispatchedAt func(*time.Time)
+	DoneAt       func(*time.Time)
+	Err          func(string)
+	Meta         func(map[string]string)
+}
+
 func (t Task) IsInitialized() bool {
 	return t.Id != "" &&
 		t.WorkId != "" &&
@@ -37,6 +88,10 @@ func (t Task) DropMicros() Task {
 }
 
 func (t Task) Less(j Task) bool {
+	if t.CancelledAt != nil {
+		return true
+	}
+
 	if !t.ScheduledAt.Equal(j.ScheduledAt) {
 		return t.ScheduledAt.Before(j.ScheduledAt)
 	}
@@ -78,18 +133,6 @@ func (t Task) Equal(other Task) bool {
 		return false
 	}
 
-	mapEqual := func(l, r map[string]string) bool {
-		if len(l) != len(r) {
-			return false
-		}
-		for k, v := range l {
-			if v != r[k] {
-				return false
-			}
-		}
-		return true
-	}
-
 	return (t.WorkId == other.WorkId &&
 		bytes.Equal(t.Param, other.Param) &&
 		t.Priority == other.Priority &&
@@ -99,7 +142,23 @@ func (t Task) Equal(other Task) bool {
 		util.TimePointerEqual(t.DispatchedAt, other.DispatchedAt, false) &&
 		util.TimePointerEqual(t.DoneAt, other.DoneAt, false) &&
 		t.Err == other.Err &&
-		mapEqual(t.Meta, other.Meta))
+		metaEqual(t.Meta, other.Meta))
+}
+
+func (t Task) Match(u TaskMatcher) bool {
+	if u.WorkId != "" && t.WorkId != u.WorkId ||
+		u.Param != nil && !bytes.Equal(t.Param, u.Param) ||
+		u.Priority != nil && t.Priority != *u.Priority ||
+		!u.ScheduledAt.IsZero() && !t.ScheduledAt.Equal(u.ScheduledAt) ||
+		!u.CreatedAt.IsZero() && !t.CreatedAt.Equal(u.CreatedAt) ||
+		u.CancelledAt != nil && !util.TimePointerEqual(t.CancelledAt, u.CancelledAt, false) ||
+		u.DispatchedAt != nil && !util.TimePointerEqual(t.DispatchedAt, u.DispatchedAt, false) ||
+		u.DoneAt != nil && !util.TimePointerEqual(t.DoneAt, u.DoneAt, false) ||
+		u.Err != "" && t.Err != u.Err ||
+		u.Meta != nil && !metaEqual(t.Meta, u.Meta) {
+		return false
+	}
+	return true
 }
 
 func cloneMeta(meta map[string]string) map[string]string {
@@ -119,14 +178,6 @@ func (t Task) ToParam() TaskParam {
 		Priority:    &p,
 		Meta:        t.Meta,
 	}
-}
-
-// Serializable is serializable part
-type Serializable struct {
-	Id     string            `json:"id"`
-	WorkId string            `json:"work_id"`
-	Param  []byte            `json:"param"`
-	Meta   map[string][]byte `json:"meta"`
 }
 
 type TaskParam struct {
@@ -176,12 +227,6 @@ func (p TaskParam) IsInitialized() bool {
 }
 
 func (p TaskParam) ToTask(ignoreMicros bool) Task {
-	var param []byte
-	if p.Param != nil {
-		param = make([]byte, len(p.Param))
-		copy(param, p.Param)
-	}
-
 	var scheduledAt time.Time
 	if ignoreMicros {
 		scheduledAt = util.DropMicros(p.ScheduledAt)
@@ -197,8 +242,40 @@ func (p TaskParam) ToTask(ignoreMicros bool) Task {
 	return Task{
 		ScheduledAt: scheduledAt,
 		WorkId:      p.WorkId,
-		Param:       param,
+		Param:       p.Param,
 		Priority:    priority,
 		Meta:        p.Meta,
 	}
+}
+
+func metaEqual(l, r map[string]string) bool {
+	if len(l) != len(r) {
+		return false
+	}
+	for k, v := range l {
+		if v != r[k] {
+			return false
+		}
+	}
+	return true
+}
+
+type TaskMatcher struct {
+	Task
+	Priority *int
+}
+
+type TaskMatcherVisitor struct {
+	TaskVisitor
+	Priority func(p *int)
+}
+
+func (m TaskMatcher) VisitNonZero(visitor TaskMatcherVisitor) {
+	visitor.TaskVisitor.Priority = nil
+
+	m.Task.VisitNonZero(visitor.TaskVisitor)
+	if m.Priority != nil && visitor.Priority != nil {
+		visitor.Priority(m.Priority)
+	}
+
 }

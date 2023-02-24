@@ -8,7 +8,15 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-const metaKey = "github.com/ngicks/gokugen/rescheduler"
+const (
+	metaKey = "github.com/ngicks/gokugen/rescheduler"
+	doneKey = "github.com/ngicks/gokugen/rescheduler/done"
+)
+
+func init() {
+	scheduler.RegisterMeta(metaKey)
+	scheduler.RegisterMeta(doneKey)
+}
 
 var _ Scheduler = &scheduler.Scheduler{}
 
@@ -126,6 +134,9 @@ func (r *Rescheduler) Down() {
 func (r *Rescheduler) onTaskDone(task scheduler.Task, err error) {
 	metaData, ok := task.Meta[metaKey]
 	if !ok {
+		return
+	}
+	if task.Meta[doneKey] == "done" {
 		return
 	}
 

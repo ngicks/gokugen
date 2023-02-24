@@ -18,14 +18,7 @@ type wrappedTask struct {
 }
 
 func (t *wrappedTask) Less(i, j *wrappedTask) bool {
-	if i.CancelledAt != nil {
-		return true
-	}
-
-	if !i.ScheduledAt.Equal(j.ScheduledAt) {
-		return i.ScheduledAt.Before(j.ScheduledAt)
-	}
-	return i.Priority > j.Priority
+	return i.Task.Less(j.Task)
 }
 
 func (t *wrappedTask) Swap(slice *slice.Stack[*wrappedTask], i, j int) {
@@ -225,6 +218,42 @@ func (r *HeapRepository) GetById(id string) (scheduler.Task, error) {
 	}
 	task := wrapped.Task
 	return task, nil
+}
+
+func (r *HeapRepository) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error) {
+	matched := make([]scheduler.Task, 0)
+
+	for _, container := range [...]map[string]*wrappedTask{
+		r.taskMap.Done,
+		r.taskMap.Cancelled,
+		r.taskMap.Scheduled,
+	} {
+		for _, task := range container {
+			if task.Match(t) {
+				matched = append(matched, task.Task)
+			}
+		}
+	}
+
+	return matched, nil
+}
+
+func (r *HeapRepository) FindMetaContain(key, value string) ([]scheduler.Task, error) {
+	matched := make([]scheduler.Task, 0)
+
+	for _, container := range [...]map[string]*wrappedTask{
+		r.taskMap.Done,
+		r.taskMap.Cancelled,
+		r.taskMap.Scheduled,
+	} {
+		for _, task := range container {
+			if v, ok := task.Meta[key]; ok && v == value {
+				matched = append(matched, task.Task)
+			}
+		}
+	}
+
+	return matched, nil
 }
 
 func (r *HeapRepository) Update(id string, param scheduler.TaskParam) (updated bool, err error) {

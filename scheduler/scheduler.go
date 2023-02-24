@@ -21,8 +21,8 @@ func New(
 	repo TaskRepository,
 	hooks LoopHooks,
 ) *Scheduler {
-
 	wrappedHook := newHookWrapper(hooks)
+
 	s := &Scheduler{
 		workRegistry: workRegistry,
 		repo:         repo,
@@ -60,12 +60,4 @@ func (s *Scheduler) AddOnTaskDone(fn *OnTaskDone) {
 
 func (s *Scheduler) RemoveOnTaskDone(fn *OnTaskDone) {
 	s.hooks.removeOnTaskDone(fn)
-}
-
-func (s *Scheduler) RegisterMetaKey(key string) (registered bool) {
-	if s.meta.Has(key) {
-		return false
-	}
-	s.meta.Add(key)
-	return true
 }

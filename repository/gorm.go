@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/ngicks/gokugen/repository/gormtask"
+	"github.com/ngicks/gokugen/repository/gormmodel"
 	// "gorm.io/driver/sqlite" // CGO version
 	"github.com/glebarez/sqlite" // This would increase binary size around 2 MiB. If you don't like it, implement your own core
 	"gorm.io/gorm"
@@ -19,7 +19,7 @@ func NewSqlite3(dbPath string, opts ...gorm.Option) (*Repository, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&gormtask.GormTask{})
+	err = db.AutoMigrate(&gormmodel.Task{}, &gormmodel.MetaKeyValue{})
 	if err != nil {
 		return nil, err
 	}

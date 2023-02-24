@@ -13,6 +13,7 @@
     "gommon",
     "gopherpool",
     "Gorm",
+    "gormmodel",
     "gormtask",
     "INMEMORY",
     "jsonrow",
