@@ -116,13 +116,7 @@ func (t Task) Update(param TaskParam, ignoreMicroSecs bool) Task {
 		t.Priority = *param.Priority
 	}
 	if param.Meta != nil {
-		if t.Meta == nil {
-			t.Meta = param.Meta
-		} else {
-			for k, v := range param.Meta {
-				t.Meta[k] = v
-			}
-		}
+		t.Meta = cloneMeta(param.Meta)
 	}
 
 	return t
