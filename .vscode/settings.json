@@ -4,6 +4,7 @@
     "acceptancetest",
     "atomicstate",
     "corge",
+    "datatypes",
     "Deque",
     "Desync",
     "eventqueue",

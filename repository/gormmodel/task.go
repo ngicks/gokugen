@@ -1,24 +1,27 @@
 package gormmodel
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/ngicks/gokugen/scheduler"
+	"github.com/ngicks/type-param-common/util"
+	"gorm.io/datatypes"
 )
 
 type Task struct {
-	Id           string     `json:"id" gorm:"primaryKey;not null"`
-	WorkId       string     `json:"work_id" gorm:"not null"`
-	Param        string     `json:"param"`
-	ScheduledAt  time.Time  `json:"scheduled_at" gorm:"not null;index:sched;sort:asc"`
-	Priority     int        `json:"priority" gorm:"not null;index:sched;sort:desc"`
-	CreatedAt    time.Time  `json:"created_at" gorm:"not null;autoCreateTime:milli"`
-	CancelledAt  *time.Time `json:"cancelled_at,omitempty"`
-	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
-	DoneAt       *time.Time `json:"done_at,omitempty"`
-	Err          string     `json:"err"`
-	Meta         Meta       `json:"meta" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	UpdatedAt    int64      `gorm:"autoUpdateTime:milli"`
+	Id           string         `json:"id" gorm:"primaryKey;not null"`
+	WorkId       string         `json:"work_id" gorm:"not null"`
+	Param        string         `json:"param"`
+	ScheduledAt  time.Time      `json:"scheduled_at" gorm:"not null;index:sched;sort:asc"`
+	Priority     int            `json:"priority" gorm:"not null;index:sched;sort:desc"`
+	CreatedAt    time.Time      `json:"created_at" gorm:"not null;autoCreateTime:milli"`
+	CancelledAt  *time.Time     `json:"cancelled_at,omitempty"`
+	DispatchedAt *time.Time     `json:"dispatched_at,omitempty"`
+	DoneAt       *time.Time     `json:"done_at,omitempty"`
+	Err          string         `json:"err"`
+	Meta         datatypes.JSON `json:"meta" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	UpdatedAt    int64          `gorm:"autoUpdateTime:milli"`
 }
 
 func FromTask(t scheduler.Task) Task {
@@ -33,11 +36,14 @@ func FromTask(t scheduler.Task) Task {
 		DispatchedAt: t.DispatchedAt,
 		DoneAt:       t.DoneAt,
 		Err:          t.Err,
-		Meta:         FromMeta(t.Id, t.Meta),
+		Meta:         util.Must(json.Marshal(t.Meta)),
 	}
 }
 
 func (t Task) ToTask() scheduler.Task {
+	m := make(map[string]string)
+	_ = json.Unmarshal(t.Meta, &m)
+
 	return scheduler.Task{
 		Id:           t.Id,
 		WorkId:       t.WorkId,
@@ -49,7 +55,7 @@ func (t Task) ToTask() scheduler.Task {
 		DispatchedAt: t.DispatchedAt,
 		DoneAt:       t.DoneAt,
 		Err:          t.Err,
-		Meta:         Meta(t.Meta).ToMeta(),
+		Meta:         m,
 	}
 }
 
@@ -115,6 +121,6 @@ type TaskVisitor struct {
 	DispatchedAt func(v *time.Time)
 	DoneAt       func(v *time.Time)
 	Err          func(v string)
-	Meta         func(v Meta)
+	Meta         func(v datatypes.JSON)
 	UpdatedAt    func(v int64)
 }

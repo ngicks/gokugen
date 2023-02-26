@@ -19,7 +19,7 @@ func NewSqlite3(dbPath string, opts ...gorm.Option) (*Repository, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&gormmodel.Task{}, &gormmodel.MetaKeyValue{})
+	err = db.AutoMigrate(&gormmodel.Task{})
 	if err != nil {
 		return nil, err
 	}

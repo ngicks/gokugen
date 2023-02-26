@@ -8,8 +8,8 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/gommon/pkg/common"
 	"github.com/ngicks/type-param-common/util"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 var _ scheduler.RepositoryLike = &DefaultGormCore{}
@@ -41,7 +41,7 @@ func (g *DefaultGormCore) AddTask(param scheduler.TaskParam) (scheduler.Task, er
 
 func (g *DefaultGormCore) GetById(id string) (scheduler.Task, error) {
 	t := gormmodel.Task{}
-	result := g.db.Preload(clause.Associations).Where("id = ?", id).Limit(1).Find(&t)
+	result := g.db.Where("id = ?", id).Limit(1).Find(&t)
 	if result.Error != nil {
 		return scheduler.Task{}, result.Error
 	}
@@ -74,7 +74,6 @@ type assoc struct {
 
 func (g *DefaultGormCore) update(
 	id string,
-	associations []assoc,
 	selected, grouped []columnSelection,
 	task gormmodel.Task,
 ) (updated bool, err error) {
@@ -86,21 +85,7 @@ func (g *DefaultGormCore) update(
 		return false, &scheduler.RepositoryError{Kind: scheduler.IdNotFound}
 	}
 
-	tx := g.db.
-		Model(&gormmodel.Task{Id: id})
-
-	if associations != nil {
-		for _, assocConfig := range associations {
-			assoc := g.db.Model(&gormmodel.Task{Id: id}).Association(assocConfig.name)
-			err := assoc.Replace(assocConfig.replace)
-			if err != nil {
-				return false, err
-			}
-			if assoc.DB.RowsAffected > 0 {
-				updated = true
-			}
-		}
-	}
+	tx := g.db.Model(&gormmodel.Task{Id: id})
 
 	selects := make([]string, 0, len(selected)+len(grouped))
 	for i := 0; i < len(selected); i++ {
@@ -183,13 +168,11 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 	if param.Priority != nil {
 		grouped = append(grouped, columnSelection{"priority", task.Priority, true, notOr})
 	}
-	var associations []assoc
 	if param.Meta != nil {
-		associations = append(associations, assoc{name: "Meta", replace: task.Meta})
-		grouped = append(grouped, columnSelection{"meta", nil, true, 0})
+		grouped = append(grouped, columnSelection{"meta", task.Meta, true, notOr})
 	}
 
-	updated, err = g.update(id, associations, selected, grouped, task)
+	updated, err = g.update(id, selected, grouped, task)
 	if err != nil {
 		return false, err
 	}
@@ -225,7 +208,7 @@ func (g *DefaultGormCore) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error
 		DispatchedAt: func(v *time.Time) { addWhere("dispatched_at", v) },
 		DoneAt:       func(v *time.Time) { addWhere("done_at", v) },
 		Err:          func(v string) { addWhere("err", v) },
-		Meta:         func(v gormmodel.Meta) { addWhere("meta", v) },
+		Meta:         func(v datatypes.JSON) { addWhere("meta", v) },
 		Priority:     func(v *int) { addWhere("priority", v) },
 	})
 
@@ -253,7 +236,6 @@ func (g *DefaultGormCore) FindMetaContain(key, value string) ([]scheduler.Task, 
 func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 	cancelled, err = g.update(
 		id,
-		nil,
 		[]columnSelection{
 			{"dispatched_at", nil, false, and},
 			{column: "cancelled_at", value: nil, selected: true, chainTy: and},
@@ -279,7 +261,6 @@ func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {
 func (g *DefaultGormCore) MarkAsDispatched(id string) error {
 	updated, err := g.update(
 		id,
-		nil,
 		[]columnSelection{
 			{"dispatched_at", nil, true, and},
 			{"cancelled_at", nil, false, and},
@@ -312,7 +293,6 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 
 	updated, updateErr := g.update(
 		id,
-		nil,
 		[]columnSelection{
 			{"dispatched_at", nil, false, notAnd},
 			{"cancelled_at", nil, false, and},
@@ -341,7 +321,6 @@ func (g *DefaultGormCore) MarkAsDone(id string, err error) error {
 func (g *DefaultGormCore) GetNext() (scheduler.Task, error) {
 	var t gormmodel.Task
 	result := g.db.
-		Preload(clause.Associations).
 		Where("cancelled_at IS NULL").
 		Where("dispatched_at IS NULL").
 		Where("done_at IS NULL").
@@ -361,7 +340,6 @@ func (g *DefaultGormCore) GetNext() (scheduler.Task, error) {
 func (g *DefaultGormCore) GetNextMany() ([]gormmodel.Task, error) {
 	t := make([]gormmodel.Task, 0, 100)
 	result := g.db.
-		Preload(clause.Associations).
 		Where("cancelled_at IS NULL").
 		Where("dispatched_at IS NULL").
 		Where("done_at IS NULL").
