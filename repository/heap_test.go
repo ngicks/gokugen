@@ -54,13 +54,18 @@ func testHeapCloneN(t *testing.T, taskCount int) {
 	tasks, err := addRandomTask(heap, taskCount)
 	require.NoError(err)
 
-	if taskCount != 0 {
-		_ = heap.MarkAsDispatched(tasks[taskCount/2].Id)
-		_, _ = heap.Cancel(tasks[taskCount/3].Id)
-		_ = heap.MarkAsDispatched(tasks[taskCount/4].Id)
-		_ = heap.MarkAsDone(tasks[taskCount/4].Id, nil)
-		_ = heap.MarkAsDispatched(tasks[taskCount/5].Id)
-		_ = heap.MarkAsDone(tasks[taskCount/5].Id, errors.New("foobar"))
+	for i := 0; i < taskCount; i++ {
+		if i%5 == 0 {
+			_ = heap.MarkAsDispatched(tasks[i].Id)
+			_ = heap.MarkAsDone(tasks[i].Id, errors.New("foobar"))
+		} else if i%4 == 0 {
+			_ = heap.MarkAsDispatched(tasks[i].Id)
+			_ = heap.MarkAsDone(tasks[i].Id, nil)
+		} else if i%3 == 0 {
+			_, _ = heap.Cancel(tasks[i].Id)
+		} else if i%2 == 0 {
+			_ = heap.MarkAsDispatched(tasks[i].Id)
+		}
 	}
 
 	dumped := heap.Dump()
