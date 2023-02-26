@@ -8,7 +8,11 @@ import (
 	"github.com/ngicks/gommon/pkg/common"
 )
 
-// HookTimer watches repository mutation and resets its timer if necessary.
+// HookTimer is the set of hooks which change its internal timer
+// if input values are changing a next task.
+// The each name of methods, except SetRepository,
+// is identical to the one of scheduler.TaskRepository interface.
+// Hooks should be called every time corresponding methods are called and return no error.
 type HookTimer interface {
 	// SetRepository sets Repository. Twice or later calls may be ignored.
 	SetRepository(core scheduler.RepositoryLike)
@@ -21,6 +25,7 @@ type HookTimer interface {
 
 var _ HookTimer = &RepositoryTimer{}
 
+// RepositoryTimer is a referential implementation of the HookTimer interface.
 type RepositoryTimer struct {
 	mu             sync.RWMutex
 	cachedMin      scheduler.Task
