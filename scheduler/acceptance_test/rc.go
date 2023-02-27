@@ -13,31 +13,33 @@ type ParamAndFiller struct {
 	Filler func(t scheduler.Task) scheduler.Task
 }
 
-var possibleParams = []ParamAndFiller{
-	{
-		scheduler.TaskParam{
-			ScheduledAt: oneYearLater,
+func fuzzParamFilter() []ParamAndFiller {
+	return []ParamAndFiller{
+		{
+			scheduler.TaskParam{
+				ScheduledAt: oneYearLater,
+			},
+			fillScheduledAt,
 		},
-		fillScheduledAt,
-	},
-	{
-		scheduler.TaskParam{
-			WorkId: RandStrLen(16),
+		{
+			scheduler.TaskParam{
+				WorkId: RandStrLen(16),
+			},
+			fillWorkId,
 		},
-		fillWorkId,
-	},
-	{
-		scheduler.TaskParam{
-			Param: RandByteLen(64),
+		{
+			scheduler.TaskParam{
+				Param: RandByteLen(64),
+			},
+			fillParm,
 		},
-		fillParm,
-	},
-	{
-		scheduler.TaskParam{
-			Meta: map[string]string{"foo": "bar"},
+		{
+			scheduler.TaskParam{
+				Meta: map[string]string{RandStrLen(15): RandStrLen(15)},
+			},
+			fillMeta,
 		},
-		fillMeta,
-	},
+	}
 }
 
 func fillScheduledAt(t scheduler.Task) scheduler.Task {

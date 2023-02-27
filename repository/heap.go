@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"strings"
 	"sync"
 	"time"
 
@@ -223,11 +224,16 @@ func (r *HeapRepository) GetById(id string) (scheduler.Task, error) {
 func (r *HeapRepository) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error) {
 	matched := make([]scheduler.Task, 0)
 
-	for _, container := range [...]map[string]*wrappedTask{
-		r.taskMap.Done,
-		r.taskMap.Cancelled,
-		r.taskMap.Scheduled,
-	} {
+	var maps []map[string]*wrappedTask
+	if t.DoneAt != nil {
+		maps = []map[string]*wrappedTask{r.taskMap.Done}
+	} else if t.CancelledAt != nil {
+		maps = []map[string]*wrappedTask{r.taskMap.Cancelled}
+	} else {
+		maps = []map[string]*wrappedTask{r.taskMap.Done, r.taskMap.Cancelled, r.taskMap.Scheduled}
+	}
+
+	for _, container := range maps {
 		for _, task := range container {
 			if task.Match(t) {
 				matched = append(matched, task.Task)
@@ -238,8 +244,12 @@ func (r *HeapRepository) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error)
 	return matched, nil
 }
 
-func (r *HeapRepository) FindMetaContain(key, value string) ([]scheduler.Task, error) {
-	matched := make([]scheduler.Task, 0)
+func (r *HeapRepository) FindMetaContain(matcher []scheduler.KeyValuePairMatcher) ([]scheduler.Task, error) {
+	out := make([]scheduler.Task, 0)
+
+	if len(matcher) == 0 {
+		return out, nil
+	}
 
 	for _, container := range [...]map[string]*wrappedTask{
 		r.taskMap.Done,
@@ -247,13 +257,35 @@ func (r *HeapRepository) FindMetaContain(key, value string) ([]scheduler.Task, e
 		r.taskMap.Scheduled,
 	} {
 		for _, task := range container {
-			if v, ok := task.Meta[key]; ok && v == value {
-				matched = append(matched, task.Task)
+			var i int
+			for i = 0; i < len(matcher); i++ {
+				if v, ok := task.Meta[matcher[i].Key]; ok {
+					if matcher[i].Value == "" {
+						continue
+					}
+
+					matched := false
+					switch matcher[i].MatchTy {
+					case scheduler.HasKey:
+						matched = true
+					case scheduler.Exact:
+						matched = v == matcher[i].Value
+					case scheduler.Forward:
+						matched = strings.HasPrefix(v, matcher[i].Value)
+					case scheduler.Backward:
+						matched = strings.HasSuffix(v, matcher[i].Value)
+					case scheduler.Partial:
+						matched = strings.Contains(v, matcher[i].Value)
+					}
+					if matched {
+						out = append(out, task.Task)
+					}
+				}
 			}
 		}
 	}
 
-	return matched, nil
+	return out, nil
 }
 
 func (r *HeapRepository) Update(id string, param scheduler.TaskParam) (updated bool, err error) {

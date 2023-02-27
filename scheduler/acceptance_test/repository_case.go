@@ -99,6 +99,10 @@ func TestRepository_Update_only_non_zero_param_fields(t *testing.T, repo schedul
 		t.Fatalf("AddTask must not return error: %+v", err)
 	}
 
+	t.Logf("first created task = %+v", task)
+
+	possibleParams := fuzzParamFilter()
+
 	old := task
 	for _, param := range possibleParams {
 		updateOk, err := repo.Update(task.Id, param.Param)
@@ -110,7 +114,7 @@ func TestRepository_Update_only_non_zero_param_fields(t *testing.T, repo schedul
 		}
 		updated, _ := repo.GetById(task.Id)
 		if old.Equal(updated) {
-			t.Fatalf("must not be equal")
+			t.Fatalf("must not be equal: old and updated is same. update param = %+v, updated = %+v", param.Param, updated)
 		}
 
 		oldOtherThanUpdated := param.Filler(old)
@@ -322,6 +326,64 @@ func TestRepository_MarkAsDone_error_on_non_updatable(t *testing.T, repo schedul
 func TestRepository_MarkAsDone_error_on_nonexistent(t *testing.T, repo scheduler.TaskRepository, now time.Time) {
 	err := repo.MarkAsDone(scheduler.NeverExistentId, nil)
 	AssertErrIdNotFound(t, scheduler.NeverExistentId, err, true)
+}
+
+func TestRepository_Find(t *testing.T, repo scheduler.TaskRepository) {
+	farFuture := TruncatedNow().AddDate(30, 0, 0)
+
+	nonMatchingQuery := scheduler.TaskParam{
+		ScheduledAt: TruncatedNow().AddDate(31, 0, 0),
+	}
+
+	for _, param := range fuzzParamFilter()[1:] {
+		taskParam := param.Param
+		taskParam.ScheduledAt = farFuture
+		if taskParam.WorkId == "" {
+			taskParam.WorkId = "foobar"
+		}
+
+		task, err := repo.AddTask(taskParam)
+		if err != nil {
+			t.Fatalf("AddTask at this point must not return error. err = %+v", err)
+		}
+
+		found, err := repo.Find(scheduler.TaskMatcher{Task: scheduler.Task{Id: task.Id}})
+		if err != nil {
+			t.Fatalf("Find must not return error. err = %+v", err)
+		}
+
+		if len(found) != 1 {
+			t.Fatalf("found element must be 1, but is %d, queried with %s", len(found), task.Id)
+		}
+
+		found, err = repo.Find(
+			scheduler.TaskMatcher{Task: param.Param.ToTask(true), Priority: param.Param.Priority},
+		)
+		if err != nil {
+			t.Fatalf("Find must not return error. err = %+v", err)
+		}
+
+		if len(found) != 1 {
+			t.Fatalf("found element must be 1, but is %d, queried with %+v", len(found), param.Param)
+		}
+
+		query := nonMatchingQuery.ToTask(true)
+		query.Id = task.Id
+		found, err = repo.Find(
+			scheduler.TaskMatcher{
+				Task:     query,
+				Priority: nonMatchingQuery.Priority,
+			},
+		)
+		if err != nil {
+			t.Fatalf("Find must not return error. err = %+v", err)
+		}
+
+		if len(found) != 0 {
+			t.Fatalf("It must not find element with %+v, but found = %+v", nonMatchingQuery, found)
+		}
+		nonMatchingQuery = param.Param
+	}
 }
 
 func TestRepository_normal_usecase(t *testing.T, repo scheduler.TaskRepository) {

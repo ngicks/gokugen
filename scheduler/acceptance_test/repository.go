@@ -106,6 +106,10 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 		})
 	})
 
+	t.Run("Find", func(t *testing.T) {
+		TestRepository_Find(t, repo)
+	})
+
 	t.Run("normal usecase, sequence of AddTask, Pop, MarkAsDispatched,"+
 		" and MarkAsFailed or MarkAsDone",
 		func(t *testing.T) {

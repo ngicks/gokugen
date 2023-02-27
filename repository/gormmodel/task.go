@@ -13,8 +13,8 @@ type Task struct {
 	Id           string         `json:"id" gorm:"primaryKey;not null"`
 	WorkId       string         `json:"work_id" gorm:"not null"`
 	Param        string         `json:"param"`
-	ScheduledAt  time.Time      `json:"scheduled_at" gorm:"not null;index:sched;sort:asc"`
-	Priority     int            `json:"priority" gorm:"not null;index:sched;sort:desc"`
+	ScheduledAt  time.Time      `json:"scheduled_at" gorm:"not null;index:sched,sort:asc"`
+	Priority     int            `json:"priority" gorm:"not null;index:sched,sort:desc"`
 	CreatedAt    time.Time      `json:"created_at" gorm:"not null;autoCreateTime:milli"`
 	CancelledAt  *time.Time     `json:"cancelled_at,omitempty"`
 	DispatchedAt *time.Time     `json:"dispatched_at,omitempty"`
@@ -25,6 +25,10 @@ type Task struct {
 }
 
 func FromTask(t scheduler.Task) Task {
+	var meta json.RawMessage
+	if t.Meta != nil {
+		meta = util.Must(json.Marshal(t.Meta))
+	}
 	return Task{
 		Id:           t.Id,
 		WorkId:       t.WorkId,
@@ -36,13 +40,16 @@ func FromTask(t scheduler.Task) Task {
 		DispatchedAt: t.DispatchedAt,
 		DoneAt:       t.DoneAt,
 		Err:          t.Err,
-		Meta:         util.Must(json.Marshal(t.Meta)),
+		Meta:         datatypes.JSON(meta),
 	}
 }
 
 func (t Task) ToTask() scheduler.Task {
-	m := make(map[string]string)
-	_ = json.Unmarshal(t.Meta, &m)
+	var m map[string]string
+	if t.Meta != nil {
+		m = make(map[string]string)
+		_ = json.Unmarshal(t.Meta, &m)
+	}
 
 	return scheduler.Task{
 		Id:           t.Id,

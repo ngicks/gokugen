@@ -23,10 +23,28 @@ type RepositoryLike interface {
 	// MarkAsDone marks the id as done. if err is non-nil, task is marked as failed.
 	MarkAsDone(id string, err error) error
 
+	Find(matcher TaskMatcher) ([]Task, error)
+	FindMetaContain(matcher []KeyValuePairMatcher) ([]Task, error)
 	// GetNext returns the next scheduled Task without changing repository contents.
 	// GetNext must not return cancelled, dispatched, done tasks.
 	GetNext() (Task, error)
 }
+
+type KeyValuePairMatcher struct {
+	Key     string
+	Value   string
+	MatchTy matchType
+}
+
+type matchType int
+
+const (
+	HasKey matchType = iota
+	Exact
+	Forward
+	Backward
+	Partial
+)
 
 type TimerLike interface {
 	// StartTimer starts the internal timer.

@@ -140,7 +140,8 @@ func (t Task) Equal(other Task) bool {
 }
 
 func (t Task) Match(u TaskMatcher) bool {
-	if u.WorkId != "" && t.WorkId != u.WorkId ||
+	return !(u.Id != "" && t.Id != u.Id ||
+		u.WorkId != "" && t.WorkId != u.WorkId ||
 		u.Param != nil && !bytes.Equal(t.Param, u.Param) ||
 		u.Priority != nil && t.Priority != *u.Priority ||
 		!u.ScheduledAt.IsZero() && !t.ScheduledAt.Equal(u.ScheduledAt) ||
@@ -149,13 +150,14 @@ func (t Task) Match(u TaskMatcher) bool {
 		u.DispatchedAt != nil && !util.TimePointerEqual(t.DispatchedAt, u.DispatchedAt, false) ||
 		u.DoneAt != nil && !util.TimePointerEqual(t.DoneAt, u.DoneAt, false) ||
 		u.Err != "" && t.Err != u.Err ||
-		u.Meta != nil && !metaEqual(t.Meta, u.Meta) {
-		return false
-	}
-	return true
+		u.Meta != nil && !metaEqual(t.Meta, u.Meta))
 }
 
 func cloneMeta(meta map[string]string) map[string]string {
+	if meta == nil {
+		return nil
+	}
+
 	cloned := make(map[string]string, len(meta))
 	for k, v := range meta {
 		cloned[k] = v
@@ -197,6 +199,10 @@ func (p TaskParam) HasOnlyMeta() bool {
 }
 
 func cloneSlice[T any](s []T) []T {
+	if s == nil {
+		return nil
+	}
+
 	cloned := make([]T, len(s))
 	copy(cloned, s)
 	return cloned
@@ -271,5 +277,4 @@ func (m TaskMatcher) VisitNonZero(visitor TaskMatcherVisitor) {
 	if m.Priority != nil && visitor.Priority != nil {
 		visitor.Priority(m.Priority)
 	}
-
 }

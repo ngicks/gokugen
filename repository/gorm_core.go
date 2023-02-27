@@ -157,19 +157,19 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 
 	grouped := make([]columnSelection, 0, 5)
 	if !param.ScheduledAt.IsZero() {
-		grouped = append(grouped, columnSelection{"scheduled_at", task.ScheduledAt, true, notOr})
+		grouped = append(grouped, columnSelection{column: "scheduled_at", value: task.ScheduledAt, selected: true, chainTy: notOr})
 	}
 	if param.WorkId != "" {
-		grouped = append(grouped, columnSelection{"work_id", task.WorkId, true, notOr})
+		grouped = append(grouped, columnSelection{column: "work_id", value: task.WorkId, selected: true, chainTy: notOr})
 	}
 	if param.Param != nil {
-		grouped = append(grouped, columnSelection{"param", task.Param, true, notOr})
+		grouped = append(grouped, columnSelection{column: "param", value: task.Param, selected: true, chainTy: notOr})
 	}
 	if param.Priority != nil {
-		grouped = append(grouped, columnSelection{"priority", task.Priority, true, notOr})
+		grouped = append(grouped, columnSelection{column: "priority", value: param.Priority, selected: true, chainTy: notOr})
 	}
 	if param.Meta != nil {
-		grouped = append(grouped, columnSelection{"meta", task.Meta, true, notOr})
+		grouped = append(grouped, columnSelection{column: "meta", value: task.Meta, selected: true, chainTy: notOr})
 	}
 
 	updated, err = g.update(id, selected, grouped, task)
@@ -192,29 +192,32 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 func (g *DefaultGormCore) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error) {
 	matcher := gormmodel.FromTaskMatcher(t)
 
-	selection := make([]columnSelection, 0, 11)
+	selections := make([]columnSelection, 0, 11)
 
 	addWhere := func(columnName string, value any) {
-		selection = append(selection, columnSelection{"id", value, false, and})
+		selections = append(selections, columnSelection{columnName, value, false, and})
 	}
 
 	matcher.VisitNonZero(gormmodel.TaskVisitor{
-		Id:           func(v string) { addWhere("id", v) },
-		WorkId:       func(v string) { addWhere("work_id", v) },
-		Param:        func(v string) { addWhere("param", v) },
-		ScheduledAt:  func(v time.Time) { addWhere("scheduled_at", v) },
-		CreatedAt:    func(v time.Time) { addWhere("created_at", v) },
-		CancelledAt:  func(v *time.Time) { addWhere("cancelled_at", v) },
-		DispatchedAt: func(v *time.Time) { addWhere("dispatched_at", v) },
-		DoneAt:       func(v *time.Time) { addWhere("done_at", v) },
-		Err:          func(v string) { addWhere("err", v) },
-		Meta:         func(v datatypes.JSON) { addWhere("meta", v) },
-		Priority:     func(v *int) { addWhere("priority", v) },
+		Id:           func(v string) { addWhere("`id`", v) },
+		WorkId:       func(v string) { addWhere("`work_id`", v) },
+		Param:        func(v string) { addWhere("`param`", v) },
+		ScheduledAt:  func(v time.Time) { addWhere("`scheduled_at`", v) },
+		CreatedAt:    func(v time.Time) { addWhere("`created_at`", v) },
+		CancelledAt:  func(v *time.Time) { addWhere("`cancelled_at`", v) },
+		DispatchedAt: func(v *time.Time) { addWhere("`dispatched_at`", v) },
+		DoneAt:       func(v *time.Time) { addWhere("`done_at`", v) },
+		Err:          func(v string) { addWhere("`err`", v) },
+		Meta:         func(v datatypes.JSON) { addWhere("`meta`", v) },
+		Priority:     func(v *int) { addWhere("`priority`", v) },
 	})
 
 	out := make([]gormmodel.Task, 0)
-	result := g.db.Model(&gormmodel.Task{}).Find(&out)
 
+	tx := g.db.Model(&gormmodel.Task{})
+	tx = composeWhere(g.db, tx, selections)
+
+	result := tx.Find(&out)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -227,9 +230,29 @@ func (g *DefaultGormCore) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error
 	return matched, nil
 }
 
-func (g *DefaultGormCore) FindMetaContain(key, value string) ([]scheduler.Task, error) {
-	matched := make([]scheduler.Task, 0)
+func (g *DefaultGormCore) FindMetaContain(matcher []scheduler.KeyValuePairMatcher) ([]scheduler.Task, error) {
+	if len(matcher) == 0 {
+		return []scheduler.Task{}, nil
+	}
 
+	tx := g.db.Model(&gormmodel.Task{})
+
+	for _, kv := range matcher {
+		switch kv.MatchTy {
+		case scheduler.HasKey:
+			tx = tx.Where(datatypes.JSONQuery("meta").HasKey(kv.Key))
+		case scheduler.Exact, scheduler.Forward, scheduler.Backward, scheduler.Partial:
+			tx = tx.Where(datatypes.JSONQuery("meta").Equals(kv.Value, kv.Key))
+		default:
+			continue
+		}
+	}
+
+	matched := make([]scheduler.Task, 0)
+	err := g.db.Model(&gormmodel.Task{}).Find(&matched).Error
+	if err != nil {
+		return nil, err
+	}
 	return matched, nil
 }
 
