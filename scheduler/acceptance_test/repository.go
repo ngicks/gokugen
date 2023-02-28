@@ -24,8 +24,13 @@ type RepositoryTestConfig struct {
 	FindMetaContain FindMetaContainTestConfig
 }
 
-// TestRepository is an exported acceptance test.
-// Implementations may call this test with their own implementation in their test file.
+// TestRepository is an exported acceptance test which calls all relevant tests defined within this package.
+// An implementation would only be considered as a conformant if it passes this test.
+// Each individual tests, which are functions prefixed with TestRepository_, are exported only for debugging purpose.
+//
+// Implementations may call this test with their own implementation in their own test file.
+//
+// Some of interface's feature is optional. Callers can utilize cfg to enable tests for those optional functionalities.
 func TestRepository(t *testing.T, repo scheduler.TaskRepository, cfg RepositoryTestConfig) {
 	now := TruncatedNow()
 
