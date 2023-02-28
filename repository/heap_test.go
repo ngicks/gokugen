@@ -19,7 +19,17 @@ var _ scheduler.TaskRepository = &HeapRepository{}
 
 func TestHeapAcceptance(t *testing.T) {
 	heap := NewHeapRepository()
-	acceptancetest.TestRepository(t, heap)
+	acceptancetest.TestRepository(
+		t,
+		heap,
+		acceptancetest.RepositoryTestConfig{
+			FindMetaContain: acceptancetest.FindMetaContainTestConfig{
+				Forward:  true,
+				Backward: true,
+				Partial:  true,
+			},
+		},
+	)
 }
 
 func addRandomTask(repo scheduler.TaskRepository, n int) (added []scheduler.Task, err error) {

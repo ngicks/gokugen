@@ -56,7 +56,7 @@ func TestGormAcceptance(t *testing.T) {
 	t.Logf("%+v\n", newLogger)
 
 	conf := &gorm.Config{
-		// Logger: newLogger,
+		Logger: newLogger,
 	}
 
 	repo, err := NewSqlite3(sqliteFilename, conf)
@@ -64,7 +64,7 @@ func TestGormAcceptance(t *testing.T) {
 		panic(err)
 	}
 
-	acceptancetest.TestRepository(t, repo)
+	acceptancetest.TestRepository(t, repo, acceptancetest.RepositoryTestConfig{})
 }
 
 func TestGormReconnect(t *testing.T) {

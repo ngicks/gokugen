@@ -13,7 +13,7 @@ type ParamAndFiller struct {
 	Filler func(t scheduler.Task) scheduler.Task
 }
 
-func fuzzParamFilter() []ParamAndFiller {
+func fuzzParamFiller() []ParamAndFiller {
 	return []ParamAndFiller{
 		{
 			scheduler.TaskParam{

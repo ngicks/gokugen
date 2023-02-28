@@ -20,9 +20,13 @@ func randParam(scheduledAt time.Time) scheduler.TaskParam {
 	}
 }
 
+type RepositoryTestConfig struct {
+	FindMetaContain FindMetaContainTestConfig
+}
+
 // TestRepository is an exported acceptance test.
 // Implementations may call this test with their own implementation in their test file.
-func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
+func TestRepository(t *testing.T, repo scheduler.TaskRepository, cfg RepositoryTestConfig) {
 	now := TruncatedNow()
 
 	t.Run("GetNext on empty Repository returns Empty Repository Error", func(t *testing.T) {
@@ -108,6 +112,14 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository) {
 
 	t.Run("Find", func(t *testing.T) {
 		TestRepository_Find(t, repo)
+	})
+
+	t.Run("FindMetaContain", func(t *testing.T) {
+		TestRepository_FindMetaContain(
+			t,
+			repo,
+			cfg.FindMetaContain,
+		)
 	})
 
 	t.Run("normal usecase, sequence of AddTask, Pop, MarkAsDispatched,"+

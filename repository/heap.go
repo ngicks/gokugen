@@ -260,10 +260,6 @@ func (r *HeapRepository) FindMetaContain(matcher []scheduler.KeyValuePairMatcher
 			var i int
 			for i = 0; i < len(matcher); i++ {
 				if v, ok := task.Meta[matcher[i].Key]; ok {
-					if matcher[i].Value == "" {
-						continue
-					}
-
 					matched := false
 					switch matcher[i].MatchTy {
 					case scheduler.HasKey:

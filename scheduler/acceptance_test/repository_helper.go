@@ -1,6 +1,7 @@
 package acceptancetest
 
 import (
+	"sort"
 	"testing"
 	"time"
 
@@ -131,4 +132,17 @@ func testUpdateTimer(
 			sub.String(),
 		)
 	}
+}
+
+// sortById copies and sorts input tasks. input tasks will not be changed.
+// It sorts tasks by Id in increasing order.
+func sortById(tasks []scheduler.Task) []scheduler.Task {
+	out := make([]scheduler.Task, len(tasks))
+	copy(out, tasks)
+
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].Id < out[j].Id
+	})
+
+	return out
 }

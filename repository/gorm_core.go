@@ -248,12 +248,17 @@ func (g *DefaultGormCore) FindMetaContain(matcher []scheduler.KeyValuePairMatche
 		}
 	}
 
-	matched := make([]scheduler.Task, 0)
-	err := g.db.Model(&gormmodel.Task{}).Find(&matched).Error
+	matched := make([]gormmodel.Task, 0)
+	err := tx.Find(&matched).Error
 	if err != nil {
 		return nil, err
 	}
-	return matched, nil
+
+	out := make([]scheduler.Task, len(matched))
+	for i := 0; i < len(matched); i++ {
+		out[i] = matched[i].ToTask()
+	}
+	return out, nil
 }
 
 func (g *DefaultGormCore) Cancel(id string) (cancelled bool, err error) {

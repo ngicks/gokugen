@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/gokugen/scheduler/util"
 	"github.com/ngicks/type-param-common/set"
@@ -101,7 +102,7 @@ func TestRepository_Update_only_non_zero_param_fields(t *testing.T, repo schedul
 
 	t.Logf("first created task = %+v", task)
 
-	possibleParams := fuzzParamFilter()
+	possibleParams := fuzzParamFiller()
 
 	old := task
 	for _, param := range possibleParams {
@@ -335,7 +336,8 @@ func TestRepository_Find(t *testing.T, repo scheduler.TaskRepository) {
 		ScheduledAt: TruncatedNow().AddDate(31, 0, 0),
 	}
 
-	for _, param := range fuzzParamFilter()[1:] {
+	params := fuzzParamFiller()[1:]
+	for _, param := range params {
 		taskParam := param.Param
 		taskParam.ScheduledAt = farFuture
 		if taskParam.WorkId == "" {
@@ -384,6 +386,261 @@ func TestRepository_Find(t *testing.T, repo scheduler.TaskRepository) {
 		}
 		nonMatchingQuery = param.Param
 	}
+
+	farFutureQuery := scheduler.TaskMatcher{Task: scheduler.Task{ScheduledAt: farFuture}}
+	found, err := repo.Find(farFutureQuery)
+	if err != nil {
+		t.Fatalf("Find must not return error. err = %+v", err)
+	}
+
+	if len(found) != len(params) {
+		t.Fatalf("found element must be %d, but is %d, queried with %+v", len(params), len(found), farFutureQuery)
+	}
+}
+
+type FindMetaContainTestConfig struct {
+	Forward  bool
+	Backward bool
+	Partial  bool
+}
+
+func TestRepository_FindMetaContain(t *testing.T, repo scheduler.TaskRepository, cfg FindMetaContainTestConfig) {
+	farFuture := TruncatedNow().AddDate(30, 0, 0)
+
+	inserted := make([]scheduler.Task, 4)
+	for idx, meta := range []map[string]string{
+		{"foofoofoo": "bar"},
+		{"foofoofoo": "barbar", "itis": "mah"},
+		{"foofoofoo": "barbarbar", "itis": "mah", "butyet": "yeah"},
+		{"foofoofoo": "barbarbar", "barbarbar": "foofoofoo"},
+	} {
+		task, err := repo.AddTask(scheduler.TaskParam{
+			ScheduledAt: farFuture,
+			WorkId:      "why not",
+			Meta:        meta,
+		})
+		if err != nil {
+			t.Fatalf("AddTask must not return error: %+v", err)
+		}
+		inserted[idx] = task
+	}
+
+	for _, tc := range composeFindMetaContainCases(inserted, cfg) {
+		found, err := repo.FindMetaContain(tc.matcher)
+		if err != nil {
+			t.Fatalf("FindMetaContain must not return error: %+v", err)
+		}
+		// The order of found is undefined; it is allowed to be random, non stable.
+		if diff := cmp.Diff(sortById(tc.expected), sortById(found)); diff != "" {
+			t.Fatalf("must be equal. diff = %s", diff)
+		}
+	}
+}
+
+type testCaseFindMetaContain struct {
+	matcher  []scheduler.KeyValuePairMatcher
+	expected []scheduler.Task
+}
+
+func composeFindMetaContainCases(inserted []scheduler.Task, cfg FindMetaContainTestConfig) []testCaseFindMetaContain {
+	var cases []testCaseFindMetaContain
+
+	// has key
+	cases = append(cases,
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{Key: "foofoofoo"},
+			},
+			expected: inserted,
+		},
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{Key: "itis"},
+			},
+			expected: inserted[1:3],
+		},
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{Key: "barbarbar"},
+			},
+			expected: inserted[3:4],
+		},
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{Key: "nonexistent_nonexistent_nonexistent_"},
+			},
+			expected: []scheduler.Task{},
+		},
+	)
+
+	// exact
+	cases = append(cases,
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{Key: "foofoofoo", Value: "bar", MatchTy: scheduler.Exact},
+			},
+			expected: inserted[:1],
+		},
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{Key: "foofoofoo", Value: "barbarbar", MatchTy: scheduler.Exact},
+			},
+			expected: inserted[2:4],
+		},
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{Key: "foofoofoo", Value: "nani!?", MatchTy: scheduler.Exact},
+			},
+			expected: []scheduler.Task{},
+		},
+		testCaseFindMetaContain{
+			matcher: []scheduler.KeyValuePairMatcher{
+				{
+					Key:     "nonexistent_nonexistent_nonexistent_",
+					Value:   "barbarbar",
+					MatchTy: scheduler.Exact,
+				},
+			},
+			expected: []scheduler.Task{},
+		},
+	)
+
+	if cfg.Forward {
+		cases = append(cases,
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "bar", MatchTy: scheduler.Forward},
+				},
+				expected: inserted[:],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "barbar", MatchTy: scheduler.Forward},
+				},
+				expected: inserted[1:4],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "itis", Value: "ma", MatchTy: scheduler.Forward},
+				},
+				expected: inserted[1:3],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "itis", Value: "ah", MatchTy: scheduler.Forward},
+				},
+				expected: []scheduler.Task{},
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "nani!?", MatchTy: scheduler.Forward},
+				},
+				expected: []scheduler.Task{},
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{
+						Key:     "nonexistent_nonexistent_nonexistent_",
+						Value:   "barbarbar",
+						MatchTy: scheduler.Forward,
+					},
+				},
+				expected: []scheduler.Task{},
+			},
+		)
+	}
+
+	if cfg.Backward {
+		cases = append(cases,
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "bar", MatchTy: scheduler.Backward},
+				},
+				expected: inserted[:],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "barbar", MatchTy: scheduler.Backward},
+				},
+				expected: inserted[1:4],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "itis", Value: "ma", MatchTy: scheduler.Backward},
+				},
+				expected: []scheduler.Task{},
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "itis", Value: "ah", MatchTy: scheduler.Backward},
+				},
+				expected: inserted[1:3],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "nani!?", MatchTy: scheduler.Backward},
+				},
+				expected: []scheduler.Task{},
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{
+						Key:     "nonexistent_nonexistent_nonexistent_",
+						Value:   "barbarbar",
+						MatchTy: scheduler.Backward,
+					},
+				},
+				expected: []scheduler.Task{},
+			},
+		)
+	}
+
+	if cfg.Partial {
+		cases = append(cases,
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "bar", MatchTy: scheduler.Partial},
+				},
+				expected: inserted[:],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "barbar", MatchTy: scheduler.Partial},
+				},
+				expected: inserted[1:4],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "itis", Value: "ma", MatchTy: scheduler.Partial},
+				},
+				expected: inserted[1:3],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "itis", Value: "ah", MatchTy: scheduler.Partial},
+				},
+				expected: inserted[1:3],
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{Key: "foofoofoo", Value: "nani!?", MatchTy: scheduler.Partial},
+				},
+				expected: []scheduler.Task{},
+			},
+			testCaseFindMetaContain{
+				matcher: []scheduler.KeyValuePairMatcher{
+					{
+						Key:     "nonexistent_nonexistent_nonexistent_",
+						Value:   "barbarbar",
+						MatchTy: scheduler.Partial,
+					},
+				},
+				expected: []scheduler.Task{},
+			},
+		)
+	}
+
+	return cases
 }
 
 func TestRepository_normal_usecase(t *testing.T, repo scheduler.TaskRepository) {
