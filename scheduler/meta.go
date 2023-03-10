@@ -6,17 +6,17 @@ import (
 
 var (
 	metaNameLock sync.RWMutex
-	metaMap      = make(map[string]string)
+	metaMap      = make(map[string]bool)
 )
 
 func RegisterMeta(name string) {
 	metaNameLock.Lock()
 	defer metaNameLock.Unlock()
-	if _, dup := metaMap[name]; dup {
+	if metaMap[name] {
 		panic(
 			"github.com/ngicks/gokugen/scheduler: " +
 				"RegisterMeta is called twice for the meta named " + name,
 		)
 	}
-	metaMap[name] = ""
+	metaMap[name] = true
 }

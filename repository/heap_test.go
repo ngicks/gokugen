@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math/rand"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -51,8 +52,54 @@ func addRandomTask(repo scheduler.TaskRepository, n int) (added []scheduler.Task
 }
 
 func TestHeapClone(t *testing.T) {
-	for _, count := range []int{0, 10, 100} {
+	// count must be larger than 10 or zero.
+	for _, count := range []int{0, 10, 100, 1000} {
 		testHeapCloneN(t, count)
+	}
+}
+
+func TestHeapRemoval(t *testing.T) {
+	require := require.New(t)
+
+	for i := 0; i <= 0b111; i++ {
+		removeFlag := [3]bool{i&0b100 > 0, i&0b010 > 0, i&0b001 > 0}
+
+		heap := NewHeapRepository()
+
+		err := populateHeap(heap, 2000)
+		require.NoError(err)
+
+		dumped := heap.Dump()
+		removed := heap.Remove(removeFlag[0], removeFlag[1], removeFlag[2])
+
+		require.Nil(removed.Scheduled)
+
+		testRemoved := func(removed bool, m map[string]scheduler.Task) {
+			t.Helper()
+			if removed {
+				require.NotNil(m)
+			} else {
+				require.Nil(m)
+			}
+		}
+
+		testRemoved(removeFlag[0], removed.Done)
+		testRemoved(removeFlag[1], removed.Cancelled)
+		testRemoved(removeFlag[2], removed.Deleted)
+
+		testEquality := func(removed bool, left, right map[string]scheduler.Task) {
+			t.Helper()
+			diff := cmp.Diff(left, right)
+			if removed && diff != "" {
+				t.Fatalf("not equal. diff = %s", diff)
+			} else if !removed && diff == "" {
+				t.Fatalf("must not equal.")
+			}
+		}
+
+		testEquality(removeFlag[0], dumped.Done, removed.Done)
+		testEquality(removeFlag[1], dumped.Cancelled, removed.Cancelled)
+		testEquality(removeFlag[2], dumped.Deleted, removed.Deleted)
 	}
 }
 
@@ -61,24 +108,18 @@ func testHeapCloneN(t *testing.T, taskCount int) {
 
 	heap := NewHeapRepository()
 
-	tasks, err := addRandomTask(heap, taskCount)
+	err := populateHeap(heap, taskCount)
 	require.NoError(err)
 
-	for i := 0; i < taskCount; i++ {
-		if i%5 == 0 {
-			_ = heap.MarkAsDispatched(tasks[i].Id)
-			_ = heap.MarkAsDone(tasks[i].Id, errors.New("foobar"))
-		} else if i%4 == 0 {
-			_ = heap.MarkAsDispatched(tasks[i].Id)
-			_ = heap.MarkAsDone(tasks[i].Id, nil)
-		} else if i%3 == 0 {
-			_, _ = heap.Cancel(tasks[i].Id)
-		} else if i%2 == 0 {
-			_ = heap.MarkAsDispatched(tasks[i].Id)
+	dumped := heap.Dump()
+
+	// making sure all fields are populated...
+	if taskCount > 0 {
+		rv := reflect.ValueOf(dumped)
+		for i := 0; i < rv.NumField(); i++ {
+			require.Greater(rv.Field(i).Len(), 0)
 		}
 	}
-
-	dumped := heap.Dump()
 
 	marshalled, err := json.Marshal(dumped)
 	require.NoError(err)
@@ -109,4 +150,29 @@ func testHeapCloneN(t *testing.T, taskCount int) {
 			t.Fatalf("not qual. diff = %s", diff)
 		}
 	}
+}
+
+func populateHeap(heap *HeapRepository, len int) error {
+	tasks, err := addRandomTask(heap, len)
+	if err != nil {
+		return err
+	}
+
+	for i := 0; i < len; i++ {
+		if i%6 == 0 {
+			_, _ = heap.Delete(tasks[i].Id)
+		} else if i%5 == 0 {
+			_ = heap.MarkAsDispatched(tasks[i].Id)
+			_ = heap.MarkAsDone(tasks[i].Id, errors.New("foobar"))
+		} else if i%4 == 0 {
+			_ = heap.MarkAsDispatched(tasks[i].Id)
+			_ = heap.MarkAsDone(tasks[i].Id, nil)
+		} else if i%3 == 0 {
+			_, _ = heap.Cancel(tasks[i].Id)
+		} else if i%2 == 0 {
+			_ = heap.MarkAsDispatched(tasks[i].Id)
+		}
+	}
+
+	return nil
 }

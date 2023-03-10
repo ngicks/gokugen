@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"strings"
 	"sync"
 	"time"
 
@@ -43,103 +42,6 @@ func (t *wrappedTask) Pop(slice *slice.Stack[*wrappedTask]) *wrappedTask {
 	return popped
 }
 
-type taskMap struct {
-	Scheduled map[string]*wrappedTask
-	Done      map[string]*wrappedTask
-	Cancelled map[string]*wrappedTask
-}
-
-func newTaskMap() taskMap {
-	return taskMap{
-		Scheduled: make(map[string]*wrappedTask),
-		Done:      make(map[string]*wrappedTask),
-		Cancelled: make(map[string]*wrappedTask),
-	}
-}
-
-func fromExternal(tm TaskMap) taskMap {
-	ret := newTaskMap()
-
-	for id, task := range tm.Scheduled {
-		ret.Scheduled[id] = &wrappedTask{Task: task, Index: -1}
-	}
-	for id, task := range tm.Cancelled {
-		ret.Cancelled[id] = &wrappedTask{Task: task, Index: -1}
-	}
-	for id, task := range tm.Done {
-		ret.Done[id] = &wrappedTask{Task: task, Index: -1}
-	}
-	return ret
-}
-
-func (tm taskMap) Dump() TaskMap {
-	ret := TaskMap{
-		Scheduled: make(map[string]scheduler.Task, len(tm.Scheduled)),
-		Cancelled: make(map[string]scheduler.Task, len(tm.Scheduled)),
-		Done:      make(map[string]scheduler.Task, len(tm.Scheduled)),
-	}
-	for id, task := range tm.Scheduled {
-		ret.Scheduled[id] = task.Task
-	}
-	for id, task := range tm.Cancelled {
-		ret.Cancelled[id] = task.Task
-	}
-	for id, task := range tm.Done {
-		ret.Done[id] = task.Task
-	}
-	return ret
-}
-
-func (tm taskMap) IsZero() bool {
-	return tm.Scheduled == nil || tm.Cancelled == nil || tm.Done == nil
-}
-
-func (tm *taskMap) Get(id string) (task *wrappedTask, ok bool) {
-	if t, ok := tm.Scheduled[id]; ok {
-		return t, true
-	}
-	if t, ok := tm.Done[id]; ok {
-		return t, true
-	}
-	if t, ok := tm.Cancelled[id]; ok {
-		return t, true
-	}
-	return nil, false
-}
-func (tm *taskMap) Add(task *wrappedTask) {
-	tm.Scheduled[task.Id] = task
-}
-func (tm *taskMap) SetCancelled(id string, now time.Time) {
-	t, ok := tm.Scheduled[id]
-	if ok {
-		t.CancelledAt = util.Escape(now)
-		tm.Cancelled[id] = t
-		delete(tm.Scheduled, id)
-	}
-}
-func (tm *taskMap) SetDone(id string, now time.Time, err error) {
-	t, ok := tm.Scheduled[id]
-	if ok {
-		t.DoneAt = util.Escape(now)
-		if err != nil {
-			t.Err = err.Error()
-		}
-		tm.Done[id] = t
-		delete(tm.Scheduled, id)
-	}
-}
-func (tm *taskMap) Delete(id string) {
-	delete(tm.Scheduled, id)
-	delete(tm.Cancelled, id)
-	delete(tm.Done, id)
-}
-func (tm *taskMap) RemoveDone() {
-	tm.Done = make(map[string]*wrappedTask)
-}
-func (tm *taskMap) RemoveCancelled() {
-	tm.Cancelled = make(map[string]*wrappedTask)
-}
-
 type HeapRepository struct {
 	mu sync.RWMutex
 
@@ -160,7 +62,7 @@ func newHeapRepository(taskMap TaskMap) *HeapRepository {
 		timer:  common.NewTimerReal(),
 	}
 
-	if taskMap.IsZero() {
+	if !taskMap.IsInitialized() {
 		h.taskMap = newTaskMap()
 		return h
 	}
@@ -221,67 +123,30 @@ func (r *HeapRepository) GetById(id string) (scheduler.Task, error) {
 	return task, nil
 }
 
+func (r *HeapRepository) Delete(id string) (deleted bool, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	wrapped, ok := r.taskMap.Get(id)
+	if !ok {
+		return false, nil
+	}
+	if wrapped.Index >= 0 {
+		r.heap.Remove(wrapped.Index)
+	}
+	r.taskMap.Delete(id)
+	return true, nil
+}
+
 func (r *HeapRepository) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error) {
-	matched := make([]scheduler.Task, 0)
-
-	var maps []map[string]*wrappedTask
-	if t.DoneAt != nil {
-		maps = []map[string]*wrappedTask{r.taskMap.Done}
-	} else if t.CancelledAt != nil {
-		maps = []map[string]*wrappedTask{r.taskMap.Cancelled}
-	} else {
-		maps = []map[string]*wrappedTask{r.taskMap.Done, r.taskMap.Cancelled, r.taskMap.Scheduled}
-	}
-
-	for _, container := range maps {
-		for _, task := range container {
-			if task.Match(t) {
-				matched = append(matched, task.Task)
-			}
-		}
-	}
-
-	return matched, nil
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.taskMap.Find(t), nil
 }
 
 func (r *HeapRepository) FindMetaContain(matcher []scheduler.KeyValuePairMatcher) ([]scheduler.Task, error) {
-	out := make([]scheduler.Task, 0)
-
-	if len(matcher) == 0 {
-		return out, nil
-	}
-
-	for _, container := range [...]map[string]*wrappedTask{
-		r.taskMap.Done,
-		r.taskMap.Cancelled,
-		r.taskMap.Scheduled,
-	} {
-		for _, task := range container {
-			var i int
-			for i = 0; i < len(matcher); i++ {
-				if v, ok := task.Meta[matcher[i].Key]; ok {
-					matched := false
-					switch matcher[i].MatchTy {
-					case scheduler.HasKey:
-						matched = true
-					case scheduler.Exact:
-						matched = v == matcher[i].Value
-					case scheduler.Forward:
-						matched = strings.HasPrefix(v, matcher[i].Value)
-					case scheduler.Backward:
-						matched = strings.HasSuffix(v, matcher[i].Value)
-					case scheduler.Partial:
-						matched = strings.Contains(v, matcher[i].Value)
-					}
-					if matched {
-						out = append(out, task.Task)
-					}
-				}
-			}
-		}
-	}
-
-	return out, nil
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.taskMap.FindMetaContain(matcher), nil
 }
 
 func (r *HeapRepository) Update(id string, param scheduler.TaskParam) (updated bool, err error) {
@@ -304,12 +169,14 @@ func (r *HeapRepository) Update(id string, param scheduler.TaskParam) (updated b
 
 	wrapped.Task = wrapped.Task.Update(param, r.isMilliSecPrecise)
 
-	oldIndex := wrapped.Index
-	r.heap.Fix(wrapped.Index)
-	newIndex := wrapped.Index
+	if wrapped.Index >= 0 {
+		oldIndex := wrapped.Index
+		r.heap.Fix(wrapped.Index)
+		newIndex := wrapped.Index
 
-	if oldIndex != newIndex && (oldIndex == 0 || newIndex == 0) {
-		r.resetTimer()
+		if oldIndex != newIndex && (oldIndex == 0 || newIndex == 0) {
+			r.resetTimer()
+		}
 	}
 
 	return !wrapped.Task.Equal(old), nil
@@ -444,50 +311,25 @@ func (r *HeapRepository) TimerChannel() <-chan time.Time {
 	return r.timer.C()
 }
 
-func (r *HeapRepository) remove(done bool) map[string]scheduler.Task {
+func (r *HeapRepository) Remove(done, cancelled, deleted bool) TaskMap {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.timer.Stop()
 	defer r.resetTimer()
 
-	var target map[string]*wrappedTask
+	var out TaskMap
 	if done {
-		target = r.taskMap.Done
-	} else {
-		target = r.taskMap.Cancelled
+		out.Done = cloneUnwrapping(r.taskMap.RemoveDone())
+	}
+	if cancelled {
+		out.Cancelled = cloneUnwrapping(r.taskMap.RemoveCancelled())
+	}
+	if deleted {
+		out.Deleted = cloneUnwrapping(r.taskMap.RemoveDeleted())
 	}
 
-	ret := make(map[string]scheduler.Task, len(r.taskMap.Cancelled))
-	for id, task := range target {
-		ret[id] = task.Task
-	}
-
-	if done {
-		r.taskMap.RemoveDone()
-	} else {
-		r.taskMap.RemoveCancelled()
-	}
-
-	return ret
-}
-
-func (r *HeapRepository) RemoveCancelled() map[string]scheduler.Task {
-	return r.remove(false)
-}
-
-func (r *HeapRepository) RemoveDone() map[string]scheduler.Task {
-	return r.remove(true)
-}
-
-type TaskMap struct {
-	Scheduled map[string]scheduler.Task
-	Cancelled map[string]scheduler.Task
-	Done      map[string]scheduler.Task
-}
-
-func (tm TaskMap) IsZero() bool {
-	return tm.Scheduled == nil || tm.Cancelled == nil || tm.Done == nil
+	return out
 }
 
 func (r *HeapRepository) Dump() TaskMap {

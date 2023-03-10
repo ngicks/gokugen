@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -189,6 +190,14 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 	return updated, err
 }
 
+func (g *DefaultGormCore) Delete(id string) (deleted bool, err error) {
+	if id == "" {
+		return false, nil
+	}
+	result := g.db.Delete(&gormmodel.Task{Id: id})
+	return result.RowsAffected > 0, result.Error
+}
+
 func (g *DefaultGormCore) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error) {
 	matcher := gormmodel.FromTaskMatcher(t)
 
@@ -241,8 +250,15 @@ func (g *DefaultGormCore) FindMetaContain(matcher []scheduler.KeyValuePairMatche
 		switch kv.MatchTy {
 		case scheduler.HasKey:
 			tx = tx.Where(datatypes.JSONQuery("meta").HasKey(kv.Key))
-		case scheduler.Exact, scheduler.Forward, scheduler.Backward, scheduler.Partial:
+		case scheduler.Exact:
 			tx = tx.Where(datatypes.JSONQuery("meta").Equals(kv.Value, kv.Key))
+		case scheduler.Forward, scheduler.Backward, scheduler.Partial:
+			// TODO: handle correctly after this commit lands
+			// https://github.com/go-gorm/datatypes/commit/b3e966cc69f8d5c3e1aa45c61bd00226bd3ad0f5
+			return nil, fmt.Errorf(
+				"%w: not supported for %s",
+				scheduler.ErrNotSupported, kv.MatchTy,
+			)
 		default:
 			continue
 		}

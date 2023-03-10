@@ -1,10 +1,13 @@
 package scheduler
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // NeverExistentId is an id that is valid,
 // but must never be stored or never be generated inside the TaskRepository.
-// This is mainly for testing.
+// This sits here only for testing.
 var NeverExistentId = "%%%%$$$$%%%%$$$$%%%%$$$$"
 
 // TaskRepository is a combination of Repository and Timer interfaces.
@@ -14,9 +17,10 @@ type TaskRepository interface {
 }
 
 type RepositoryLike interface {
-	// AddTask adds a task based on param to the Repository, returning created Task.
+	// AddTask adds a task, which is configured by param, to the Repository.
 	// An implementation can utilize its own id creation rule for Task.Id.
 	// The implementation must not leave Id field empty.
+	// It finally returns a Task created inside it.
 	//
 	// An implementation might check param validity by calling param.IsInitialized,
 	// or might silently fall back to default ScheduledAt and/or WorkId values.
@@ -32,6 +36,9 @@ type RepositoryLike interface {
 	// Only tasks having been marked-as-dispatched can be marked-as-done.
 	MarkAsDone(id string, err error) error
 
+	// Delete deletes its content by the id.
+	// This package does not use this. This is here only for an unified interface of soft or hard deletion.
+	Delete(id string) (deleted bool, err error)
 	// Find finds tasks matching to matcher.
 	//
 	// Zero fields of matcher are considered as empty search conditions,
@@ -62,6 +69,22 @@ const (
 	Backward
 	Partial
 )
+
+func (t matchType) String() string {
+	switch t {
+	case HasKey:
+		return "HasKey"
+	case Exact:
+		return "Exact"
+	case Forward:
+		return "Forward"
+	case Backward:
+		return "Backward"
+	case Partial:
+		return "Partial"
+	}
+	return fmt.Sprintf("<unknown: %d>", t)
+}
 
 type TimerLike interface {
 	// StartTimer starts its internal timer.

@@ -76,6 +76,14 @@ func (r *Repository) Update(id string, param scheduler.TaskParam) (updated bool,
 	}
 	return updated, err
 }
+func (r *Repository) Delete(id string) (deleted bool, err error) {
+	deleted, err = r.Core.Delete(id)
+	if deleted && err == nil {
+		r.HookTimer.Delete(id)
+	}
+	return deleted, err
+}
+
 func (r *Repository) Find(matcher scheduler.TaskMatcher) ([]scheduler.Task, error) {
 	return r.Core.Find(matcher)
 }

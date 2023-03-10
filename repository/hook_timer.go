@@ -20,6 +20,7 @@ type HookTimer interface {
 	Cancel(id string)
 	MarkAsDispatched(id string)
 	Update(id string, param scheduler.TaskParam)
+	Delete(id string)
 	scheduler.TimerLike
 }
 
@@ -156,6 +157,17 @@ func (t *RepositoryTimer) Update(id string, param scheduler.TaskParam) {
 		_ = t.update()
 		return
 	}
+}
+
+func (t *RepositoryTimer) Delete(id string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.cachedMin.Id != "" && id != t.cachedMin.Id {
+		return
+	}
+
+	_ = t.update()
 }
 
 func (t *RepositoryTimer) StartTimer() {

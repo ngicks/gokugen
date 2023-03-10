@@ -43,6 +43,7 @@ func (s *Scheduler) AddTask(param TaskParam) (Task, error) {
 	if _, ok := s.workRegistry.Load(param.WorkId); !ok {
 		return Task{}, &ErrWorkIdNotFound{param}
 	}
+
 	return s.repo.AddTask(param)
 }
 
