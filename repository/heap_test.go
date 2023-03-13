@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var _ scheduler.TaskRepository = &HeapRepository{}
+var _ scheduler.TaskRepository = (*HeapRepository)(nil)
 
 func TestHeapAcceptance(t *testing.T) {
 	heap := NewHeapRepository()
@@ -55,51 +55,6 @@ func TestHeapClone(t *testing.T) {
 	// count must be larger than 10 or zero.
 	for _, count := range []int{0, 10, 100, 1000} {
 		testHeapCloneN(t, count)
-	}
-}
-
-func TestHeapRemoval(t *testing.T) {
-	require := require.New(t)
-
-	for i := 0; i <= 0b111; i++ {
-		removeFlag := [3]bool{i&0b100 > 0, i&0b010 > 0, i&0b001 > 0}
-
-		heap := NewHeapRepository()
-
-		err := populateHeap(heap, 2000)
-		require.NoError(err)
-
-		dumped := heap.Dump()
-		removed := heap.Remove(removeFlag[0], removeFlag[1], removeFlag[2])
-
-		require.Nil(removed.Scheduled)
-
-		testRemoved := func(removed bool, m map[string]scheduler.Task) {
-			t.Helper()
-			if removed {
-				require.NotNil(m)
-			} else {
-				require.Nil(m)
-			}
-		}
-
-		testRemoved(removeFlag[0], removed.Done)
-		testRemoved(removeFlag[1], removed.Cancelled)
-		testRemoved(removeFlag[2], removed.Deleted)
-
-		testEquality := func(removed bool, left, right map[string]scheduler.Task) {
-			t.Helper()
-			diff := cmp.Diff(left, right)
-			if removed && diff != "" {
-				t.Fatalf("not equal. diff = %s", diff)
-			} else if !removed && diff == "" {
-				t.Fatalf("must not equal.")
-			}
-		}
-
-		testEquality(removeFlag[0], dumped.Done, removed.Done)
-		testEquality(removeFlag[1], dumped.Cancelled, removed.Cancelled)
-		testEquality(removeFlag[2], dumped.Deleted, removed.Deleted)
 	}
 }
 

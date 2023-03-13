@@ -11,22 +11,41 @@ import (
 	"github.com/ngicks/type-param-common/util"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-var _ scheduler.RepositoryLike = &DefaultGormCore{}
+var _ scheduler.RepositoryLike = (*DefaultGormCore)(nil)
 
 type DefaultGormCore struct {
 	db        *gorm.DB
 	timer     common.Timer
 	nowGetter common.NowGetter
+
+	softDelete bool
 }
 
-func NewDefaultGormCore(db *gorm.DB) *DefaultGormCore {
-	return &DefaultGormCore{
+type defaultGormOption func(g *DefaultGormCore)
+
+// SetSoftDelete returns option func that sets g's soft deletion mode.
+// true for soft deletion, and vice versa.
+func SetSoftDelete(softDelete bool) defaultGormOption {
+	return func(g *DefaultGormCore) {
+		g.softDelete = softDelete
+	}
+}
+
+func NewDefaultGormCore(db *gorm.DB, opts ...defaultGormOption) *DefaultGormCore {
+	g := &DefaultGormCore{
 		db:        db,
 		timer:     common.NewTimerReal(),
 		nowGetter: common.NowGetterReal{},
 	}
+
+	for _, opt := range opts {
+		opt(g)
+	}
+
+	return g
 }
 
 func (g *DefaultGormCore) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
@@ -188,14 +207,6 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 		}
 	}
 	return updated, err
-}
-
-func (g *DefaultGormCore) Delete(id string) (deleted bool, err error) {
-	if id == "" {
-		return false, nil
-	}
-	result := g.db.Delete(&gormmodel.Task{Id: id})
-	return result.RowsAffected > 0, result.Error
 }
 
 func (g *DefaultGormCore) Find(t scheduler.TaskMatcher) ([]scheduler.Task, error) {
@@ -398,5 +409,87 @@ func (g *DefaultGormCore) GetNextMany() ([]gormmodel.Task, error) {
 		return t, nil
 	}
 	return nil, &scheduler.RepositoryError{Kind: scheduler.Empty}
+}
 
+var _ scheduler.DispatchedReverter = (*DefaultGormCore)(nil)
+
+func (g *DefaultGormCore) RevertDispatched() error {
+	err := g.db.
+		Where("dispatched_at IS NOT NULL AND cancelled_at IS NULL AND done_at IS NULL").
+		Update("dispatched_at", nil).
+		Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+const (
+	cancelledDeleteQuery = "cancelled_at IS NOT NULL AND cancelled_at < ?"
+	doneDeletedQuery     = "done_at IS NOT NULL AND done_at < ?"
+)
+
+var _ scheduler.BeforeDeleter = (*DefaultGormCore)(nil)
+
+func (g *DefaultGormCore) DeleteBefore(before time.Time, returning bool) (scheduler.Deleted, error) {
+	var (
+		deleted         scheduler.Deleted
+		cancelled, done []gormmodel.Task
+	)
+
+	if returning {
+		cancelled = make([]gormmodel.Task, 0)
+		done = make([]gormmodel.Task, 0)
+
+		if err := g.db.Where(cancelledDeleteQuery, before).Find(&cancelled).Error; err != nil {
+			return scheduler.Deleted{}, err
+		}
+		if err := g.db.Where(doneDeletedQuery, before).Find(&done).Error; err != nil {
+			return scheduler.Deleted{}, err
+		}
+	}
+
+	tx := g.db
+	if !g.softDelete {
+		tx = tx.Unscoped()
+	}
+
+	result := tx.
+		Where(cancelledDeleteQuery, before).
+		Or(doneDeletedQuery, before).
+		Delete(&gormmodel.Task{})
+
+	if returning && result.Error == nil {
+		deleted.Cancelled = make(map[string]scheduler.Task, len(cancelled))
+		deleted.Done = make(map[string]scheduler.Task, len(done))
+
+		for _, task := range cancelled {
+			deleted.Cancelled[task.Id] = task.ToTask()
+		}
+		for _, task := range done {
+			deleted.Done[task.Id] = task.ToTask()
+		}
+	}
+
+	return deleted, result.Error
+}
+
+// HardDelete deletes soft-deleted tasks.
+func (g *DefaultGormCore) HardDelete(returning bool) ([]gormmodel.Task, error) {
+	deleted := make([]gormmodel.Task, 0)
+
+	tx := g.db
+	if returning {
+		tx = tx.Clauses(clause.Returning{})
+	}
+
+	err := tx.
+		Unscoped().
+		Where("deleted_at IS NOT NULL").
+		Delete(&deleted).
+		Error
+	if err != nil {
+		return nil, err
+	}
+	return deleted, nil
 }

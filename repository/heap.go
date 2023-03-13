@@ -8,39 +8,8 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/gommon/pkg/common"
 	"github.com/ngicks/type-param-common/heap"
-	"github.com/ngicks/type-param-common/slice"
 	"github.com/ngicks/type-param-common/util"
 )
-
-type wrappedTask struct {
-	scheduler.Task
-	Index int
-}
-
-func (t *wrappedTask) Less(i, j *wrappedTask) bool {
-	return i.Task.Less(j.Task)
-}
-
-func (t *wrappedTask) Swap(slice *slice.Stack[*wrappedTask], i, j int) {
-	(*slice)[i], (*slice)[j] = (*slice)[j], (*slice)[i]
-	(*slice)[i].Index = i
-	(*slice)[j].Index = j
-}
-
-func (t *wrappedTask) Push(slice *slice.Stack[*wrappedTask], v *wrappedTask) {
-	v.Index = slice.Len()
-	slice.Push(v)
-}
-
-func (t *wrappedTask) Pop(slice *slice.Stack[*wrappedTask]) *wrappedTask {
-	popped, ok := slice.Pop()
-	if !ok {
-		// let it panic here, with out of range message.
-		_ = (*(*[]*wrappedTask)(slice))[slice.Len()-1]
-	}
-	popped.Index = -1
-	return popped
-}
 
 type HeapRepository struct {
 	mu sync.RWMutex
@@ -311,30 +280,26 @@ func (r *HeapRepository) TimerChannel() <-chan time.Time {
 	return r.timer.C()
 }
 
-func (r *HeapRepository) Remove(done, cancelled, deleted bool) TaskMap {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.timer.Stop()
-	defer r.resetTimer()
-
-	var out TaskMap
-	if done {
-		out.Done = cloneUnwrapping(r.taskMap.RemoveDone())
-	}
-	if cancelled {
-		out.Cancelled = cloneUnwrapping(r.taskMap.RemoveCancelled())
-	}
-	if deleted {
-		out.Deleted = cloneUnwrapping(r.taskMap.RemoveDeleted())
-	}
-
-	return out
-}
-
 func (r *HeapRepository) Dump() TaskMap {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	return r.taskMap.Dump()
+}
+
+var _ scheduler.DispatchedReverter = (*HeapRepository)(nil)
+
+func (r *HeapRepository) RevertDispatched() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.taskMap.RevertDispatched()
+	return nil
+}
+
+var _ scheduler.BeforeDeleter = (*HeapRepository)(nil)
+
+func (r *HeapRepository) DeleteBefore(before time.Time, returning bool) (scheduler.Deleted, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.taskMap.DeleteBefore(before, returning), nil
 }

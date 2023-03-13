@@ -7,6 +7,7 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/type-param-common/util"
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type Task struct {
@@ -19,9 +20,10 @@ type Task struct {
 	CancelledAt  *time.Time     `json:"cancelled_at,omitempty"`
 	DispatchedAt *time.Time     `json:"dispatched_at,omitempty"`
 	DoneAt       *time.Time     `json:"done_at,omitempty"`
-	Err          string         `json:"err"`
-	Meta         datatypes.JSON `json:"meta" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	UpdatedAt    int64          `gorm:"autoUpdateTime:milli"`
+	Err          string         `json:"err,omitempty"`
+	Meta         datatypes.JSON `json:"meta"`
+	UpdatedAt    int64          `json:"updated_at,omitempty" gorm:"autoUpdateTime:milli"`
+	DeletedAt    gorm.DeletedAt `json:"deleted_at,omitempty"`
 }
 
 func FromTask(t scheduler.Task) Task {

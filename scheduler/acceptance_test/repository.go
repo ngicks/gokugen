@@ -1,27 +1,15 @@
 package acceptancetest
 
 import (
-	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/ngicks/gokugen/scheduler"
 )
 
-func randParam(scheduledAt time.Time) scheduler.TaskParam {
-	p := int(rand.Int31())
-
-	return scheduler.TaskParam{
-		ScheduledAt: scheduledAt,
-		WorkId:      "foo",
-		Param:       RandByte(),
-		Priority:    &p,
-		Meta:        map[string]string{"metameta": "metameta"},
-	}
-}
-
 type RepositoryTestConfig struct {
-	FindMetaContain FindMetaContainTestConfig
+	FindMetaContain  FindMetaContainTestConfig
+	DeleteBefore     bool
+	RevertDispatched bool
 }
 
 // TestRepository is an exported acceptance test which calls all relevant tests defined within this package.
@@ -126,6 +114,18 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository, cfg RepositoryT
 			cfg.FindMetaContain,
 		)
 	})
+
+	if cfg.RevertDispatched {
+		t.Run("RevertDispatched", func(t *testing.T) {
+			TestRepository_RevertDispatched(t, repo)
+		})
+	}
+
+	if cfg.DeleteBefore {
+		t.Run("DeleteBefore", func(t *testing.T) {
+			TestRepository_DeleteBefore(t, repo)
+		})
+	}
 
 	t.Run("normal usecase, sequence of AddTask, Pop, MarkAsDispatched,"+
 		" and MarkAsFailed or MarkAsDone",

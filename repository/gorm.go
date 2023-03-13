@@ -7,13 +7,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func NewGorm(db *gorm.DB, hookTimer HookTimer) (*Repository, error) {
-	core := NewDefaultGormCore(db)
+func NewGorm(db *gorm.DB, hookTimer HookTimer, opts ...defaultGormOption) (*Repository[*DefaultGormCore], error) {
+	core := NewDefaultGormCore(db, opts...)
 
 	return New(core, hookTimer), nil
 }
 
-func NewSqlite3(dbPath string, opts ...gorm.Option) (*Repository, error) {
+func NewSqlite3(dbPath string, opts ...gorm.Option) (*Repository[*DefaultGormCore], error) {
 	db, err := gorm.Open(sqlite.Open(dbPath), opts...)
 	if err != nil {
 		return nil, err

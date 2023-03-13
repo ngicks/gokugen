@@ -18,7 +18,7 @@ func init() {
 	scheduler.RegisterMeta(doneKey)
 }
 
-var _ Scheduler = &scheduler.Scheduler{}
+var _ Scheduler = (*scheduler.Scheduler)(nil)
 
 // Scheduler is an interface compatible with scheduler.Scheduler.
 // This allows wrapped schedulers.

@@ -31,7 +31,7 @@ func newWorkFn(
 	}
 }
 
-var _ workerpool.WorkExecuter[string, workFn] = &executor{}
+var _ workerpool.WorkExecuter[string, workFn] = (*executor)(nil)
 
 type executor struct {
 	workRegistry scheduler.WorkRegistry
@@ -87,7 +87,7 @@ type WorkerPool interface {
 	Wait()
 }
 
-var _ scheduler.Dispatcher = &WorkerPoolDispatcher{}
+var _ scheduler.Dispatcher = (*WorkerPoolDispatcher)(nil)
 
 // WorkerPoolDispatcher is an in-memory worker pool backed dispatcher.
 type WorkerPoolDispatcher struct {

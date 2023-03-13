@@ -7,15 +7,17 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 )
 
+var _ scheduler.TaskRepository = (*Repository[scheduler.RepositoryLike])(nil)
+
 // Repository is a thin wrapper that connects scheduler.RepositoryLike and HookTimer.
 // Every mutation is observed and that would update the timer if necessary.
-type Repository struct {
-	Core      scheduler.RepositoryLike
+type Repository[T scheduler.RepositoryLike] struct {
+	Core      T
 	HookTimer HookTimer
 }
 
-func New(core scheduler.RepositoryLike, hookTimer HookTimer) *Repository {
-	r := &Repository{
+func New[T scheduler.RepositoryLike](core T, hookTimer HookTimer) *Repository[T] {
+	r := &Repository[T]{
 		Core:      core,
 		HookTimer: hookTimer,
 	}
@@ -23,7 +25,7 @@ func New(core scheduler.RepositoryLike, hookTimer HookTimer) *Repository {
 	return r
 }
 
-func (r *Repository) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
+func (r *Repository[T]) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
 	if !param.IsInitialized() {
 		return scheduler.Task{}, fmt.Errorf("input param is not initialized")
 	}
@@ -38,67 +40,60 @@ func (r *Repository) AddTask(param scheduler.TaskParam) (scheduler.Task, error) 
 	return t, nil
 }
 
-func (r *Repository) Cancel(id string) (cancelled bool, err error) {
+func (r *Repository[T]) Cancel(id string) (cancelled bool, err error) {
 	cancelled, err = r.Core.Cancel(id)
 	if err == nil {
 		r.HookTimer.Cancel(id)
 	}
 	return cancelled, err
 }
-func (r *Repository) GetById(id string) (scheduler.Task, error) {
+func (r *Repository[T]) GetById(id string) (scheduler.Task, error) {
 	t, err := r.Core.GetById(id)
 	if err != nil {
 		return scheduler.Task{}, err
 	}
 	return t, nil
 }
-func (r *Repository) GetNext() (scheduler.Task, error) {
+func (r *Repository[T]) GetNext() (scheduler.Task, error) {
 	t, err := r.Core.GetNext()
 	if err != nil {
 		return scheduler.Task{}, err
 	}
 	return t, nil
 }
-func (r *Repository) MarkAsDispatched(id string) error {
+func (r *Repository[T]) MarkAsDispatched(id string) error {
 	err := r.Core.MarkAsDispatched(id)
 	if err == nil {
 		r.HookTimer.MarkAsDispatched(id)
 	}
 	return err
 }
-func (r *Repository) MarkAsDone(id string, err error) error {
+func (r *Repository[T]) MarkAsDone(id string, err error) error {
 	return r.Core.MarkAsDone(id, err)
 }
-func (r *Repository) Update(id string, param scheduler.TaskParam) (updated bool, err error) {
+func (r *Repository[T]) Update(id string, param scheduler.TaskParam) (updated bool, err error) {
 	updated, err = r.Core.Update(id, param)
 	if err == nil {
 		r.HookTimer.Update(id, param)
 	}
 	return updated, err
 }
-func (r *Repository) Delete(id string) (deleted bool, err error) {
-	deleted, err = r.Core.Delete(id)
-	if deleted && err == nil {
-		r.HookTimer.Delete(id)
-	}
-	return deleted, err
-}
 
-func (r *Repository) Find(matcher scheduler.TaskMatcher) ([]scheduler.Task, error) {
+func (r *Repository[T]) Find(matcher scheduler.TaskMatcher) ([]scheduler.Task, error) {
 	return r.Core.Find(matcher)
 }
-func (r *Repository) FindMetaContain(matcher []scheduler.KeyValuePairMatcher) ([]scheduler.Task, error) {
+func (r *Repository[T]) FindMetaContain(matcher []scheduler.KeyValuePairMatcher) ([]scheduler.Task, error) {
 	return r.Core.FindMetaContain(matcher)
 }
 
-func (r *Repository) StartTimer() {
+func (r *Repository[T]) StartTimer() {
 	r.HookTimer.StartTimer()
 }
 
-func (r *Repository) StopTimer() {
+func (r *Repository[T]) StopTimer() {
 	r.HookTimer.StopTimer()
 }
 
-func (r *Repository) TimerChannel() <-chan time.Time {
+func (r *Repository[T]) TimerChannel() <-chan time.Time {
 	return r.HookTimer.TimerChannel()
 }

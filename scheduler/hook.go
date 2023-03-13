@@ -44,7 +44,7 @@ type PartialHook struct {
 	OnTaskDone      func(task Task, err error)
 }
 
-var _ LoopHooks = &ChainHook{}
+var _ LoopHooks = (*ChainHook)(nil)
 
 // ChainHook is series of PartialHook-s.
 // All of non-nil PartialHook methods are called with inputs in the normal iteration order of slice.

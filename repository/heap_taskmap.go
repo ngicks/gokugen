@@ -12,11 +12,10 @@ type TaskMap struct {
 	Scheduled map[string]scheduler.Task
 	Cancelled map[string]scheduler.Task
 	Done      map[string]scheduler.Task
-	Deleted   map[string]scheduler.Task
 }
 
 func (tm TaskMap) IsInitialized() bool {
-	return tm.Scheduled != nil && tm.Cancelled != nil && tm.Done != nil && tm.Deleted != nil
+	return tm.Scheduled != nil && tm.Cancelled != nil && tm.Done != nil
 }
 
 // taskMap is map-like part of HeapRepository.
@@ -26,7 +25,6 @@ type taskMap struct {
 	Scheduled map[string]*wrappedTask
 	Done      map[string]*wrappedTask
 	Cancelled map[string]*wrappedTask
-	Deleted   map[string]*wrappedTask
 }
 
 func newTaskMap(size ...int) taskMap {
@@ -39,12 +37,11 @@ func newTaskMap(size ...int) taskMap {
 		Scheduled: make(map[string]*wrappedTask, mapSize[0]),
 		Done:      make(map[string]*wrappedTask, mapSize[1]),
 		Cancelled: make(map[string]*wrappedTask, mapSize[2]),
-		Deleted:   make(map[string]*wrappedTask, mapSize[3]),
 	}
 }
 
 func fromExternal(tm TaskMap) taskMap {
-	ret := newTaskMap(len(tm.Scheduled), len(tm.Done), len(tm.Cancelled), len(tm.Deleted))
+	ret := newTaskMap(len(tm.Scheduled), len(tm.Done), len(tm.Cancelled))
 
 	for id, task := range tm.Scheduled {
 		ret.Scheduled[id] = &wrappedTask{Task: task, Index: -1}
@@ -55,14 +52,42 @@ func fromExternal(tm TaskMap) taskMap {
 	for id, task := range tm.Done {
 		ret.Done[id] = &wrappedTask{Task: task, Index: -1}
 	}
-	for id, task := range tm.Deleted {
-		ret.Deleted[id] = &wrappedTask{Task: task, Index: -1}
-	}
+
 	return ret
 }
 
+// Init re-establish invariants. The complexity is O(N) where N >= len(Scheduled) + len(Done) + len(Cancelled)
 func (tm *taskMap) Init() {
-
+	for id, t := range tm.Scheduled {
+		if t.CancelledAt != nil || t.DoneAt != nil {
+			delete(tm.Scheduled, id)
+			if t.CancelledAt != nil {
+				tm.Cancelled[id] = t
+			} else if t.DoneAt != nil {
+				tm.Done[id] = t
+			}
+		}
+	}
+	for id, t := range tm.Cancelled {
+		if t.CancelledAt == nil {
+			delete(tm.Cancelled, id)
+			if t.DoneAt != nil {
+				tm.Done[id] = t
+			} else {
+				tm.Scheduled[id] = t
+			}
+		}
+	}
+	for id, t := range tm.Done {
+		if t.DoneAt == nil {
+			delete(tm.Done, id)
+			if t.CancelledAt != nil {
+				tm.Cancelled[id] = t
+			} else {
+				tm.Scheduled[id] = t
+			}
+		}
+	}
 }
 
 func (tm taskMap) Dump() TaskMap {
@@ -70,7 +95,6 @@ func (tm taskMap) Dump() TaskMap {
 		Scheduled: cloneUnwrapping(tm.Scheduled),
 		Cancelled: cloneUnwrapping(tm.Cancelled),
 		Done:      cloneUnwrapping(tm.Done),
-		Deleted:   cloneUnwrapping(tm.Deleted),
 	}
 }
 
@@ -89,7 +113,7 @@ func copyUnwrapping(dst map[string]scheduler.Task, src map[string]*wrappedTask) 
 }
 
 func (tm taskMap) IsInitialized() bool {
-	return tm.Scheduled != nil && tm.Cancelled != nil && tm.Done != nil && tm.Deleted != nil
+	return tm.Scheduled != nil && tm.Cancelled != nil && tm.Done != nil
 }
 
 func (tm *taskMap) Get(id string) (task *wrappedTask, ok bool) {
@@ -131,14 +155,9 @@ func (tm *taskMap) SetDone(id string, now time.Time, err error) {
 }
 
 func (tm *taskMap) Delete(id string) {
-	t, ok := tm.Get(id)
-	if !ok {
-		return
-	}
 	delete(tm.Scheduled, id)
 	delete(tm.Cancelled, id)
 	delete(tm.Done, id)
-	tm.Deleted[id] = t
 }
 
 func (tm *taskMap) RemoveDone() map[string]*wrappedTask {
@@ -150,12 +169,6 @@ func (tm *taskMap) RemoveDone() map[string]*wrappedTask {
 func (tm *taskMap) RemoveCancelled() map[string]*wrappedTask {
 	out := tm.Cancelled
 	tm.Cancelled = make(map[string]*wrappedTask)
-	return out
-}
-
-func (tm *taskMap) RemoveDeleted() map[string]*wrappedTask {
-	out := tm.Deleted
-	tm.Deleted = make(map[string]*wrappedTask)
 	return out
 }
 
@@ -220,4 +233,40 @@ func (tm *taskMap) FindMetaContain(matcher []scheduler.KeyValuePairMatcher) []sc
 	}
 
 	return out
+}
+
+func (tm *taskMap) RevertDispatched() {
+	for _, t := range tm.Scheduled {
+		if t.DispatchedAt != nil {
+			t.DispatchedAt = nil
+		}
+	}
+}
+
+func (tm *taskMap) DeleteBefore(before time.Time, returning bool) scheduler.Deleted {
+	var deleted scheduler.Deleted
+
+	if returning {
+		deleted.Cancelled = make(map[string]scheduler.Task)
+		deleted.Done = make(map[string]scheduler.Task)
+	}
+
+	for _, t := range tm.Cancelled {
+		if t.CancelledAt.Before(before) {
+			if returning {
+				deleted.Cancelled[t.Id] = t.Task
+			}
+			delete(tm.Cancelled, t.Id)
+		}
+	}
+	for _, t := range tm.Done {
+		if t.DoneAt.Before(before) {
+			if returning {
+				deleted.Done[t.Id] = t.Task
+			}
+			delete(tm.Done, t.Id)
+		}
+	}
+
+	return deleted
 }

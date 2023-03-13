@@ -1,6 +1,7 @@
 package acceptancetest
 
 import (
+	"math/rand"
 	"sort"
 	"testing"
 	"time"
@@ -8,6 +9,18 @@ import (
 	"github.com/ngicks/gokugen/scheduler"
 	"github.com/ngicks/type-param-common/slice"
 )
+
+func randParam(scheduledAt time.Time) scheduler.TaskParam {
+	p := int(rand.Int31())
+
+	return scheduler.TaskParam{
+		ScheduledAt: scheduledAt,
+		WorkId:      "foo",
+		Param:       RandByte(),
+		Priority:    &p,
+		Meta:        map[string]string{"metameta": "metameta"},
+	}
+}
 
 func addFarFutureTask(
 	repo scheduler.TaskRepository,

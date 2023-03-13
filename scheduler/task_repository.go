@@ -36,9 +36,6 @@ type RepositoryLike interface {
 	// Only tasks having been marked-as-dispatched can be marked-as-done.
 	MarkAsDone(id string, err error) error
 
-	// Delete deletes its content by the id.
-	// This package does not use this. This is here only for an unified interface of soft or hard deletion.
-	Delete(id string) (deleted bool, err error)
 	// Find finds tasks matching to matcher.
 	//
 	// Zero fields of matcher are considered as empty search conditions,
@@ -100,4 +97,28 @@ type TimerLike interface {
 	// The timer can be either of started, or stopped state.
 	// It will emits if and only if in started state.
 	TimerChannel() <-chan time.Time
+}
+
+// DispatchedReverter is an optional interface for RepositoryLike implementations.
+// A single process scheduler might use this on process start up.
+type DispatchedReverter interface {
+	// RevertDispatched sets nil to DispatchedAt field of those which are not cancelled, done, yet dispatched.
+	// A single process scheduler may call this to recover abandoned tasks which might have been caused by
+	// interrupt/kill signals or power failures.
+	RevertDispatched() error
+}
+
+// BeforeDeleter is an optional interface for Repository implementations.
+// This is a suggestion for an unified interface of deletion.
+type BeforeDeleter interface {
+	// DeleteBefore deletes done or cancelled tasks before before.
+	// It returns Deleted with non-nil fields only if returning is true, otherwise all fields are nil.
+	//
+	// This package does not use this. This is here only for an unified interface of soft or hard deletion.
+	DeleteBefore(before time.Time, returning bool) (Deleted, error)
+}
+
+type Deleted struct {
+	Cancelled map[string]Task
+	Done      map[string]Task
 }

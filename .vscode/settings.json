@@ -5,6 +5,7 @@
     "atomicstate",
     "corge",
     "datatypes",
+    "Deleter",
     "Deque",
     "Desync",
     "eventqueue",

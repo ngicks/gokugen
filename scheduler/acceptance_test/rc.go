@@ -7,6 +7,9 @@ import (
 // oneYearLater is far-future time.
 var oneYearLater = TruncatedNow().AddDate(1, 0, 0)
 
+// oneYearBefore is fat-past time. Used for test of DeleteBefore.
+var oneYearBefore = oneYearLater.AddDate(-2, 0, 0)
+
 type ParamAndFiller struct {
 	Param scheduler.TaskParam
 	// Filler fills fields which are non-zero in TaskParam with random valid value.
