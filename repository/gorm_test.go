@@ -4,17 +4,22 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/ngicks/gokugen/scheduler"
 	acceptancetest "github.com/ngicks/gokugen/scheduler/acceptance_test"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
-const inMemoryDb = "file::memory:?cache=shared"
+const (
+	inMemoryDb       = "file::memory:"
+	sharedInMemoryDb = "file::memory:?cache=shared"
+)
 
 func getDbFilename() string {
 	if e := os.Getenv("GOKUGEN_SQLITE3_INMEMORY"); e != "" && e != "0" {
@@ -32,39 +37,57 @@ func getDbFilename() string {
 }
 
 func TestGormAcceptance(t *testing.T) {
-	sqliteFilename := getDbFilename()
+	var (
+		lock      sync.Mutex
+		filenames []string
+	)
 
-	t.Logf("%s", sqliteFilename)
+	factory := func() scheduler.TaskRepository {
+		sqliteFilename := getDbFilename()
+
+		newLogger := logger.New(
+			log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+			logger.Config{
+				SlowThreshold:             time.Second, // Slow SQL threshold
+				LogLevel:                  logger.Info, // Log level
+				IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
+				Colorful:                  false,       // Disable color
+			},
+		)
+
+		conf := &gorm.Config{
+			Logger: newLogger,
+		}
+
+		repo, err := NewSqlite3(sqliteFilename, conf)
+		if err != nil {
+			panic(err)
+		}
+
+		t.Log(sqliteFilename)
+
+		lock.Lock()
+		filenames = append(filenames, sqliteFilename)
+		lock.Unlock()
+
+		return repo
+	}
 
 	defer func() {
-		if sqliteFilename != inMemoryDb {
-			os.Remove(sqliteFilename)
-			os.Remove(filepath.Dir(sqliteFilename))
+		lock.Lock()
+		defer lock.Unlock()
+		for _, filename := range filenames {
+			if filename != inMemoryDb {
+				os.Remove(filename)
+				os.Remove(filepath.Dir(filename))
+			}
 		}
 	}()
 
-	newLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
-		logger.Config{
-			SlowThreshold:             time.Second, // Slow SQL threshold
-			LogLevel:                  logger.Info, // Log level
-			IgnoreRecordNotFoundError: true,        // Ignore ErrRecordNotFound error for logger
-			Colorful:                  false,       // Disable color
-		},
-	)
-
-	t.Logf("%+v\n", newLogger)
-
-	conf := &gorm.Config{
-		Logger: newLogger,
-	}
-
-	repo, err := NewSqlite3(sqliteFilename, conf)
-	if err != nil {
-		panic(err)
-	}
-
-	acceptancetest.TestRepository(t, repo, acceptancetest.RepositoryTestConfig{})
+	acceptancetest.TestRepository(t, factory, acceptancetest.RepositoryTestConfig{
+		DeleteBefore:     true,
+		RevertDispatched: true,
+	})
 }
 
 func TestGormReconnect(t *testing.T) {
@@ -72,10 +95,14 @@ func TestGormReconnect(t *testing.T) {
 
 	sqliteFilename := getDbFilename()
 
+	if sqliteFilename == inMemoryDb {
+		sqliteFilename = sharedInMemoryDb
+	}
+
 	t.Logf("%s", sqliteFilename)
 
 	defer func() {
-		if sqliteFilename != inMemoryDb {
+		if sqliteFilename != sharedInMemoryDb {
 			os.Remove(sqliteFilename)
 		}
 	}()

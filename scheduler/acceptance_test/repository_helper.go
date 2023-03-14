@@ -35,6 +35,51 @@ func addFarFutureTask(
 	}
 }
 
+func addTasks(t *testing.T, repo scheduler.RepositoryLike, params []scheduler.TaskParam) []scheduler.Task {
+	t.Helper()
+	tasks := make([]scheduler.Task, len(params))
+	for idx, p := range params {
+		task, err := repo.AddTask(p)
+		if err != nil {
+			t.Fatalf("AddTask must not return error. err = %+v", err)
+		}
+		tasks[idx] = task
+	}
+	return tasks
+}
+
+func assertTasksExist(t *testing.T, repo scheduler.RepositoryLike, tasks []scheduler.Task, exist bool) {
+	notFound := make([]string, 0)
+
+	for _, task := range tasks {
+		_, err := repo.GetById(task.Id)
+		if err != nil {
+			if scheduler.IsIdNotFound(err) {
+				notFound = append(notFound, task.Id)
+			} else {
+				t.Fatalf("assertTasksExist: GetById must not return error. err = %+v", err)
+			}
+		}
+	}
+
+	if exist && len(notFound) > 0 {
+		t.Fatalf("assertTasksExist: some id could not be found. ids = %+v", notFound)
+	}
+	if !exist && len(notFound) != len(tasks) {
+		found := make([]string, len(tasks)-len(notFound))
+		for _, task := range tasks {
+			if !slice.Has(notFound, task.Id) {
+				found = append(found, task.Id)
+			}
+		}
+		t.Fatalf(
+			"assertTasksExist: ids must not exist in repository but found some."+
+				" found ids = %+v, not found = %+v",
+			found, notFound,
+		)
+	}
+}
+
 type updateNonUpdatableTaskOption string
 
 var (

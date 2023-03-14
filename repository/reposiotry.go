@@ -47,6 +47,7 @@ func (r *Repository[T]) Cancel(id string) (cancelled bool, err error) {
 	}
 	return cancelled, err
 }
+
 func (r *Repository[T]) GetById(id string) (scheduler.Task, error) {
 	t, err := r.Core.GetById(id)
 	if err != nil {
@@ -54,6 +55,7 @@ func (r *Repository[T]) GetById(id string) (scheduler.Task, error) {
 	}
 	return t, nil
 }
+
 func (r *Repository[T]) GetNext() (scheduler.Task, error) {
 	t, err := r.Core.GetNext()
 	if err != nil {
@@ -61,6 +63,7 @@ func (r *Repository[T]) GetNext() (scheduler.Task, error) {
 	}
 	return t, nil
 }
+
 func (r *Repository[T]) MarkAsDispatched(id string) error {
 	err := r.Core.MarkAsDispatched(id)
 	if err == nil {
@@ -68,9 +71,11 @@ func (r *Repository[T]) MarkAsDispatched(id string) error {
 	}
 	return err
 }
+
 func (r *Repository[T]) MarkAsDone(id string, err error) error {
 	return r.Core.MarkAsDone(id, err)
 }
+
 func (r *Repository[T]) Update(id string, param scheduler.TaskParam) (updated bool, err error) {
 	updated, err = r.Core.Update(id, param)
 	if err == nil {
@@ -82,8 +87,28 @@ func (r *Repository[T]) Update(id string, param scheduler.TaskParam) (updated bo
 func (r *Repository[T]) Find(matcher scheduler.TaskMatcher) ([]scheduler.Task, error) {
 	return r.Core.Find(matcher)
 }
+
 func (r *Repository[T]) FindMetaContain(matcher []scheduler.KeyValuePairMatcher) ([]scheduler.Task, error) {
 	return r.Core.FindMetaContain(matcher)
+}
+
+func (r *Repository[T]) RevertDispatched() error {
+	if del, ok := any(r.Core).(scheduler.DispatchedReverter); ok {
+		return del.RevertDispatched()
+	}
+	// Should we panic on this?
+	return nil
+}
+
+func (r *Repository[T]) DeleteBefore(before time.Time, returning bool) (scheduler.Deleted, error) {
+	if del, ok := any(r.Core).(scheduler.BeforeDeleter); ok {
+		return del.DeleteBefore(before, returning)
+	}
+	// Should we panic on this?
+	return scheduler.Deleted{
+		Cancelled: make(map[string]scheduler.Task),
+		Done:      make(map[string]scheduler.Task),
+	}, nil
 }
 
 func (r *Repository[T]) StartTimer() {

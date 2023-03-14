@@ -259,6 +259,7 @@ func (tm *taskMap) DeleteBefore(before time.Time, returning bool) scheduler.Dele
 			delete(tm.Cancelled, t.Id)
 		}
 	}
+
 	for _, t := range tm.Done {
 		if t.DoneAt.Before(before) {
 			if returning {

@@ -9,17 +9,20 @@ import (
 type RepositoryTestConfig struct {
 	FindMetaContain  FindMetaContainTestConfig
 	DeleteBefore     bool
-	RevertDispatched bool
+	RevertDispatched bool // Setting RevertDispatched true let TestRepository test that optional method.
 }
 
 // TestRepository is an exported acceptance test which calls all relevant tests defined within this package.
-// An implementation would only be considered as a conformant if it passes this test.
+// An implementation would only be considered as a conformant if it passed this test.
 // Each individual tests, which are functions prefixed with TestRepository_, are exported only for debugging purpose.
 //
 // Implementations may call this test with their own implementation in their own test file.
+// Some, not all, tests needs a fresh repository instance for each test case.
+// For those, repoFactory must return a newly created empty repository.
 //
 // Some of interface's feature is optional. Callers can utilize cfg to enable tests for those optional functionalities.
-func TestRepository(t *testing.T, repo scheduler.TaskRepository, cfg RepositoryTestConfig) {
+func TestRepository(t *testing.T, repoFactory func() scheduler.TaskRepository, cfg RepositoryTestConfig) {
+	repo := repoFactory()
 	now := TruncatedNow()
 
 	t.Run("GetNext on empty Repository returns Empty Repository Error", func(t *testing.T) {
@@ -123,7 +126,7 @@ func TestRepository(t *testing.T, repo scheduler.TaskRepository, cfg RepositoryT
 
 	if cfg.DeleteBefore {
 		t.Run("DeleteBefore", func(t *testing.T) {
-			TestRepository_DeleteBefore(t, repo)
+			TestRepository_DeleteBefore(t, repoFactory())
 		})
 	}
 

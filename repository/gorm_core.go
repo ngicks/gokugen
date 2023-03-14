@@ -399,7 +399,7 @@ func (g *DefaultGormCore) GetNextMany() ([]gormmodel.Task, error) {
 		Where("dispatched_at IS NULL").
 		Where("done_at IS NULL").
 		Order("scheduled_at asc, priority desc").
-		Limit(10).
+		Limit(100).
 		Find(&t)
 
 	if result.Error != nil {
@@ -415,6 +415,7 @@ var _ scheduler.DispatchedReverter = (*DefaultGormCore)(nil)
 
 func (g *DefaultGormCore) RevertDispatched() error {
 	err := g.db.
+		Model(&gormmodel.Task{}).
 		Where("dispatched_at IS NOT NULL AND cancelled_at IS NULL AND done_at IS NULL").
 		Update("dispatched_at", nil).
 		Error

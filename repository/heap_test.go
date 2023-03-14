@@ -19,16 +19,17 @@ import (
 var _ scheduler.TaskRepository = (*HeapRepository)(nil)
 
 func TestHeapAcceptance(t *testing.T) {
-	heap := NewHeapRepository()
 	acceptancetest.TestRepository(
 		t,
-		heap,
+		func() scheduler.TaskRepository { return NewHeapRepository() },
 		acceptancetest.RepositoryTestConfig{
 			FindMetaContain: acceptancetest.FindMetaContainTestConfig{
 				Forward:  true,
 				Backward: true,
 				Partial:  true,
 			},
+			RevertDispatched: true,
+			DeleteBefore:     true,
 		},
 	)
 }

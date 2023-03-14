@@ -7,9 +7,11 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen/scheduler"
+	"github.com/ngicks/helper"
+	"github.com/stretchr/testify/require"
 )
 
-var params []scheduler.TaskParam
+var revertDispatchedParams []scheduler.TaskParam
 
 func init() {
 	for i := 0; i < 5; i++ {
@@ -21,39 +23,39 @@ func init() {
 
 		// Tasks being dispatched indicates they've reached their scheduled time.
 		// But implementations must not place the assumption.
-		params = append(params, randParam(time.UnixMilli(rand.Int63())))
+		revertDispatchedParams = append(
+			revertDispatchedParams,
+			randParam(time.UnixMilli(rand.Int63n(253402300799999))),
+		)
 	}
 }
 
 func TestRepository_RevertDispatched(t *testing.T, repo scheduler.TaskRepository) {
+	require := require.New(t)
+	// fail fast: If caller breaks invariants
+	// where repo must implements scheduler.DispatchedReverter,
+	// then panic first.
 	rev := repo.(scheduler.DispatchedReverter)
 
-	tasks := make([]scheduler.Task, len(params))
-	for idx, p := range params {
-		task, err := repo.AddTask(p)
-		if err != nil {
-			t.Fatalf("AddTask must not return error. err = %+v", err)
+	tasks := addTasks(t, repo, revertDispatchedParams)
+	defer func() {
+		// clean up.
+		for _, task := range tasks {
+			_, _ = repo.Cancel(task.Id)
 		}
-		tasks[idx] = task
-	}
+	}()
 
-	checkErr := func(f func() error) {
-		t.Helper()
-		if err := f(); err != nil {
-			t.Fatalf("An unexpected error. err = %+v", err)
-		}
-	}
 	// 0 = scheduled. Not yet dispatched.
 	// 1 = dispatched
-	checkErr(func() error { return repo.MarkAsDispatched(tasks[1].Id) })
+	require.NoError(repo.MarkAsDispatched(tasks[1].Id))
 	// 2 = done
-	checkErr(func() error { return repo.MarkAsDispatched(tasks[2].Id) })
-	checkErr(func() error { return repo.MarkAsDone(tasks[2].Id, nil) })
+	require.NoError(repo.MarkAsDispatched(tasks[2].Id))
+	require.NoError(repo.MarkAsDone(tasks[2].Id, nil))
 	// 3 = done with error
-	checkErr(func() error { return repo.MarkAsDispatched(tasks[3].Id) })
-	checkErr(func() error { return repo.MarkAsDone(tasks[3].Id, errors.New("faked error")) })
+	require.NoError(repo.MarkAsDispatched(tasks[3].Id))
+	require.NoError(repo.MarkAsDone(tasks[3].Id, errors.New("faked error")))
 	// 4 = cancelled
-	checkErr(func() error { _, err := repo.Cancel(tasks[4].Id); return err })
+	require.NoError(helper.ExtractError(repo.Cancel(tasks[4].Id)))
 
 	err := rev.RevertDispatched()
 	if err != nil {
@@ -67,10 +69,13 @@ func TestRepository_RevertDispatched(t *testing.T, repo scheduler.TaskRepository
 			t.Fatalf("GetById returned an error. err = %+v", err)
 		}
 
-		if mustReverted && fetched.DispatchedAt != nil {
+		before := task.DispatchedAt != nil
+		after := fetched.DispatchedAt != nil
+		// mustReverted indicates the task must be affected by the operation.
+		if mustReverted && before == after && fetched.DispatchedAt != nil {
 			t.Fatalf("The task is expected to be reverted to scheduled. task = %+v", fetched)
 		}
-		if !mustReverted && fetched.DispatchedAt == nil {
+		if !mustReverted && before != after && fetched.DispatchedAt == nil {
 			t.Fatalf("The task is expected not to be reverted to scheduled. task = %+v", fetched)
 		}
 	}
@@ -81,7 +86,4 @@ func TestRepository_RevertDispatched(t *testing.T, repo scheduler.TaskRepository
 		checkReverted(task, false)
 	}
 
-	for _, task := range tasks {
-		_, _ = repo.Cancel(task.Id)
-	}
 }

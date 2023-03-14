@@ -111,7 +111,7 @@ type DispatchedReverter interface {
 // BeforeDeleter is an optional interface for Repository implementations.
 // This is a suggestion for an unified interface of deletion.
 type BeforeDeleter interface {
-	// DeleteBefore deletes done or cancelled tasks before before.
+	// DeleteBefore deletes tasks become done or cancelled before before.
 	// It returns Deleted with non-nil fields only if returning is true, otherwise all fields are nil.
 	//
 	// This package does not use this. This is here only for an unified interface of soft or hard deletion.
