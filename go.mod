@@ -11,6 +11,7 @@ require (
 	github.com/ngicks/gommon/pkg/lockmap v0.0.1-alpha2
 	github.com/ngicks/gommon/pkg/randstr v0.0.1
 	github.com/ngicks/gommon/pkg/timing v0.0.4
+	github.com/ngicks/helper v0.0.0-20230314120156-0c55d9a32a53
 	github.com/ngicks/type-param-common v0.2.0
 	github.com/ngicks/workerpool v0.0.1-alpha3
 	github.com/robfig/cron/v3 v3.0.1
@@ -32,7 +33,6 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
-	github.com/ngicks/helper v0.0.0-20230314120156-0c55d9a32a53 // indirect
 	github.com/ngicks/locker v0.0.0-20230116102153-fda89107dea5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
