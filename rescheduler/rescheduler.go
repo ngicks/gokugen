@@ -1,7 +1,6 @@
 package rescheduler
 
 import (
-	"encoding/json"
 	"errors"
 	"time"
 
@@ -9,13 +8,17 @@ import (
 )
 
 const (
-	metaKey = "github.com/ngicks/gokugen/rescheduler"
-	doneKey = "github.com/ngicks/gokugen/rescheduler/done"
+	metaKeyId       = "github.com/ngicks/gokugen/rescheduler:id"
+	metaKeyParam    = "github.com/ngicks/gokugen/rescheduler:param"
+	metaKeyDone     = "github.com/ngicks/gokugen/rescheduler:done"
+	metaKeyParentId = "github.com/ngicks/gokugen/rescheduler:parent_id"
 )
 
 func init() {
-	scheduler.RegisterMeta(metaKey)
-	scheduler.RegisterMeta(doneKey)
+	scheduler.RegisterMeta(metaKeyId)
+	scheduler.RegisterMeta(metaKeyParam)
+	scheduler.RegisterMeta(metaKeyDone)
+	scheduler.RegisterMeta(metaKeyParentId)
 }
 
 var _ Scheduler = (*scheduler.Scheduler)(nil)
@@ -24,6 +27,7 @@ var _ Scheduler = (*scheduler.Scheduler)(nil)
 // This allows wrapped schedulers.
 type Scheduler interface {
 	AddTask(param scheduler.TaskParam) (scheduler.Task, error)
+	Update(id string, param scheduler.TaskParam) error
 	AddOnTaskDone(fn *func(task scheduler.Task, err error))
 	RemoveOnTaskDone(fn *func(task scheduler.Task, err error))
 }
@@ -69,10 +73,10 @@ func New(sched Scheduler, rule RescheduleRule, opts ...Option) *Rescheduler {
 	return r
 }
 
-func (r *Rescheduler) AddTask(
+func (r *Rescheduler) AddTaskWithReschedule(
+	param scheduler.TaskParam,
 	ruleId string,
 	from time.Time,
-	param scheduler.TaskParam,
 ) (scheduler.Task, error) {
 	param = param.Clone()
 
@@ -81,62 +85,22 @@ func (r *Rescheduler) AddTask(
 		return scheduler.Task{}, &RuleNotFoundErr{ruleId}
 	}
 
-	return r.step(ruleId, rule.Initial(from), param)
-}
+	reschedParam := rule.Initial(from)
 
-func (r *Rescheduler) step(
-	ruleId string,
-	oldParam []byte,
-	taskParam scheduler.TaskParam,
-) (scheduler.Task, error) {
-	t, err := r.stepInner(ruleId, oldParam, taskParam)
-	r.hook.OnReschedule(t, err)
-	return t, err
-}
+	param.Meta[metaKeyId] = ruleId
+	param.Meta[metaKeyParam] = string(reschedParam)
+	param.Meta[metaKeyDone] = "false"
+	param.Meta[metaKeyParentId] = ""
 
-func (r *Rescheduler) stepInner(
-	ruleId string,
-	oldParam []byte,
-	taskParam scheduler.TaskParam,
-) (scheduler.Task, error) {
-	rule, ok := r.rule[ruleId]
-	if !ok {
-		return scheduler.Task{}, &RuleNotFoundErr{ruleId}
-	}
-
-	nextTime, nextParam, err := rule.Next(oldParam)
-	if err != nil {
-		return scheduler.Task{}, &RuleNextErr{ruleId, oldParam, err}
-	}
-
-	bin, err := json.Marshal(RescheduleMeta{ruleId, nextParam})
-	if err != nil {
-		// this must not happen.
-		panic(err)
-	}
-
-	taskParam.ScheduledAt = nextTime
-	taskParam.Meta[metaKey] = string(bin)
-
-	task, err := r.sched.AddTask(taskParam)
-	r.hook.OnReschedule(task, err)
-	return task, nil
-}
-
-func (r *Rescheduler) Down() {
-	if r.cb == nil {
-		return
-	}
-	r.sched.RemoveOnTaskDone(r.cb)
-	r.cb = nil
+	return r.sched.AddTask(param)
 }
 
 func (r *Rescheduler) onTaskDone(task scheduler.Task, err error) {
-	metaData, ok := task.Meta[metaKey]
+	rescheduleId, param, done, _, ok := GetMeta(task.Meta)
 	if !ok {
 		return
 	}
-	if task.Meta[doneKey] == "done" {
+	if done == "true" {
 		return
 	}
 
@@ -148,12 +112,66 @@ func (r *Rescheduler) onTaskDone(task scheduler.Task, err error) {
 		}
 	}
 
-	var meta RescheduleMeta
-	err = json.Unmarshal([]byte(metaData), &meta)
-	if err != nil {
-		r.hook.OnReschedule(scheduler.Task{}, &MetaUnmarshalErr{err, task})
-		return
+	newTask, err := r.reschedule(task, rescheduleId, param)
+	r.hook.OnReschedule(newTask, err)
+}
+
+// GetMeta retrieves rescheduling related meta data from task.Meta.
+func GetMeta(meta map[string]string) (rescheduleId, param, done, parentId string, ok bool) {
+	rescheduleId, ok = meta[metaKeyId]
+	if !ok {
+		return "", "", "", "", false
+	}
+	param, ok = meta[metaKeyParam]
+	if !ok {
+		return "", "", "", "", false
+	}
+	done, ok = meta[metaKeyDone]
+	if !ok {
+		return "", "", "", "", false
+	}
+	parentId, ok = meta[metaKeyParentId]
+	if !ok {
+		return "", "", "", "", false
+	}
+	return rescheduleId, param, done, parentId, true
+}
+
+func (r *Rescheduler) reschedule(
+	oldTask scheduler.Task, rescheduleId, param string,
+) (scheduler.Task, error) {
+	rule, ok := r.rule[rescheduleId]
+	if !ok {
+		return scheduler.Task{}, &RuleNotFoundErr{rescheduleId}
 	}
 
-	_, _ = r.step(meta.Id, meta.Param, task.ToParam().Clone())
+	nextTime, nextParam, err := rule.Next([]byte(param))
+	if err != nil {
+		return scheduler.Task{}, &RuleNextErr{rescheduleId, []byte(param), err}
+	}
+
+	newParam := oldTask.ToParam().Clone()
+	newParam.ScheduledAt = nextTime
+
+	newParam.Meta[metaKeyParentId] = oldTask.Id
+	newParam.Meta[metaKeyParam] = string(nextParam)
+
+	newTask, err := r.sched.AddTask(newParam)
+	if err != nil {
+		return scheduler.Task{}, err
+	}
+
+	updatedToDone := oldTask.ToParam().Clone().Meta
+	updatedToDone[metaKeyDone] = "true"
+	_ = r.sched.Update(oldTask.Id, scheduler.TaskParam{Meta: updatedToDone})
+
+	return newTask, nil
+}
+
+func (r *Rescheduler) Down() {
+	if r.cb == nil {
+		return
+	}
+	r.sched.RemoveOnTaskDone(r.cb)
+	r.cb = nil
 }

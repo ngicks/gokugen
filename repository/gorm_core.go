@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ type DefaultGormCore struct {
 
 type defaultGormOption func(g *DefaultGormCore)
 
-// SetSoftDelete returns option func that sets g's soft deletion mode.
+// SetSoftDelete returns an option func that sets g's soft deletion mode.
 // true for soft deletion, and vice versa.
 func SetSoftDelete(softDelete bool) defaultGormOption {
 	return func(g *DefaultGormCore) {
@@ -49,7 +50,7 @@ func NewDefaultGormCore(db *gorm.DB, opts ...defaultGormOption) *DefaultGormCore
 }
 
 func (g *DefaultGormCore) AddTask(param scheduler.TaskParam) (scheduler.Task, error) {
-	t := gormmodel.FromTask(param.ToTask(false))
+	t := gormmodel.FromTask(param.ToTask(true))
 	t.Id = uuid.NewString()
 
 	result := g.db.Create(&t)
@@ -123,7 +124,7 @@ func (g *DefaultGormCore) update(
 	tx = composeWhere(g.db, tx, selected)
 
 	if grouped != nil {
-		innerTx := g.db.Where("")
+		innerTx := g.db
 		innerTx = composeWhere(g.db, innerTx, grouped)
 		tx = tx.Where(innerTx)
 	}
@@ -176,21 +177,19 @@ func (g *DefaultGormCore) Update(id string, param scheduler.TaskParam) (updated 
 	task := gormmodel.FromTask(param.ToTask(false))
 
 	grouped := make([]columnSelection, 0, 5)
-	if !param.ScheduledAt.IsZero() {
-		grouped = append(grouped, columnSelection{column: "scheduled_at", value: task.ScheduledAt, selected: true, chainTy: notOr})
+	appendGrouped := func(column string, v any) {
+		grouped = append(grouped, columnSelection{column: column, value: v, selected: true, chainTy: notOr})
 	}
-	if param.WorkId != "" {
-		grouped = append(grouped, columnSelection{column: "work_id", value: task.WorkId, selected: true, chainTy: notOr})
-	}
-	if param.Param != nil {
-		grouped = append(grouped, columnSelection{column: "param", value: task.Param, selected: true, chainTy: notOr})
-	}
-	if param.Priority != nil {
-		grouped = append(grouped, columnSelection{column: "priority", value: param.Priority, selected: true, chainTy: notOr})
-	}
-	if param.Meta != nil {
-		grouped = append(grouped, columnSelection{column: "meta", value: task.Meta, selected: true, chainTy: notOr})
-	}
+	gormmodel.TaskMatcher{
+		Task:     task,
+		Priority: param.Priority,
+	}.VisitNonZero(gormmodel.TaskVisitor{
+		ScheduledAt: func(v time.Time) { appendGrouped("`scheduled_at`", v) },
+		WorkId:      func(v string) { appendGrouped("`work_id`", v) },
+		Param:       func(v string) { appendGrouped("`param`", v) },
+		Priority:    func(v *int) { appendGrouped("`priority`", v) },
+		Meta:        func(v datatypes.JSON) { appendGrouped("`meta`", v) },
+	})
 
 	updated, err = g.update(id, selected, grouped, task)
 	if err != nil {
@@ -263,9 +262,15 @@ func (g *DefaultGormCore) FindMetaContain(matcher []scheduler.KeyValuePairMatche
 			tx = tx.Where(datatypes.JSONQuery("meta").HasKey(kv.Key))
 		case scheduler.Exact:
 			tx = tx.Where(datatypes.JSONQuery("meta").Equals(kv.Value, kv.Key))
+		// case scheduler.Forward:
+		// 	tx = tx.Where(`? LIKE ?`, datatypes.JSONQuery("meta").Extract(kv.Key), kv.Value+"%")
+		// case scheduler.Backward:
+		// 	tx = tx.Where(`? LIKE ?`, datatypes.JSONQuery("meta").Extract(kv.Key), "%"+kv.Value)
+		// case scheduler.Partial:
+		// 	tx = tx.Where(`? LIKE ?`, datatypes.JSONQuery("meta").Extract(kv.Key), "%"+kv.Value+"%")
 		case scheduler.Forward, scheduler.Backward, scheduler.Partial:
-			// TODO: handle correctly after this commit lands
-			// https://github.com/go-gorm/datatypes/commit/b3e966cc69f8d5c3e1aa45c61bd00226bd3ad0f5
+			// TODO: handle correctly after this problem is fixed
+			// https://github.com/go-gorm/datatypes/pull/197
 			return nil, fmt.Errorf(
 				"%w: not supported for %s",
 				scheduler.ErrNotSupported, kv.MatchTy,
@@ -438,29 +443,34 @@ func (g *DefaultGormCore) DeleteBefore(before time.Time, returning bool) (schedu
 		cancelled, done []gormmodel.Task
 	)
 
-	if returning {
-		cancelled = make([]gormmodel.Task, 0)
-		done = make([]gormmodel.Task, 0)
+	err := g.db.Transaction(func(tx *gorm.DB) error {
+		if returning {
+			cancelled = make([]gormmodel.Task, 0)
+			done = make([]gormmodel.Task, 0)
 
-		if err := g.db.Where(cancelledDeleteQuery, before).Find(&cancelled).Error; err != nil {
-			return scheduler.Deleted{}, err
+			if err := g.db.Where(cancelledDeleteQuery, before).Find(&cancelled).Error; err != nil {
+				return err
+			}
+			if err := g.db.Where(doneDeletedQuery, before).Find(&done).Error; err != nil {
+				return err
+			}
 		}
-		if err := g.db.Where(doneDeletedQuery, before).Find(&done).Error; err != nil {
-			return scheduler.Deleted{}, err
+
+		if !g.softDelete {
+			tx = tx.Unscoped()
 		}
-	}
 
-	tx := g.db
-	if !g.softDelete {
-		tx = tx.Unscoped()
-	}
+		result := tx.
+			Where(cancelledDeleteQuery, before).
+			Or(doneDeletedQuery, before).
+			Delete(&gormmodel.Task{})
 
-	result := tx.
-		Where(cancelledDeleteQuery, before).
-		Or(doneDeletedQuery, before).
-		Delete(&gormmodel.Task{})
+		return result.Error
+	}, &sql.TxOptions{
+		Isolation: sql.LevelReadCommitted,
+	})
 
-	if returning && result.Error == nil {
+	if returning && err == nil {
 		deleted.Cancelled = make(map[string]scheduler.Task, len(cancelled))
 		deleted.Done = make(map[string]scheduler.Task, len(done))
 
@@ -472,7 +482,7 @@ func (g *DefaultGormCore) DeleteBefore(before time.Time, returning bool) (schedu
 		}
 	}
 
-	return deleted, result.Error
+	return deleted, err
 }
 
 // HardDelete deletes soft-deleted tasks.
@@ -489,6 +499,7 @@ func (g *DefaultGormCore) HardDelete(returning bool) ([]gormmodel.Task, error) {
 		Where("deleted_at IS NOT NULL").
 		Delete(&deleted).
 		Error
+
 	if err != nil {
 		return nil, err
 	}

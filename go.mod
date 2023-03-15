@@ -17,8 +17,8 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.1
 	github.com/tidwall/gjson v1.14.4
-	gorm.io/datatypes v1.1.0
-	gorm.io/gorm v1.24.3
+	gorm.io/datatypes v1.1.1
+	gorm.io/gorm v1.24.6
 )
 
 require (
@@ -42,7 +42,7 @@ require (
 	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d // indirect
 	golang.org/x/sys v0.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/driver/mysql v1.4.4 // indirect
+	gorm.io/driver/mysql v1.4.7 // indirect
 	modernc.org/libc v1.22.2 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect

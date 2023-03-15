@@ -27,6 +27,10 @@ func (s *noopScheduler) AddTask(param scheduler.TaskParam) (scheduler.Task, erro
 	return param.ToTask(true), nil
 }
 
+func (s *noopScheduler) Update(id string, param scheduler.TaskParam) error {
+	return nil
+}
+
 func (s *noopScheduler) AddOnTaskDone(fn *func(task scheduler.Task, err error)) {
 	s.set.Add(fn)
 }
@@ -89,7 +93,7 @@ func TestRescheduler_New_and_Down(t *testing.T) {
 	}
 
 	meta := map[string]string{
-		metaKey: string(util.Must(json.Marshal(RescheduleMeta{Id: "foo", Param: []byte{}}))),
+		metaKeyId: string(util.Must(json.Marshal(RescheduleMeta{Id: "foo", Param: []byte{}}))),
 	}
 	for _, cb := range noopSched.set.Values().Collect() {
 		(*cb)(scheduler.Task{Meta: meta}, errors.New("foo"))

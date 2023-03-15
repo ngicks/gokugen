@@ -85,6 +85,11 @@ func TestGormAcceptance(t *testing.T) {
 	}()
 
 	acceptancetest.TestRepository(t, factory, acceptancetest.RepositoryTestConfig{
+		FindMetaContain: acceptancetest.FindMetaContainTestConfig{
+			// Forward:  true,
+			// Backward: true,
+			// Partial:  true,
+		},
 		DeleteBefore:     true,
 		RevertDispatched: true,
 	})

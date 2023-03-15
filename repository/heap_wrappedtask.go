@@ -5,6 +5,7 @@ import (
 	"github.com/ngicks/type-param-common/slice"
 )
 
+// wrappedTask is scheduler.Task with Index of heap slice and associated heap functions.
 type wrappedTask struct {
 	scheduler.Task
 	Index int

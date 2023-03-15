@@ -49,19 +49,11 @@ func (r *Repository[T]) Cancel(id string) (cancelled bool, err error) {
 }
 
 func (r *Repository[T]) GetById(id string) (scheduler.Task, error) {
-	t, err := r.Core.GetById(id)
-	if err != nil {
-		return scheduler.Task{}, err
-	}
-	return t, nil
+	return r.Core.GetById(id)
 }
 
 func (r *Repository[T]) GetNext() (scheduler.Task, error) {
-	t, err := r.Core.GetNext()
-	if err != nil {
-		return scheduler.Task{}, err
-	}
-	return t, nil
+	return r.Core.GetNext()
 }
 
 func (r *Repository[T]) MarkAsDispatched(id string) error {
