@@ -22,16 +22,22 @@ type Repository interface {
 	// Implementations must not leave Id field empty.
 	// It finally returns a Task created inside it.
 	//
-	// Implementations might check param validity by calling param.IsInitialized,
-	// or might silently fall back to default ScheduledAt and/or WorkId values.
+	// Implementations must test param validity by calling param.ToTask(true).IsValid().
+	// If param is invalid, AddTask returns ErrInvalidTask or
+	// an error which includes ErrInvalidTask in its error chain.
 	AddTask(ctx context.Context, param TaskParam) (Task, error)
 	GetById(ctx context.Context, id string) (Task, error)
-	// Update updates a task specified by id with param.
+	// UpdateById updates a task specified by id with param.
 	// Every None fields are considered as `no update` for that field.
-	Update(ctx context.Context, id string, param TaskParam) (updated bool, err error)
+	UpdateById(ctx context.Context, id string, param TaskParam) error
+	Update(
+		ctx context.Context,
+		matcher SearchMatcher,
+		param TaskParam,
+	) (rowsAffected int, err error)
 	// Cancel changes a task specified by id to cancelled state.
 	// It only succeeds when the task is not yet dispatched nor done.
-	Cancel(ctx context.Context, id string) (cancelled bool, err error)
+	Cancel(ctx context.Context, id string) error
 
 	MarkAsDispatched(ctx context.Context, id string) error
 	// MarkAsDone marks the id as done. if err is non-nil, task is marked as failed.
@@ -41,30 +47,10 @@ type Repository interface {
 	// Find finds tasks matching to matcher.
 	//
 	// Every None fields are considered as empty search conditions.
-	Find(ctx context.Context, matcher SearchMatcher) ([]Task, error)
+	Find(ctx context.Context, matcher SearchMatcher, offset, limit int) ([]Task, error)
 	// GetNext returns a next scheduled Task without changing repository contents.
 	// GetNext must not return a cancelled, dispatched or done task.
 	GetNext(ctx context.Context) (Task, error)
-}
-
-type KeyValuePairMatcher struct {
-	Key     string
-	Value   string
-	MatchTy matchType
-}
-
-type matchType string
-
-const (
-	HasKey   matchType = "HasKey"
-	Exact    matchType = "Exact"
-	Forward  matchType = "Forward"
-	Backward matchType = "Backward"
-	Middle   matchType = "Middle"
-)
-
-func (t matchType) String() string {
-	return string(t)
 }
 
 type TimerLike interface {

@@ -19,7 +19,6 @@ type TaskParam struct {
 	DispatchedAt option.Option[option.Option[time.Time]] `json:"dispatched_at"`
 	DoneAt       option.Option[option.Option[time.Time]] `json:"done_at"`
 	Err          option.Option[string]                   `json:"err"`
-	Meta         option.Option[map[string]string]        `json:"meta"`
 }
 
 func (p TaskParam) ToTask(ignoreMicro bool) Task {
@@ -28,11 +27,6 @@ func (p TaskParam) ToTask(ignoreMicro bool) Task {
 
 func (p TaskParam) Clone() TaskParam {
 	p.Param = p.Param.Map(
-		func(v map[string]string) map[string]string {
-			return maps.Clone(v)
-		},
-	)
-	p.Meta = p.Meta.Map(
 		func(v map[string]string) map[string]string {
 			return maps.Clone(v)
 		},
@@ -66,6 +60,39 @@ func (t TaskParam) TruncTime() TaskParam {
 
 type SearchMatcher struct {
 	TaskParam
-	Param option.Option[[]KeyValuePairMatcher] `json:"param"`
-	Meta  option.Option[[]KeyValuePairMatcher] `json:"meta"`
+	Id    option.Option[string]       `json:"id"`
+	Param option.Option[[]MapMatcher] `json:"param"`
+	Meta  option.Option[[]MapMatcher] `json:"meta"`
 }
+
+type MapMatcher struct {
+	Key     string
+	Value   string
+	MatchTy matchType
+}
+
+type matchType string
+
+const (
+	MapMatcherHasKey   matchType = "HasKey"
+	MapMatcherExact    matchType = "Exact"
+	MapMatcherForward  matchType = "Forward"
+	MapMatcherBackward matchType = "Backward"
+	MapMatcherMiddle   matchType = "Middle"
+)
+
+func (t matchType) String() string {
+	return string(t)
+}
+
+type MapUpdateParam struct {
+	Val  string
+	OpTy mapUpdateOpType
+}
+
+type mapUpdateOpType string
+
+const (
+	MapUpdateRemoveKey mapUpdateOpType = "RemoveKey"
+	MapUpdateSetKey    mapUpdateOpType = "SetKey"
+)

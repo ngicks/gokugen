@@ -146,7 +146,18 @@ func (t Task) Update(param TaskParam, ignoreMicro bool) Task {
 		t.WorkId = param.WorkId.Value()
 	}
 	if param.Param.IsSome() {
-		t.Param = param.Param.Value()
+		paramUpdater := param.Param.Value()
+		if t.Param == nil && len(paramUpdater) > 0 {
+			t.Param = map[string]string{}
+		}
+		for k, v := range paramUpdater {
+			switch v.OpTy {
+			case MapUpdateRemoveKey:
+				delete(t.Param, k)
+			case MapUpdateSetKey:
+				t.Param[k] = v.Val
+			}
+		}
 	}
 	if param.Priority.IsSome() {
 		t.Priority = param.Priority.Value()
@@ -173,7 +184,18 @@ func (t Task) Update(param TaskParam, ignoreMicro bool) Task {
 		t.Err = param.Err.Value()
 	}
 	if param.Meta.IsSome() {
-		t.Meta = param.Meta.Value()
+		metaUpdater := param.Meta.Value()
+		if t.Meta == nil && len(metaUpdater) > 0 {
+			t.Meta = map[string]string{}
+		}
+		for k, v := range metaUpdater {
+			switch v.OpTy {
+			case MapUpdateRemoveKey:
+				delete(t.Meta, k)
+			case MapUpdateSetKey:
+				t.Meta[k] = v.Val
+			}
+		}
 	}
 
 	if ignoreMicro {
