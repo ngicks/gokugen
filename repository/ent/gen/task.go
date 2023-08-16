@@ -30,6 +30,8 @@ type Task struct {
 	ScheduledAt time.Time `json:"scheduled_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
+	// Deadline holds the value of the "deadline" field.
+	Deadline *time.Time `json:"deadline,omitempty"`
 	// CancelledAt holds the value of the "cancelled_at" field.
 	CancelledAt *time.Time `json:"cancelled_at,omitempty"`
 	// DispatchedAt holds the value of the "dispatched_at" field.
@@ -37,7 +39,7 @@ type Task struct {
 	// DoneAt holds the value of the "done_at" field.
 	DoneAt *time.Time `json:"done_at,omitempty"`
 	// Err holds the value of the "err" field.
-	Err *string `json:"err,omitempty"`
+	Err string `json:"err,omitempty"`
 	// Meta holds the value of the "meta" field.
 	Meta         map[string]string `json:"meta,omitempty"`
 	selectValues sql.SelectValues
@@ -54,7 +56,7 @@ func (*Task) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case task.FieldID, task.FieldWorkID, task.FieldState, task.FieldErr:
 			values[i] = new(sql.NullString)
-		case task.FieldScheduledAt, task.FieldCreatedAt, task.FieldCancelledAt, task.FieldDispatchedAt, task.FieldDoneAt:
+		case task.FieldScheduledAt, task.FieldCreatedAt, task.FieldDeadline, task.FieldCancelledAt, task.FieldDispatchedAt, task.FieldDoneAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -115,6 +117,13 @@ func (t *Task) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				t.CreatedAt = value.Time
 			}
+		case task.FieldDeadline:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deadline", values[i])
+			} else if value.Valid {
+				t.Deadline = new(time.Time)
+				*t.Deadline = value.Time
+			}
 		case task.FieldCancelledAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field cancelled_at", values[i])
@@ -140,8 +149,7 @@ func (t *Task) assignValues(columns []string, values []any) error {
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field err", values[i])
 			} else if value.Valid {
-				t.Err = new(string)
-				*t.Err = value.String
+				t.Err = value.String
 			}
 		case task.FieldMeta:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -205,6 +213,11 @@ func (t *Task) String() string {
 	builder.WriteString("created_at=")
 	builder.WriteString(t.CreatedAt.Format(time.ANSIC))
 	builder.WriteString(", ")
+	if v := t.Deadline; v != nil {
+		builder.WriteString("deadline=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
 	if v := t.CancelledAt; v != nil {
 		builder.WriteString("cancelled_at=")
 		builder.WriteString(v.Format(time.ANSIC))
@@ -220,10 +233,8 @@ func (t *Task) String() string {
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")
-	if v := t.Err; v != nil {
-		builder.WriteString("err=")
-		builder.WriteString(*v)
-	}
+	builder.WriteString("err=")
+	builder.WriteString(t.Err)
 	builder.WriteString(", ")
 	builder.WriteString("meta=")
 	builder.WriteString(fmt.Sprintf("%v", t.Meta))

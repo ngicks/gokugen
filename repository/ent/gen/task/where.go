@@ -84,6 +84,11 @@ func CreatedAt(v time.Time) predicate.Task {
 	return predicate.Task(sql.FieldEQ(FieldCreatedAt, v))
 }
 
+// Deadline applies equality check predicate on the "deadline" field. It's identical to DeadlineEQ.
+func Deadline(v time.Time) predicate.Task {
+	return predicate.Task(sql.FieldEQ(FieldDeadline, v))
+}
+
 // CancelledAt applies equality check predicate on the "cancelled_at" field. It's identical to CancelledAtEQ.
 func CancelledAt(v time.Time) predicate.Task {
 	return predicate.Task(sql.FieldEQ(FieldCancelledAt, v))
@@ -309,6 +314,56 @@ func CreatedAtLTE(v time.Time) predicate.Task {
 	return predicate.Task(sql.FieldLTE(FieldCreatedAt, v))
 }
 
+// DeadlineEQ applies the EQ predicate on the "deadline" field.
+func DeadlineEQ(v time.Time) predicate.Task {
+	return predicate.Task(sql.FieldEQ(FieldDeadline, v))
+}
+
+// DeadlineNEQ applies the NEQ predicate on the "deadline" field.
+func DeadlineNEQ(v time.Time) predicate.Task {
+	return predicate.Task(sql.FieldNEQ(FieldDeadline, v))
+}
+
+// DeadlineIn applies the In predicate on the "deadline" field.
+func DeadlineIn(vs ...time.Time) predicate.Task {
+	return predicate.Task(sql.FieldIn(FieldDeadline, vs...))
+}
+
+// DeadlineNotIn applies the NotIn predicate on the "deadline" field.
+func DeadlineNotIn(vs ...time.Time) predicate.Task {
+	return predicate.Task(sql.FieldNotIn(FieldDeadline, vs...))
+}
+
+// DeadlineGT applies the GT predicate on the "deadline" field.
+func DeadlineGT(v time.Time) predicate.Task {
+	return predicate.Task(sql.FieldGT(FieldDeadline, v))
+}
+
+// DeadlineGTE applies the GTE predicate on the "deadline" field.
+func DeadlineGTE(v time.Time) predicate.Task {
+	return predicate.Task(sql.FieldGTE(FieldDeadline, v))
+}
+
+// DeadlineLT applies the LT predicate on the "deadline" field.
+func DeadlineLT(v time.Time) predicate.Task {
+	return predicate.Task(sql.FieldLT(FieldDeadline, v))
+}
+
+// DeadlineLTE applies the LTE predicate on the "deadline" field.
+func DeadlineLTE(v time.Time) predicate.Task {
+	return predicate.Task(sql.FieldLTE(FieldDeadline, v))
+}
+
+// DeadlineIsNil applies the IsNil predicate on the "deadline" field.
+func DeadlineIsNil() predicate.Task {
+	return predicate.Task(sql.FieldIsNull(FieldDeadline))
+}
+
+// DeadlineNotNil applies the NotNil predicate on the "deadline" field.
+func DeadlineNotNil() predicate.Task {
+	return predicate.Task(sql.FieldNotNull(FieldDeadline))
+}
+
 // CancelledAtEQ applies the EQ predicate on the "cancelled_at" field.
 func CancelledAtEQ(v time.Time) predicate.Task {
 	return predicate.Task(sql.FieldEQ(FieldCancelledAt, v))
@@ -512,16 +567,6 @@ func ErrHasPrefix(v string) predicate.Task {
 // ErrHasSuffix applies the HasSuffix predicate on the "err" field.
 func ErrHasSuffix(v string) predicate.Task {
 	return predicate.Task(sql.FieldHasSuffix(FieldErr, v))
-}
-
-// ErrIsNil applies the IsNil predicate on the "err" field.
-func ErrIsNil() predicate.Task {
-	return predicate.Task(sql.FieldIsNull(FieldErr))
-}
-
-// ErrNotNil applies the NotNil predicate on the "err" field.
-func ErrNotNil() predicate.Task {
-	return predicate.Task(sql.FieldNotNull(FieldErr))
 }
 
 // ErrEqualFold applies the EqualFold predicate on the "err" field.

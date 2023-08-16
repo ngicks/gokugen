@@ -40,6 +40,7 @@ type TaskMutation struct {
 	state         *task.State
 	scheduled_at  *time.Time
 	created_at    *time.Time
+	deadline      *time.Time
 	cancelled_at  *time.Time
 	dispatched_at *time.Time
 	done_at       *time.Time
@@ -391,6 +392,55 @@ func (m *TaskMutation) ResetCreatedAt() {
 	m.created_at = nil
 }
 
+// SetDeadline sets the "deadline" field.
+func (m *TaskMutation) SetDeadline(t time.Time) {
+	m.deadline = &t
+}
+
+// Deadline returns the value of the "deadline" field in the mutation.
+func (m *TaskMutation) Deadline() (r time.Time, exists bool) {
+	v := m.deadline
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeadline returns the old "deadline" field's value of the Task entity.
+// If the Task object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TaskMutation) OldDeadline(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeadline is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeadline requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeadline: %w", err)
+	}
+	return oldValue.Deadline, nil
+}
+
+// ClearDeadline clears the value of the "deadline" field.
+func (m *TaskMutation) ClearDeadline() {
+	m.deadline = nil
+	m.clearedFields[task.FieldDeadline] = struct{}{}
+}
+
+// DeadlineCleared returns if the "deadline" field was cleared in this mutation.
+func (m *TaskMutation) DeadlineCleared() bool {
+	_, ok := m.clearedFields[task.FieldDeadline]
+	return ok
+}
+
+// ResetDeadline resets all changes to the "deadline" field.
+func (m *TaskMutation) ResetDeadline() {
+	m.deadline = nil
+	delete(m.clearedFields, task.FieldDeadline)
+}
+
 // SetCancelledAt sets the "cancelled_at" field.
 func (m *TaskMutation) SetCancelledAt(t time.Time) {
 	m.cancelled_at = &t
@@ -555,7 +605,7 @@ func (m *TaskMutation) Err() (r string, exists bool) {
 // OldErr returns the old "err" field's value of the Task entity.
 // If the Task object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TaskMutation) OldErr(ctx context.Context) (v *string, err error) {
+func (m *TaskMutation) OldErr(ctx context.Context) (v string, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldErr is only allowed on UpdateOne operations")
 	}
@@ -569,22 +619,9 @@ func (m *TaskMutation) OldErr(ctx context.Context) (v *string, err error) {
 	return oldValue.Err, nil
 }
 
-// ClearErr clears the value of the "err" field.
-func (m *TaskMutation) ClearErr() {
-	m.err = nil
-	m.clearedFields[task.FieldErr] = struct{}{}
-}
-
-// ErrCleared returns if the "err" field was cleared in this mutation.
-func (m *TaskMutation) ErrCleared() bool {
-	_, ok := m.clearedFields[task.FieldErr]
-	return ok
-}
-
 // ResetErr resets all changes to the "err" field.
 func (m *TaskMutation) ResetErr() {
 	m.err = nil
-	delete(m.clearedFields, task.FieldErr)
 }
 
 // SetMeta sets the "meta" field.
@@ -657,7 +694,7 @@ func (m *TaskMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *TaskMutation) Fields() []string {
-	fields := make([]string, 0, 11)
+	fields := make([]string, 0, 12)
 	if m.work_id != nil {
 		fields = append(fields, task.FieldWorkID)
 	}
@@ -675,6 +712,9 @@ func (m *TaskMutation) Fields() []string {
 	}
 	if m.created_at != nil {
 		fields = append(fields, task.FieldCreatedAt)
+	}
+	if m.deadline != nil {
+		fields = append(fields, task.FieldDeadline)
 	}
 	if m.cancelled_at != nil {
 		fields = append(fields, task.FieldCancelledAt)
@@ -711,6 +751,8 @@ func (m *TaskMutation) Field(name string) (ent.Value, bool) {
 		return m.ScheduledAt()
 	case task.FieldCreatedAt:
 		return m.CreatedAt()
+	case task.FieldDeadline:
+		return m.Deadline()
 	case task.FieldCancelledAt:
 		return m.CancelledAt()
 	case task.FieldDispatchedAt:
@@ -742,6 +784,8 @@ func (m *TaskMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldScheduledAt(ctx)
 	case task.FieldCreatedAt:
 		return m.OldCreatedAt(ctx)
+	case task.FieldDeadline:
+		return m.OldDeadline(ctx)
 	case task.FieldCancelledAt:
 		return m.OldCancelledAt(ctx)
 	case task.FieldDispatchedAt:
@@ -802,6 +846,13 @@ func (m *TaskMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCreatedAt(v)
+		return nil
+	case task.FieldDeadline:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeadline(v)
 		return nil
 	case task.FieldCancelledAt:
 		v, ok := value.(time.Time)
@@ -883,6 +934,9 @@ func (m *TaskMutation) AddField(name string, value ent.Value) error {
 // mutation.
 func (m *TaskMutation) ClearedFields() []string {
 	var fields []string
+	if m.FieldCleared(task.FieldDeadline) {
+		fields = append(fields, task.FieldDeadline)
+	}
 	if m.FieldCleared(task.FieldCancelledAt) {
 		fields = append(fields, task.FieldCancelledAt)
 	}
@@ -891,9 +945,6 @@ func (m *TaskMutation) ClearedFields() []string {
 	}
 	if m.FieldCleared(task.FieldDoneAt) {
 		fields = append(fields, task.FieldDoneAt)
-	}
-	if m.FieldCleared(task.FieldErr) {
-		fields = append(fields, task.FieldErr)
 	}
 	return fields
 }
@@ -909,6 +960,9 @@ func (m *TaskMutation) FieldCleared(name string) bool {
 // error if the field is not defined in the schema.
 func (m *TaskMutation) ClearField(name string) error {
 	switch name {
+	case task.FieldDeadline:
+		m.ClearDeadline()
+		return nil
 	case task.FieldCancelledAt:
 		m.ClearCancelledAt()
 		return nil
@@ -917,9 +971,6 @@ func (m *TaskMutation) ClearField(name string) error {
 		return nil
 	case task.FieldDoneAt:
 		m.ClearDoneAt()
-		return nil
-	case task.FieldErr:
-		m.ClearErr()
 		return nil
 	}
 	return fmt.Errorf("unknown Task nullable field %s", name)
@@ -946,6 +997,9 @@ func (m *TaskMutation) ResetField(name string) error {
 		return nil
 	case task.FieldCreatedAt:
 		m.ResetCreatedAt()
+		return nil
+	case task.FieldDeadline:
+		m.ResetDeadline()
 		return nil
 	case task.FieldCancelledAt:
 		m.ResetCancelledAt()

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ngicks/gokugen/scheduler/util"
+	"github.com/ngicks/gokugen/def/util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,4 +31,5 @@ func TestDropMicros(t *testing.T) {
 	assertDropMicrosReturnsSameTime(tt)
 	tt, _ = time.Parse(time.RFC3339, "2023-01-01T15:56:52.123Z")
 	assertDropMicrosReturnsSameTime(tt)
+	assertDropMicrosReturnsSameTime(time.Time{})
 }

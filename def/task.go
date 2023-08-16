@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ngicks/gokugen/scheduler/util"
+	"github.com/ngicks/gokugen/def/util"
 	"github.com/ngicks/und/option"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -13,19 +13,19 @@ import (
 type State string
 
 const (
-	Scheduled  State = "scheduled"
-	Dispatched State = "dispatched"
-	Cancelled  State = "cancelled"
-	Done       State = "done"
-	Err        State = "err"
+	TaskScheduled  State = "scheduled"
+	TaskDispatched State = "dispatched"
+	TaskCancelled  State = "cancelled"
+	TaskDone       State = "done"
+	TaskErr        State = "err"
 )
 
 var states = [...]string{
-	string(Scheduled),
-	string(Dispatched),
-	string(Cancelled),
-	string(Done),
-	string(Err),
+	string(TaskScheduled),
+	string(TaskDispatched),
+	string(TaskCancelled),
+	string(TaskDone),
+	string(TaskErr),
 }
 
 func IsState(s string) bool {
@@ -45,11 +45,44 @@ type Task struct {
 	State        State                    `json:"state"`
 	ScheduledAt  time.Time                `json:"scheduled_at"`
 	CreatedAt    time.Time                `json:"created_at"`
+	Deadline     option.Option[time.Time] `json:"deadline"`
 	CancelledAt  option.Option[time.Time] `json:"cancelled_at"`
 	DispatchedAt option.Option[time.Time] `json:"dispatched_at"`
 	DoneAt       option.Option[time.Time] `json:"done_at"`
 	Err          string                   `json:"err"`
 	Meta         map[string]string        `json:"meta"`
+}
+
+func (t Task) Equal(u Task) bool {
+	return fromTaskToComparable(t) == fromTaskToComparable(u) &&
+		t.ScheduledAt.Equal(u.ScheduledAt) &&
+		t.CreatedAt.Equal(u.CreatedAt) &&
+		t.Deadline.Equal(u.Deadline) &&
+		t.CancelledAt.Equal(u.CancelledAt) &&
+		t.DispatchedAt.Equal(u.DispatchedAt) &&
+		t.DoneAt.Equal(u.DoneAt) &&
+		maps.Equal(t.Param, u.Param) &&
+		maps.Equal(t.Meta, u.Meta)
+}
+
+type taskComparable struct {
+	Id       string
+	WorkId   string
+	Priority int
+	State    State
+	Err      string
+}
+
+func fromTaskToComparable(t Task) taskComparable {
+	var c taskComparable
+
+	c.Id = t.Id
+	c.WorkId = t.WorkId
+	c.Priority = t.Priority
+	c.State = t.State
+	c.Err = t.Err
+
+	return c
 }
 
 func (t Task) IsValid() bool {
@@ -121,6 +154,7 @@ func (t Task) TruncTime() Task {
 	t = t.Clone()
 	t.ScheduledAt = util.DropMicros(t.ScheduledAt)
 	t.CreatedAt = util.DropMicros(t.CreatedAt)
+	t.Deadline = t.Deadline.Map(util.DropMicros)
 	t.CancelledAt = t.CancelledAt.Map(util.DropMicros)
 	t.DispatchedAt = t.DispatchedAt.Map(util.DropMicros)
 	t.DoneAt = t.DoneAt.Map(util.DropMicros)
@@ -139,68 +173,45 @@ func (t Task) Less(j Task) bool {
 	return t.Priority > j.Priority
 }
 
-func (t Task) Update(param TaskParam, ignoreMicro bool) Task {
+func (t Task) Update(param TaskUpdateParam, ignoreMicro bool) Task {
 	t = t.Clone()
 
-	if param.WorkId.IsSome() {
-		t.WorkId = param.WorkId.Value()
-	}
-	if param.Param.IsSome() {
-		paramUpdater := param.Param.Value()
-		if t.Param == nil && len(paramUpdater) > 0 {
-			t.Param = map[string]string{}
-		}
-		for k, v := range paramUpdater {
-			switch v.OpTy {
-			case MapUpdateRemoveKey:
-				delete(t.Param, k)
-			case MapUpdateSetKey:
-				t.Param[k] = v.Val
-			}
-		}
-	}
-	if param.Priority.IsSome() {
-		t.Priority = param.Priority.Value()
-	}
-	if param.State.IsSome() {
-		t.State = param.State.Value()
-	}
-	if param.ScheduledAt.IsSome() {
-		t.ScheduledAt = param.ScheduledAt.Value()
-	}
-	if param.CreatedAt.IsSome() {
-		t.CreatedAt = param.CreatedAt.Value()
-	}
-	if param.CancelledAt.IsSome() {
-		t.CancelledAt = param.CancelledAt.Value()
-	}
-	if param.DispatchedAt.IsSome() {
-		t.DispatchedAt = param.DispatchedAt.Value()
-	}
-	if param.DoneAt.IsSome() {
-		t.DoneAt = param.DoneAt.Value()
-	}
-	if param.Err.IsSome() {
-		t.Err = param.Err.Value()
-	}
-	if param.Meta.IsSome() {
-		metaUpdater := param.Meta.Value()
-		if t.Meta == nil && len(metaUpdater) > 0 {
-			t.Meta = map[string]string{}
-		}
-		for k, v := range metaUpdater {
-			switch v.OpTy {
-			case MapUpdateRemoveKey:
-				delete(t.Meta, k)
-			case MapUpdateSetKey:
-				t.Meta[k] = v.Val
-			}
-		}
-	}
+	assignIfSome(&t.WorkId, param.WorkId, nil, nil)
+	assignIfSome(
+		&t.Param,
+		param.Param,
+		func(v map[string]string) bool { return v == nil },
+		func() map[string]string { return map[string]string{} },
+	)
+	assignIfSome(&t.Priority, param.Priority, nil, nil)
+	assignIfSome(&t.ScheduledAt, param.ScheduledAt, nil, nil)
+	assignIfSome(&t.Deadline, param.Deadline, nil, nil)
+	assignIfSome(
+		&t.Meta,
+		param.Meta,
+		func(v map[string]string) bool { return v == nil },
+		func() map[string]string { return map[string]string{} },
+	)
 
 	if ignoreMicro {
 		t = t.TruncTime()
 	}
 
 	return t
+}
+
+func assignIfSome[T any](
+	v *T,
+	updater option.Option[T],
+	isZero func(v T) bool,
+	getDefaultValue func() T,
+) {
+	if updater.IsSome() {
+		updaterValue := updater.Value()
+		if isZero != nil && isZero(updaterValue) {
+			*v = getDefaultValue()
+		} else {
+			*v = updaterValue
+		}
+	}
 }

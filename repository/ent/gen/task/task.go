@@ -26,6 +26,8 @@ const (
 	FieldScheduledAt = "scheduled_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
+	// FieldDeadline holds the string denoting the deadline field in the database.
+	FieldDeadline = "deadline"
 	// FieldCancelledAt holds the string denoting the cancelled_at field in the database.
 	FieldCancelledAt = "cancelled_at"
 	// FieldDispatchedAt holds the string denoting the dispatched_at field in the database.
@@ -49,6 +51,7 @@ var Columns = []string{
 	FieldState,
 	FieldScheduledAt,
 	FieldCreatedAt,
+	FieldDeadline,
 	FieldCancelledAt,
 	FieldDispatchedAt,
 	FieldDoneAt,
@@ -67,6 +70,8 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// WorkIDValidator is a validator for the "work_id" field. It is called by the builders before save.
+	WorkIDValidator func(string) error
 	// DefaultParam holds the default value on creation for the "param" field.
 	DefaultParam map[string]string
 	// DefaultPriority holds the default value on creation for the "priority" field.
@@ -137,6 +142,11 @@ func ByScheduledAt(opts ...sql.OrderTermOption) OrderOption {
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
+}
+
+// ByDeadline orders the results by the deadline field.
+func ByDeadline(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeadline, opts...).ToFunc()
 }
 
 // ByCancelledAt orders the results by the cancelled_at field.

@@ -15,6 +15,10 @@ import (
 func init() {
 	taskFields := schema.Task{}.Fields()
 	_ = taskFields
+	// taskDescWorkID is the schema descriptor for work_id field.
+	taskDescWorkID := taskFields[1].Descriptor()
+	// task.WorkIDValidator is a validator for the "work_id" field. It is called by the builders before save.
+	task.WorkIDValidator = taskDescWorkID.Validators[0].(func(string) error)
 	// taskDescParam is the schema descriptor for param field.
 	taskDescParam := taskFields[2].Descriptor()
 	// task.DefaultParam holds the default value on creation for the param field.
@@ -28,7 +32,7 @@ func init() {
 	// task.DefaultCreatedAt holds the default value on creation for the created_at field.
 	task.DefaultCreatedAt = taskDescCreatedAt.Default.(func() time.Time)
 	// taskDescMeta is the schema descriptor for meta field.
-	taskDescMeta := taskFields[11].Descriptor()
+	taskDescMeta := taskFields[12].Descriptor()
 	// task.DefaultMeta holds the default value on creation for the meta field.
 	task.DefaultMeta = taskDescMeta.Default.(map[string]string)
 }

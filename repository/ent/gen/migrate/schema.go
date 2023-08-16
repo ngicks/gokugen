@@ -18,10 +18,11 @@ var (
 		{Name: "state", Type: field.TypeEnum, Enums: []string{"scheduled", "dispatched", "cancelled", "done", "err"}, Default: "scheduled"},
 		{Name: "scheduled_at", Type: field.TypeTime},
 		{Name: "created_at", Type: field.TypeTime},
+		{Name: "deadline", Type: field.TypeTime, Nullable: true},
 		{Name: "cancelled_at", Type: field.TypeTime, Nullable: true},
 		{Name: "dispatched_at", Type: field.TypeTime, Nullable: true},
 		{Name: "done_at", Type: field.TypeTime, Nullable: true},
-		{Name: "err", Type: field.TypeString, Nullable: true},
+		{Name: "err", Type: field.TypeString},
 		{Name: "meta", Type: field.TypeJSON},
 	}
 	// TasksTable holds the schema information for the "tasks" table.

@@ -16,8 +16,11 @@ type ObservableRepository interface {
 	TimerLike
 }
 
+//nolint:lll
 type Repository interface {
-	// AddTask adds a task, which is configured by param, to the Repository.
+	// Close closes this repository.
+	Close() error
+	// AddTask adds a task, which is configured by param, to this Repository.
 	// Implementations can utilize their own id creation rule for Task.Id.
 	// Implementations must not leave Id field empty.
 	// It finally returns a Task created inside it.
@@ -25,16 +28,12 @@ type Repository interface {
 	// Implementations must test param validity by calling param.ToTask(true).IsValid().
 	// If param is invalid, AddTask returns ErrInvalidTask or
 	// an error which includes ErrInvalidTask in its error chain.
-	AddTask(ctx context.Context, param TaskParam) (Task, error)
+	AddTask(ctx context.Context, param TaskUpdateParam) (Task, error)
 	GetById(ctx context.Context, id string) (Task, error)
 	// UpdateById updates a task specified by id with param.
 	// Every None fields are considered as `no update` for that field.
-	UpdateById(ctx context.Context, id string, param TaskParam) error
-	Update(
-		ctx context.Context,
-		matcher SearchMatcher,
-		param TaskParam,
-	) (rowsAffected int, err error)
+	UpdateById(ctx context.Context, id string, param TaskUpdateParam) error
+	UpdateMeta(ctx context.Context, query TaskQueryParam, param map[string]string) (rowsAffected int, err error)
 	// Cancel changes a task specified by id to cancelled state.
 	// It only succeeds when the task is not yet dispatched nor done.
 	Cancel(ctx context.Context, id string) error
@@ -47,7 +46,7 @@ type Repository interface {
 	// Find finds tasks matching to matcher.
 	//
 	// Every None fields are considered as empty search conditions.
-	Find(ctx context.Context, matcher SearchMatcher, offset, limit int) ([]Task, error)
+	Find(ctx context.Context, matcher TaskQueryParam, offset, limit int) ([]Task, error)
 	// GetNext returns a next scheduled Task without changing repository contents.
 	// GetNext must not return a cancelled, dispatched or done task.
 	GetNext(ctx context.Context) (Task, error)
@@ -81,6 +80,8 @@ type DispatchedReverter interface {
 
 // BeforeDeleter is an optional interface for Repository implementations.
 // This is a suggestion for an unified interface of deletion.
+//
+//nolint:lll
 type BeforeDeleter interface {
 	// DeleteBefore deletes tasks become done or cancelled before before.
 	// It returns Deleted with non-nil fields only if returning is true,
@@ -88,7 +89,7 @@ type BeforeDeleter interface {
 	//
 	// This package does not use this.
 	// This is here only for an unified interface of soft or hard deletion.
-	DeleteBefore(ctx context.Context, before time.Time, returning bool) (Deleted, error)
+	DeleteBefore(ctx context.Context, before time.Time, meta map[string]string, returning bool) (Deleted, error)
 }
 
 type Deleted struct {

@@ -80,6 +80,20 @@ func (tc *TaskCreate) SetNillableCreatedAt(t *time.Time) *TaskCreate {
 	return tc
 }
 
+// SetDeadline sets the "deadline" field.
+func (tc *TaskCreate) SetDeadline(t time.Time) *TaskCreate {
+	tc.mutation.SetDeadline(t)
+	return tc
+}
+
+// SetNillableDeadline sets the "deadline" field if the given value is not nil.
+func (tc *TaskCreate) SetNillableDeadline(t *time.Time) *TaskCreate {
+	if t != nil {
+		tc.SetDeadline(*t)
+	}
+	return tc
+}
+
 // SetCancelledAt sets the "cancelled_at" field.
 func (tc *TaskCreate) SetCancelledAt(t time.Time) *TaskCreate {
 	tc.mutation.SetCancelledAt(t)
@@ -125,14 +139,6 @@ func (tc *TaskCreate) SetNillableDoneAt(t *time.Time) *TaskCreate {
 // SetErr sets the "err" field.
 func (tc *TaskCreate) SetErr(s string) *TaskCreate {
 	tc.mutation.SetErr(s)
-	return tc
-}
-
-// SetNillableErr sets the "err" field if the given value is not nil.
-func (tc *TaskCreate) SetNillableErr(s *string) *TaskCreate {
-	if s != nil {
-		tc.SetErr(*s)
-	}
 	return tc
 }
 
@@ -210,6 +216,11 @@ func (tc *TaskCreate) check() error {
 	if _, ok := tc.mutation.WorkID(); !ok {
 		return &ValidationError{Name: "work_id", err: errors.New(`gen: missing required field "Task.work_id"`)}
 	}
+	if v, ok := tc.mutation.WorkID(); ok {
+		if err := task.WorkIDValidator(v); err != nil {
+			return &ValidationError{Name: "work_id", err: fmt.Errorf(`gen: validator failed for field "Task.work_id": %w`, err)}
+		}
+	}
 	if _, ok := tc.mutation.Param(); !ok {
 		return &ValidationError{Name: "param", err: errors.New(`gen: missing required field "Task.param"`)}
 	}
@@ -229,6 +240,9 @@ func (tc *TaskCreate) check() error {
 	}
 	if _, ok := tc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`gen: missing required field "Task.created_at"`)}
+	}
+	if _, ok := tc.mutation.Err(); !ok {
+		return &ValidationError{Name: "err", err: errors.New(`gen: missing required field "Task.err"`)}
 	}
 	if _, ok := tc.mutation.Meta(); !ok {
 		return &ValidationError{Name: "meta", err: errors.New(`gen: missing required field "Task.meta"`)}
@@ -292,6 +306,10 @@ func (tc *TaskCreate) createSpec() (*Task, *sqlgraph.CreateSpec) {
 		_spec.SetField(task.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
+	if value, ok := tc.mutation.Deadline(); ok {
+		_spec.SetField(task.FieldDeadline, field.TypeTime, value)
+		_node.Deadline = &value
+	}
 	if value, ok := tc.mutation.CancelledAt(); ok {
 		_spec.SetField(task.FieldCancelledAt, field.TypeTime, value)
 		_node.CancelledAt = &value
@@ -306,7 +324,7 @@ func (tc *TaskCreate) createSpec() (*Task, *sqlgraph.CreateSpec) {
 	}
 	if value, ok := tc.mutation.Err(); ok {
 		_spec.SetField(task.FieldErr, field.TypeString, value)
-		_node.Err = &value
+		_node.Err = value
 	}
 	if value, ok := tc.mutation.Meta(); ok {
 		_spec.SetField(task.FieldMeta, field.TypeJSON, value)

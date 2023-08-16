@@ -96,6 +96,26 @@ func (tu *TaskUpdate) SetNillableCreatedAt(t *time.Time) *TaskUpdate {
 	return tu
 }
 
+// SetDeadline sets the "deadline" field.
+func (tu *TaskUpdate) SetDeadline(t time.Time) *TaskUpdate {
+	tu.mutation.SetDeadline(t)
+	return tu
+}
+
+// SetNillableDeadline sets the "deadline" field if the given value is not nil.
+func (tu *TaskUpdate) SetNillableDeadline(t *time.Time) *TaskUpdate {
+	if t != nil {
+		tu.SetDeadline(*t)
+	}
+	return tu
+}
+
+// ClearDeadline clears the value of the "deadline" field.
+func (tu *TaskUpdate) ClearDeadline() *TaskUpdate {
+	tu.mutation.ClearDeadline()
+	return tu
+}
+
 // SetCancelledAt sets the "cancelled_at" field.
 func (tu *TaskUpdate) SetCancelledAt(t time.Time) *TaskUpdate {
 	tu.mutation.SetCancelledAt(t)
@@ -162,20 +182,6 @@ func (tu *TaskUpdate) SetErr(s string) *TaskUpdate {
 	return tu
 }
 
-// SetNillableErr sets the "err" field if the given value is not nil.
-func (tu *TaskUpdate) SetNillableErr(s *string) *TaskUpdate {
-	if s != nil {
-		tu.SetErr(*s)
-	}
-	return tu
-}
-
-// ClearErr clears the value of the "err" field.
-func (tu *TaskUpdate) ClearErr() *TaskUpdate {
-	tu.mutation.ClearErr()
-	return tu
-}
-
 // SetMeta sets the "meta" field.
 func (tu *TaskUpdate) SetMeta(m map[string]string) *TaskUpdate {
 	tu.mutation.SetMeta(m)
@@ -216,6 +222,11 @@ func (tu *TaskUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (tu *TaskUpdate) check() error {
+	if v, ok := tu.mutation.WorkID(); ok {
+		if err := task.WorkIDValidator(v); err != nil {
+			return &ValidationError{Name: "work_id", err: fmt.Errorf(`gen: validator failed for field "Task.work_id": %w`, err)}
+		}
+	}
 	if v, ok := tu.mutation.State(); ok {
 		if err := task.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`gen: validator failed for field "Task.state": %w`, err)}
@@ -263,6 +274,12 @@ func (tu *TaskUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := tu.mutation.CreatedAt(); ok {
 		_spec.SetField(task.FieldCreatedAt, field.TypeTime, value)
 	}
+	if value, ok := tu.mutation.Deadline(); ok {
+		_spec.SetField(task.FieldDeadline, field.TypeTime, value)
+	}
+	if tu.mutation.DeadlineCleared() {
+		_spec.ClearField(task.FieldDeadline, field.TypeTime)
+	}
 	if value, ok := tu.mutation.CancelledAt(); ok {
 		_spec.SetField(task.FieldCancelledAt, field.TypeTime, value)
 	}
@@ -283,9 +300,6 @@ func (tu *TaskUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := tu.mutation.Err(); ok {
 		_spec.SetField(task.FieldErr, field.TypeString, value)
-	}
-	if tu.mutation.ErrCleared() {
-		_spec.ClearField(task.FieldErr, field.TypeString)
 	}
 	if value, ok := tu.mutation.Meta(); ok {
 		_spec.SetField(task.FieldMeta, field.TypeJSON, value)
@@ -379,6 +393,26 @@ func (tuo *TaskUpdateOne) SetNillableCreatedAt(t *time.Time) *TaskUpdateOne {
 	return tuo
 }
 
+// SetDeadline sets the "deadline" field.
+func (tuo *TaskUpdateOne) SetDeadline(t time.Time) *TaskUpdateOne {
+	tuo.mutation.SetDeadline(t)
+	return tuo
+}
+
+// SetNillableDeadline sets the "deadline" field if the given value is not nil.
+func (tuo *TaskUpdateOne) SetNillableDeadline(t *time.Time) *TaskUpdateOne {
+	if t != nil {
+		tuo.SetDeadline(*t)
+	}
+	return tuo
+}
+
+// ClearDeadline clears the value of the "deadline" field.
+func (tuo *TaskUpdateOne) ClearDeadline() *TaskUpdateOne {
+	tuo.mutation.ClearDeadline()
+	return tuo
+}
+
 // SetCancelledAt sets the "cancelled_at" field.
 func (tuo *TaskUpdateOne) SetCancelledAt(t time.Time) *TaskUpdateOne {
 	tuo.mutation.SetCancelledAt(t)
@@ -445,20 +479,6 @@ func (tuo *TaskUpdateOne) SetErr(s string) *TaskUpdateOne {
 	return tuo
 }
 
-// SetNillableErr sets the "err" field if the given value is not nil.
-func (tuo *TaskUpdateOne) SetNillableErr(s *string) *TaskUpdateOne {
-	if s != nil {
-		tuo.SetErr(*s)
-	}
-	return tuo
-}
-
-// ClearErr clears the value of the "err" field.
-func (tuo *TaskUpdateOne) ClearErr() *TaskUpdateOne {
-	tuo.mutation.ClearErr()
-	return tuo
-}
-
 // SetMeta sets the "meta" field.
 func (tuo *TaskUpdateOne) SetMeta(m map[string]string) *TaskUpdateOne {
 	tuo.mutation.SetMeta(m)
@@ -512,6 +532,11 @@ func (tuo *TaskUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (tuo *TaskUpdateOne) check() error {
+	if v, ok := tuo.mutation.WorkID(); ok {
+		if err := task.WorkIDValidator(v); err != nil {
+			return &ValidationError{Name: "work_id", err: fmt.Errorf(`gen: validator failed for field "Task.work_id": %w`, err)}
+		}
+	}
 	if v, ok := tuo.mutation.State(); ok {
 		if err := task.StateValidator(v); err != nil {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`gen: validator failed for field "Task.state": %w`, err)}
@@ -576,6 +601,12 @@ func (tuo *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) 
 	if value, ok := tuo.mutation.CreatedAt(); ok {
 		_spec.SetField(task.FieldCreatedAt, field.TypeTime, value)
 	}
+	if value, ok := tuo.mutation.Deadline(); ok {
+		_spec.SetField(task.FieldDeadline, field.TypeTime, value)
+	}
+	if tuo.mutation.DeadlineCleared() {
+		_spec.ClearField(task.FieldDeadline, field.TypeTime)
+	}
 	if value, ok := tuo.mutation.CancelledAt(); ok {
 		_spec.SetField(task.FieldCancelledAt, field.TypeTime, value)
 	}
@@ -596,9 +627,6 @@ func (tuo *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) 
 	}
 	if value, ok := tuo.mutation.Err(); ok {
 		_spec.SetField(task.FieldErr, field.TypeString, value)
-	}
-	if tuo.mutation.ErrCleared() {
-		_spec.ClearField(task.FieldErr, field.TypeString)
 	}
 	if value, ok := tuo.mutation.Meta(); ok {
 		_spec.SetField(task.FieldMeta, field.TypeJSON, value)

@@ -18,18 +18,24 @@ type Task struct {
 // Fields of the Task.
 func (Task) Fields() []ent.Field {
 	return []ent.Field{
-		field.String("id").Unique().Immutable(),
-		field.String("work_id"),
+		field.String("id").
+			Unique().
+			Immutable(),
+		field.String("work_id").
+			NotEmpty(),
 		field.JSON("param", map[string]string{}).
 			Default(map[string]string{}),
 		field.Int("priority").
 			Default(0),
 		field.Enum("state").
 			Values(def.GetStates()...).
-			Default(string(def.Scheduled)),
+			Default(string(def.TaskScheduled)),
 		field.Time("scheduled_at"),
 		field.Time("created_at").
 			Default(time.Now),
+		field.Time("deadline").
+			Optional().
+			Nillable(),
 		field.Time("cancelled_at").
 			Optional().
 			Nillable(),
@@ -39,9 +45,7 @@ func (Task) Fields() []ent.Field {
 		field.Time("done_at").
 			Optional().
 			Nillable(),
-		field.String("err").
-			Optional().
-			Nillable(),
+		field.String("err"),
 		field.JSON("meta", map[string]string{}).
 			Default(map[string]string{}),
 	}
