@@ -3,7 +3,10 @@
   "cSpell.words": [
     "acceptancetest",
     "atomicstate",
+    "barbar",
+    "bazbaz",
     "corge",
+    "corgecorge",
     "datatypes",
     "Deleter",
     "Deque",
@@ -11,6 +14,7 @@
     "entgo",
     "entsql",
     "eventqueue",
+    "foofoo",
     "fred",
     "garply",
     "gjson",

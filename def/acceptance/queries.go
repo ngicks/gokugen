@@ -116,8 +116,8 @@ func prepareTasks(t *testing.T, repo def.Repository) []def.Task {
 	return tasks
 }
 
-// ensureChange ensures tasks are changed or unchaged as
-// `changed` is int slice whose contents are indecies of changed tasks of `tasks`.
+// ensureChange ensures tasks are changed or unchanged as
+// `changed` is int slice whose contents are indices of changed tasks of `tasks`.
 // As a side effect it re-fetch all tasks and returns them.
 func ensureChange(t *testing.T, repo def.Repository, tasks []def.Task, changed []int) []def.Task {
 	t.Helper()
@@ -418,7 +418,7 @@ func queryTestCases_time(tasks []def.Task) []queryTestSet {
 	}
 }
 
-// returns range execpt excepts indices.
+// returns range except excepts indices.
 func getExcept(tasks []def.Task, excepts ...int) []int {
 	rangeSlice := make([]int, 0, len(tasks)-len(excepts))
 	for idx := range tasks {
