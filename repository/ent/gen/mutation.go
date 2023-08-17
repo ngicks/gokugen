@@ -34,18 +34,18 @@ type TaskMutation struct {
 	typ           string
 	id            *string
 	work_id       *string
-	param         *map[string]string
 	priority      *int
 	addpriority   *int
 	state         *task.State
+	err           *string
+	param         *map[string]string
+	meta          *map[string]string
 	scheduled_at  *time.Time
 	created_at    *time.Time
 	deadline      *time.Time
 	cancelled_at  *time.Time
 	dispatched_at *time.Time
 	done_at       *time.Time
-	err           *string
-	meta          *map[string]string
 	clearedFields map[string]struct{}
 	done          bool
 	oldValue      func(context.Context) (*Task, error)
@@ -192,42 +192,6 @@ func (m *TaskMutation) ResetWorkID() {
 	m.work_id = nil
 }
 
-// SetParam sets the "param" field.
-func (m *TaskMutation) SetParam(value map[string]string) {
-	m.param = &value
-}
-
-// Param returns the value of the "param" field in the mutation.
-func (m *TaskMutation) Param() (r map[string]string, exists bool) {
-	v := m.param
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldParam returns the old "param" field's value of the Task entity.
-// If the Task object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TaskMutation) OldParam(ctx context.Context) (v map[string]string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldParam is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldParam requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldParam: %w", err)
-	}
-	return oldValue.Param, nil
-}
-
-// ResetParam resets all changes to the "param" field.
-func (m *TaskMutation) ResetParam() {
-	m.param = nil
-}
-
 // SetPriority sets the "priority" field.
 func (m *TaskMutation) SetPriority(i int) {
 	m.priority = &i
@@ -318,6 +282,114 @@ func (m *TaskMutation) OldState(ctx context.Context) (v task.State, err error) {
 // ResetState resets all changes to the "state" field.
 func (m *TaskMutation) ResetState() {
 	m.state = nil
+}
+
+// SetErr sets the "err" field.
+func (m *TaskMutation) SetErr(s string) {
+	m.err = &s
+}
+
+// Err returns the value of the "err" field in the mutation.
+func (m *TaskMutation) Err() (r string, exists bool) {
+	v := m.err
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldErr returns the old "err" field's value of the Task entity.
+// If the Task object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TaskMutation) OldErr(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldErr is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldErr requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldErr: %w", err)
+	}
+	return oldValue.Err, nil
+}
+
+// ResetErr resets all changes to the "err" field.
+func (m *TaskMutation) ResetErr() {
+	m.err = nil
+}
+
+// SetParam sets the "param" field.
+func (m *TaskMutation) SetParam(value map[string]string) {
+	m.param = &value
+}
+
+// Param returns the value of the "param" field in the mutation.
+func (m *TaskMutation) Param() (r map[string]string, exists bool) {
+	v := m.param
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldParam returns the old "param" field's value of the Task entity.
+// If the Task object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TaskMutation) OldParam(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldParam is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldParam requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldParam: %w", err)
+	}
+	return oldValue.Param, nil
+}
+
+// ResetParam resets all changes to the "param" field.
+func (m *TaskMutation) ResetParam() {
+	m.param = nil
+}
+
+// SetMeta sets the "meta" field.
+func (m *TaskMutation) SetMeta(value map[string]string) {
+	m.meta = &value
+}
+
+// Meta returns the value of the "meta" field in the mutation.
+func (m *TaskMutation) Meta() (r map[string]string, exists bool) {
+	v := m.meta
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMeta returns the old "meta" field's value of the Task entity.
+// If the Task object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *TaskMutation) OldMeta(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMeta is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMeta requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMeta: %w", err)
+	}
+	return oldValue.Meta, nil
+}
+
+// ResetMeta resets all changes to the "meta" field.
+func (m *TaskMutation) ResetMeta() {
+	m.meta = nil
 }
 
 // SetScheduledAt sets the "scheduled_at" field.
@@ -588,78 +660,6 @@ func (m *TaskMutation) ResetDoneAt() {
 	delete(m.clearedFields, task.FieldDoneAt)
 }
 
-// SetErr sets the "err" field.
-func (m *TaskMutation) SetErr(s string) {
-	m.err = &s
-}
-
-// Err returns the value of the "err" field in the mutation.
-func (m *TaskMutation) Err() (r string, exists bool) {
-	v := m.err
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldErr returns the old "err" field's value of the Task entity.
-// If the Task object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TaskMutation) OldErr(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldErr is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldErr requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldErr: %w", err)
-	}
-	return oldValue.Err, nil
-}
-
-// ResetErr resets all changes to the "err" field.
-func (m *TaskMutation) ResetErr() {
-	m.err = nil
-}
-
-// SetMeta sets the "meta" field.
-func (m *TaskMutation) SetMeta(value map[string]string) {
-	m.meta = &value
-}
-
-// Meta returns the value of the "meta" field in the mutation.
-func (m *TaskMutation) Meta() (r map[string]string, exists bool) {
-	v := m.meta
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldMeta returns the old "meta" field's value of the Task entity.
-// If the Task object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *TaskMutation) OldMeta(ctx context.Context) (v map[string]string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldMeta is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldMeta requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldMeta: %w", err)
-	}
-	return oldValue.Meta, nil
-}
-
-// ResetMeta resets all changes to the "meta" field.
-func (m *TaskMutation) ResetMeta() {
-	m.meta = nil
-}
-
 // Where appends a list predicates to the TaskMutation builder.
 func (m *TaskMutation) Where(ps ...predicate.Task) {
 	m.predicates = append(m.predicates, ps...)
@@ -698,14 +698,20 @@ func (m *TaskMutation) Fields() []string {
 	if m.work_id != nil {
 		fields = append(fields, task.FieldWorkID)
 	}
-	if m.param != nil {
-		fields = append(fields, task.FieldParam)
-	}
 	if m.priority != nil {
 		fields = append(fields, task.FieldPriority)
 	}
 	if m.state != nil {
 		fields = append(fields, task.FieldState)
+	}
+	if m.err != nil {
+		fields = append(fields, task.FieldErr)
+	}
+	if m.param != nil {
+		fields = append(fields, task.FieldParam)
+	}
+	if m.meta != nil {
+		fields = append(fields, task.FieldMeta)
 	}
 	if m.scheduled_at != nil {
 		fields = append(fields, task.FieldScheduledAt)
@@ -725,12 +731,6 @@ func (m *TaskMutation) Fields() []string {
 	if m.done_at != nil {
 		fields = append(fields, task.FieldDoneAt)
 	}
-	if m.err != nil {
-		fields = append(fields, task.FieldErr)
-	}
-	if m.meta != nil {
-		fields = append(fields, task.FieldMeta)
-	}
 	return fields
 }
 
@@ -741,12 +741,16 @@ func (m *TaskMutation) Field(name string) (ent.Value, bool) {
 	switch name {
 	case task.FieldWorkID:
 		return m.WorkID()
-	case task.FieldParam:
-		return m.Param()
 	case task.FieldPriority:
 		return m.Priority()
 	case task.FieldState:
 		return m.State()
+	case task.FieldErr:
+		return m.Err()
+	case task.FieldParam:
+		return m.Param()
+	case task.FieldMeta:
+		return m.Meta()
 	case task.FieldScheduledAt:
 		return m.ScheduledAt()
 	case task.FieldCreatedAt:
@@ -759,10 +763,6 @@ func (m *TaskMutation) Field(name string) (ent.Value, bool) {
 		return m.DispatchedAt()
 	case task.FieldDoneAt:
 		return m.DoneAt()
-	case task.FieldErr:
-		return m.Err()
-	case task.FieldMeta:
-		return m.Meta()
 	}
 	return nil, false
 }
@@ -774,12 +774,16 @@ func (m *TaskMutation) OldField(ctx context.Context, name string) (ent.Value, er
 	switch name {
 	case task.FieldWorkID:
 		return m.OldWorkID(ctx)
-	case task.FieldParam:
-		return m.OldParam(ctx)
 	case task.FieldPriority:
 		return m.OldPriority(ctx)
 	case task.FieldState:
 		return m.OldState(ctx)
+	case task.FieldErr:
+		return m.OldErr(ctx)
+	case task.FieldParam:
+		return m.OldParam(ctx)
+	case task.FieldMeta:
+		return m.OldMeta(ctx)
 	case task.FieldScheduledAt:
 		return m.OldScheduledAt(ctx)
 	case task.FieldCreatedAt:
@@ -792,10 +796,6 @@ func (m *TaskMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldDispatchedAt(ctx)
 	case task.FieldDoneAt:
 		return m.OldDoneAt(ctx)
-	case task.FieldErr:
-		return m.OldErr(ctx)
-	case task.FieldMeta:
-		return m.OldMeta(ctx)
 	}
 	return nil, fmt.Errorf("unknown Task field %s", name)
 }
@@ -812,13 +812,6 @@ func (m *TaskMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetWorkID(v)
 		return nil
-	case task.FieldParam:
-		v, ok := value.(map[string]string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetParam(v)
-		return nil
 	case task.FieldPriority:
 		v, ok := value.(int)
 		if !ok {
@@ -832,6 +825,27 @@ func (m *TaskMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetState(v)
+		return nil
+	case task.FieldErr:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetErr(v)
+		return nil
+	case task.FieldParam:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetParam(v)
+		return nil
+	case task.FieldMeta:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMeta(v)
 		return nil
 	case task.FieldScheduledAt:
 		v, ok := value.(time.Time)
@@ -874,20 +888,6 @@ func (m *TaskMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDoneAt(v)
-		return nil
-	case task.FieldErr:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetErr(v)
-		return nil
-	case task.FieldMeta:
-		v, ok := value.(map[string]string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetMeta(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Task field %s", name)
@@ -983,14 +983,20 @@ func (m *TaskMutation) ResetField(name string) error {
 	case task.FieldWorkID:
 		m.ResetWorkID()
 		return nil
-	case task.FieldParam:
-		m.ResetParam()
-		return nil
 	case task.FieldPriority:
 		m.ResetPriority()
 		return nil
 	case task.FieldState:
 		m.ResetState()
+		return nil
+	case task.FieldErr:
+		m.ResetErr()
+		return nil
+	case task.FieldParam:
+		m.ResetParam()
+		return nil
+	case task.FieldMeta:
+		m.ResetMeta()
 		return nil
 	case task.FieldScheduledAt:
 		m.ResetScheduledAt()
@@ -1009,12 +1015,6 @@ func (m *TaskMutation) ResetField(name string) error {
 		return nil
 	case task.FieldDoneAt:
 		m.ResetDoneAt()
-		return nil
-	case task.FieldErr:
-		m.ResetErr()
-		return nil
-	case task.FieldMeta:
-		m.ResetMeta()
 		return nil
 	}
 	return fmt.Errorf("unknown Task field %s", name)

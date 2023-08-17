@@ -40,17 +40,17 @@ func GetStates() []string {
 type Task struct {
 	Id           string                   `json:"id"`      // Id is an id of the task.
 	WorkId       string                   `json:"work_id"` // WorkId is work function id.
-	Param        map[string]string        `json:"param"`
 	Priority     int                      `json:"priority"`
 	State        State                    `json:"state"`
+	Err          string                   `json:"err"`
+	Param        map[string]string        `json:"param"`
+	Meta         map[string]string        `json:"meta"`
 	ScheduledAt  time.Time                `json:"scheduled_at"`
 	CreatedAt    time.Time                `json:"created_at"`
 	Deadline     option.Option[time.Time] `json:"deadline"`
 	CancelledAt  option.Option[time.Time] `json:"cancelled_at"`
 	DispatchedAt option.Option[time.Time] `json:"dispatched_at"`
 	DoneAt       option.Option[time.Time] `json:"done_at"`
-	Err          string                   `json:"err"`
-	Meta         map[string]string        `json:"meta"`
 }
 
 func (t Task) Equal(u Task) bool {
@@ -147,17 +147,17 @@ func (t Task) Clone() Task {
 	return t
 }
 
-// TruncTime trims time.Time fields down to milliseconds precision.
-// TruncTime may be useful when it is sending this task to systems
+// NormalizeTime trims time.Time fields down to milliseconds precision.
+// NormalizeTime may be useful when it is sending this task to systems
 // which are not capable of working on micro or finer time granularity.
-func (t Task) TruncTime() Task {
+func (t Task) NormalizeTime() Task {
 	t = t.Clone()
-	t.ScheduledAt = util.DropMicros(t.ScheduledAt)
-	t.CreatedAt = util.DropMicros(t.CreatedAt)
-	t.Deadline = t.Deadline.Map(util.DropMicros)
-	t.CancelledAt = t.CancelledAt.Map(util.DropMicros)
-	t.DispatchedAt = t.DispatchedAt.Map(util.DropMicros)
-	t.DoneAt = t.DoneAt.Map(util.DropMicros)
+	t.ScheduledAt = NormalizeTime(t.ScheduledAt)
+	t.CreatedAt = NormalizeTime(t.CreatedAt)
+	t.Deadline = t.Deadline.Map(NormalizeTime)
+	t.CancelledAt = t.CancelledAt.Map(NormalizeTime)
+	t.DispatchedAt = t.DispatchedAt.Map(NormalizeTime)
+	t.DoneAt = t.DoneAt.Map(NormalizeTime)
 	return t
 }
 
@@ -173,7 +173,7 @@ func (t Task) Less(j Task) bool {
 	return t.Priority > j.Priority
 }
 
-func (t Task) Update(param TaskUpdateParam, ignoreMicro bool) Task {
+func (t Task) Update(param TaskUpdateParam) Task {
 	t = t.Clone()
 
 	assignIfSome(&t.WorkId, param.WorkId, nil, nil)
@@ -193,11 +193,13 @@ func (t Task) Update(param TaskUpdateParam, ignoreMicro bool) Task {
 		func() map[string]string { return map[string]string{} },
 	)
 
-	if ignoreMicro {
-		t = t.TruncTime()
-	}
+	t = t.NormalizeTime()
 
 	return t
+}
+
+func NormalizeTime(t time.Time) time.Time {
+	return util.DropMicros(t).In(time.UTC)
 }
 
 func assignIfSome[T any](

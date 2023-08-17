@@ -19,7 +19,7 @@ const (
 	AlreadyCancelled  RepositoryErrorKind = "already_cancelled"
 	AlreadyDone       RepositoryErrorKind = "already_done"
 	AlreadyDispatched RepositoryErrorKind = "already_dispatched"
-	Empty             RepositoryErrorKind = "empty"
+	Exhausted         RepositoryErrorKind = "exhausted"
 	NotDispatched     RepositoryErrorKind = "not_dispatched"
 	IdNotFound        RepositoryErrorKind = "id_not_found"
 )
@@ -45,11 +45,23 @@ func IsRepositoryErr(err error, kind RepositoryErrorKind) bool {
 	}
 	for {
 		repoErr, ok := err.(*RepositoryError)
-		if ok && repoErr.Kind == kind {
-			return true
+		if ok {
+			return repoErr.Kind == kind
 		}
-		err = errors.Unwrap(err)
-		if err == nil {
+		switch x := err.(type) {
+		case interface{ Unwrap() error }:
+			err = x.Unwrap()
+			if err == nil {
+				return false
+			}
+		case interface{ Unwrap() []error }:
+			for _, err := range x.Unwrap() {
+				if IsRepositoryErr(err, kind) {
+					return true
+				}
+			}
+			return false
+		default:
 			return false
 		}
 	}
@@ -64,8 +76,8 @@ func IsAlreadyDone(err error) bool {
 func IsAlreadyDispatched(err error) bool {
 	return IsRepositoryErr(err, AlreadyDispatched)
 }
-func IsEmpty(err error) bool {
-	return IsRepositoryErr(err, Empty)
+func IsExhausted(err error) bool {
+	return IsRepositoryErr(err, Exhausted)
 }
 func IsNotDispatched(err error) bool {
 	return IsRepositoryErr(err, NotDispatched)

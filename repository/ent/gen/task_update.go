@@ -18,9 +18,8 @@ import (
 // TaskUpdate is the builder for updating Task entities.
 type TaskUpdate struct {
 	config
-	hooks     []Hook
-	mutation  *TaskMutation
-	modifiers []func(*sql.UpdateBuilder)
+	hooks    []Hook
+	mutation *TaskMutation
 }
 
 // Where appends a list predicates to the TaskUpdate builder.
@@ -32,12 +31,6 @@ func (tu *TaskUpdate) Where(ps ...predicate.Task) *TaskUpdate {
 // SetWorkID sets the "work_id" field.
 func (tu *TaskUpdate) SetWorkID(s string) *TaskUpdate {
 	tu.mutation.SetWorkID(s)
-	return tu
-}
-
-// SetParam sets the "param" field.
-func (tu *TaskUpdate) SetParam(m map[string]string) *TaskUpdate {
-	tu.mutation.SetParam(m)
 	return tu
 }
 
@@ -73,6 +66,32 @@ func (tu *TaskUpdate) SetNillableState(t *task.State) *TaskUpdate {
 	if t != nil {
 		tu.SetState(*t)
 	}
+	return tu
+}
+
+// SetErr sets the "err" field.
+func (tu *TaskUpdate) SetErr(s string) *TaskUpdate {
+	tu.mutation.SetErr(s)
+	return tu
+}
+
+// SetNillableErr sets the "err" field if the given value is not nil.
+func (tu *TaskUpdate) SetNillableErr(s *string) *TaskUpdate {
+	if s != nil {
+		tu.SetErr(*s)
+	}
+	return tu
+}
+
+// SetParam sets the "param" field.
+func (tu *TaskUpdate) SetParam(m map[string]string) *TaskUpdate {
+	tu.mutation.SetParam(m)
+	return tu
+}
+
+// SetMeta sets the "meta" field.
+func (tu *TaskUpdate) SetMeta(m map[string]string) *TaskUpdate {
+	tu.mutation.SetMeta(m)
 	return tu
 }
 
@@ -176,18 +195,6 @@ func (tu *TaskUpdate) ClearDoneAt() *TaskUpdate {
 	return tu
 }
 
-// SetErr sets the "err" field.
-func (tu *TaskUpdate) SetErr(s string) *TaskUpdate {
-	tu.mutation.SetErr(s)
-	return tu
-}
-
-// SetMeta sets the "meta" field.
-func (tu *TaskUpdate) SetMeta(m map[string]string) *TaskUpdate {
-	tu.mutation.SetMeta(m)
-	return tu
-}
-
 // Mutation returns the TaskMutation object of the builder.
 func (tu *TaskUpdate) Mutation() *TaskMutation {
 	return tu.mutation
@@ -235,12 +242,6 @@ func (tu *TaskUpdate) check() error {
 	return nil
 }
 
-// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
-func (tu *TaskUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TaskUpdate {
-	tu.modifiers = append(tu.modifiers, modifiers...)
-	return tu
-}
-
 func (tu *TaskUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if err := tu.check(); err != nil {
 		return n, err
@@ -256,9 +257,6 @@ func (tu *TaskUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if value, ok := tu.mutation.WorkID(); ok {
 		_spec.SetField(task.FieldWorkID, field.TypeString, value)
 	}
-	if value, ok := tu.mutation.Param(); ok {
-		_spec.SetField(task.FieldParam, field.TypeJSON, value)
-	}
 	if value, ok := tu.mutation.Priority(); ok {
 		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 	}
@@ -267,6 +265,15 @@ func (tu *TaskUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := tu.mutation.State(); ok {
 		_spec.SetField(task.FieldState, field.TypeEnum, value)
+	}
+	if value, ok := tu.mutation.Err(); ok {
+		_spec.SetField(task.FieldErr, field.TypeString, value)
+	}
+	if value, ok := tu.mutation.Param(); ok {
+		_spec.SetField(task.FieldParam, field.TypeJSON, value)
+	}
+	if value, ok := tu.mutation.Meta(); ok {
+		_spec.SetField(task.FieldMeta, field.TypeJSON, value)
 	}
 	if value, ok := tu.mutation.ScheduledAt(); ok {
 		_spec.SetField(task.FieldScheduledAt, field.TypeTime, value)
@@ -298,13 +305,6 @@ func (tu *TaskUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if tu.mutation.DoneAtCleared() {
 		_spec.ClearField(task.FieldDoneAt, field.TypeTime)
 	}
-	if value, ok := tu.mutation.Err(); ok {
-		_spec.SetField(task.FieldErr, field.TypeString, value)
-	}
-	if value, ok := tu.mutation.Meta(); ok {
-		_spec.SetField(task.FieldMeta, field.TypeJSON, value)
-	}
-	_spec.AddModifiers(tu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, tu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{task.Label}
@@ -320,21 +320,14 @@ func (tu *TaskUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // TaskUpdateOne is the builder for updating a single Task entity.
 type TaskUpdateOne struct {
 	config
-	fields    []string
-	hooks     []Hook
-	mutation  *TaskMutation
-	modifiers []func(*sql.UpdateBuilder)
+	fields   []string
+	hooks    []Hook
+	mutation *TaskMutation
 }
 
 // SetWorkID sets the "work_id" field.
 func (tuo *TaskUpdateOne) SetWorkID(s string) *TaskUpdateOne {
 	tuo.mutation.SetWorkID(s)
-	return tuo
-}
-
-// SetParam sets the "param" field.
-func (tuo *TaskUpdateOne) SetParam(m map[string]string) *TaskUpdateOne {
-	tuo.mutation.SetParam(m)
 	return tuo
 }
 
@@ -370,6 +363,32 @@ func (tuo *TaskUpdateOne) SetNillableState(t *task.State) *TaskUpdateOne {
 	if t != nil {
 		tuo.SetState(*t)
 	}
+	return tuo
+}
+
+// SetErr sets the "err" field.
+func (tuo *TaskUpdateOne) SetErr(s string) *TaskUpdateOne {
+	tuo.mutation.SetErr(s)
+	return tuo
+}
+
+// SetNillableErr sets the "err" field if the given value is not nil.
+func (tuo *TaskUpdateOne) SetNillableErr(s *string) *TaskUpdateOne {
+	if s != nil {
+		tuo.SetErr(*s)
+	}
+	return tuo
+}
+
+// SetParam sets the "param" field.
+func (tuo *TaskUpdateOne) SetParam(m map[string]string) *TaskUpdateOne {
+	tuo.mutation.SetParam(m)
+	return tuo
+}
+
+// SetMeta sets the "meta" field.
+func (tuo *TaskUpdateOne) SetMeta(m map[string]string) *TaskUpdateOne {
+	tuo.mutation.SetMeta(m)
 	return tuo
 }
 
@@ -473,18 +492,6 @@ func (tuo *TaskUpdateOne) ClearDoneAt() *TaskUpdateOne {
 	return tuo
 }
 
-// SetErr sets the "err" field.
-func (tuo *TaskUpdateOne) SetErr(s string) *TaskUpdateOne {
-	tuo.mutation.SetErr(s)
-	return tuo
-}
-
-// SetMeta sets the "meta" field.
-func (tuo *TaskUpdateOne) SetMeta(m map[string]string) *TaskUpdateOne {
-	tuo.mutation.SetMeta(m)
-	return tuo
-}
-
 // Mutation returns the TaskMutation object of the builder.
 func (tuo *TaskUpdateOne) Mutation() *TaskMutation {
 	return tuo.mutation
@@ -545,12 +552,6 @@ func (tuo *TaskUpdateOne) check() error {
 	return nil
 }
 
-// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
-func (tuo *TaskUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *TaskUpdateOne {
-	tuo.modifiers = append(tuo.modifiers, modifiers...)
-	return tuo
-}
-
 func (tuo *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) {
 	if err := tuo.check(); err != nil {
 		return _node, err
@@ -583,9 +584,6 @@ func (tuo *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) 
 	if value, ok := tuo.mutation.WorkID(); ok {
 		_spec.SetField(task.FieldWorkID, field.TypeString, value)
 	}
-	if value, ok := tuo.mutation.Param(); ok {
-		_spec.SetField(task.FieldParam, field.TypeJSON, value)
-	}
 	if value, ok := tuo.mutation.Priority(); ok {
 		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 	}
@@ -594,6 +592,15 @@ func (tuo *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) 
 	}
 	if value, ok := tuo.mutation.State(); ok {
 		_spec.SetField(task.FieldState, field.TypeEnum, value)
+	}
+	if value, ok := tuo.mutation.Err(); ok {
+		_spec.SetField(task.FieldErr, field.TypeString, value)
+	}
+	if value, ok := tuo.mutation.Param(); ok {
+		_spec.SetField(task.FieldParam, field.TypeJSON, value)
+	}
+	if value, ok := tuo.mutation.Meta(); ok {
+		_spec.SetField(task.FieldMeta, field.TypeJSON, value)
 	}
 	if value, ok := tuo.mutation.ScheduledAt(); ok {
 		_spec.SetField(task.FieldScheduledAt, field.TypeTime, value)
@@ -625,13 +632,6 @@ func (tuo *TaskUpdateOne) sqlSave(ctx context.Context) (_node *Task, err error) 
 	if tuo.mutation.DoneAtCleared() {
 		_spec.ClearField(task.FieldDoneAt, field.TypeTime)
 	}
-	if value, ok := tuo.mutation.Err(); ok {
-		_spec.SetField(task.FieldErr, field.TypeString, value)
-	}
-	if value, ok := tuo.mutation.Meta(); ok {
-		_spec.SetField(task.FieldMeta, field.TypeJSON, value)
-	}
-	_spec.AddModifiers(tuo.modifiers...)
 	_node = &Task{config: tuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

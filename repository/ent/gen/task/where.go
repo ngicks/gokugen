@@ -74,6 +74,11 @@ func Priority(v int) predicate.Task {
 	return predicate.Task(sql.FieldEQ(FieldPriority, v))
 }
 
+// Err applies equality check predicate on the "err" field. It's identical to ErrEQ.
+func Err(v string) predicate.Task {
+	return predicate.Task(sql.FieldEQ(FieldErr, v))
+}
+
 // ScheduledAt applies equality check predicate on the "scheduled_at" field. It's identical to ScheduledAtEQ.
 func ScheduledAt(v time.Time) predicate.Task {
 	return predicate.Task(sql.FieldEQ(FieldScheduledAt, v))
@@ -102,11 +107,6 @@ func DispatchedAt(v time.Time) predicate.Task {
 // DoneAt applies equality check predicate on the "done_at" field. It's identical to DoneAtEQ.
 func DoneAt(v time.Time) predicate.Task {
 	return predicate.Task(sql.FieldEQ(FieldDoneAt, v))
-}
-
-// Err applies equality check predicate on the "err" field. It's identical to ErrEQ.
-func Err(v string) predicate.Task {
-	return predicate.Task(sql.FieldEQ(FieldErr, v))
 }
 
 // WorkIDEQ applies the EQ predicate on the "work_id" field.
@@ -232,6 +232,71 @@ func StateIn(vs ...State) predicate.Task {
 // StateNotIn applies the NotIn predicate on the "state" field.
 func StateNotIn(vs ...State) predicate.Task {
 	return predicate.Task(sql.FieldNotIn(FieldState, vs...))
+}
+
+// ErrEQ applies the EQ predicate on the "err" field.
+func ErrEQ(v string) predicate.Task {
+	return predicate.Task(sql.FieldEQ(FieldErr, v))
+}
+
+// ErrNEQ applies the NEQ predicate on the "err" field.
+func ErrNEQ(v string) predicate.Task {
+	return predicate.Task(sql.FieldNEQ(FieldErr, v))
+}
+
+// ErrIn applies the In predicate on the "err" field.
+func ErrIn(vs ...string) predicate.Task {
+	return predicate.Task(sql.FieldIn(FieldErr, vs...))
+}
+
+// ErrNotIn applies the NotIn predicate on the "err" field.
+func ErrNotIn(vs ...string) predicate.Task {
+	return predicate.Task(sql.FieldNotIn(FieldErr, vs...))
+}
+
+// ErrGT applies the GT predicate on the "err" field.
+func ErrGT(v string) predicate.Task {
+	return predicate.Task(sql.FieldGT(FieldErr, v))
+}
+
+// ErrGTE applies the GTE predicate on the "err" field.
+func ErrGTE(v string) predicate.Task {
+	return predicate.Task(sql.FieldGTE(FieldErr, v))
+}
+
+// ErrLT applies the LT predicate on the "err" field.
+func ErrLT(v string) predicate.Task {
+	return predicate.Task(sql.FieldLT(FieldErr, v))
+}
+
+// ErrLTE applies the LTE predicate on the "err" field.
+func ErrLTE(v string) predicate.Task {
+	return predicate.Task(sql.FieldLTE(FieldErr, v))
+}
+
+// ErrContains applies the Contains predicate on the "err" field.
+func ErrContains(v string) predicate.Task {
+	return predicate.Task(sql.FieldContains(FieldErr, v))
+}
+
+// ErrHasPrefix applies the HasPrefix predicate on the "err" field.
+func ErrHasPrefix(v string) predicate.Task {
+	return predicate.Task(sql.FieldHasPrefix(FieldErr, v))
+}
+
+// ErrHasSuffix applies the HasSuffix predicate on the "err" field.
+func ErrHasSuffix(v string) predicate.Task {
+	return predicate.Task(sql.FieldHasSuffix(FieldErr, v))
+}
+
+// ErrEqualFold applies the EqualFold predicate on the "err" field.
+func ErrEqualFold(v string) predicate.Task {
+	return predicate.Task(sql.FieldEqualFold(FieldErr, v))
+}
+
+// ErrContainsFold applies the ContainsFold predicate on the "err" field.
+func ErrContainsFold(v string) predicate.Task {
+	return predicate.Task(sql.FieldContainsFold(FieldErr, v))
 }
 
 // ScheduledAtEQ applies the EQ predicate on the "scheduled_at" field.
@@ -512,71 +577,6 @@ func DoneAtIsNil() predicate.Task {
 // DoneAtNotNil applies the NotNil predicate on the "done_at" field.
 func DoneAtNotNil() predicate.Task {
 	return predicate.Task(sql.FieldNotNull(FieldDoneAt))
-}
-
-// ErrEQ applies the EQ predicate on the "err" field.
-func ErrEQ(v string) predicate.Task {
-	return predicate.Task(sql.FieldEQ(FieldErr, v))
-}
-
-// ErrNEQ applies the NEQ predicate on the "err" field.
-func ErrNEQ(v string) predicate.Task {
-	return predicate.Task(sql.FieldNEQ(FieldErr, v))
-}
-
-// ErrIn applies the In predicate on the "err" field.
-func ErrIn(vs ...string) predicate.Task {
-	return predicate.Task(sql.FieldIn(FieldErr, vs...))
-}
-
-// ErrNotIn applies the NotIn predicate on the "err" field.
-func ErrNotIn(vs ...string) predicate.Task {
-	return predicate.Task(sql.FieldNotIn(FieldErr, vs...))
-}
-
-// ErrGT applies the GT predicate on the "err" field.
-func ErrGT(v string) predicate.Task {
-	return predicate.Task(sql.FieldGT(FieldErr, v))
-}
-
-// ErrGTE applies the GTE predicate on the "err" field.
-func ErrGTE(v string) predicate.Task {
-	return predicate.Task(sql.FieldGTE(FieldErr, v))
-}
-
-// ErrLT applies the LT predicate on the "err" field.
-func ErrLT(v string) predicate.Task {
-	return predicate.Task(sql.FieldLT(FieldErr, v))
-}
-
-// ErrLTE applies the LTE predicate on the "err" field.
-func ErrLTE(v string) predicate.Task {
-	return predicate.Task(sql.FieldLTE(FieldErr, v))
-}
-
-// ErrContains applies the Contains predicate on the "err" field.
-func ErrContains(v string) predicate.Task {
-	return predicate.Task(sql.FieldContains(FieldErr, v))
-}
-
-// ErrHasPrefix applies the HasPrefix predicate on the "err" field.
-func ErrHasPrefix(v string) predicate.Task {
-	return predicate.Task(sql.FieldHasPrefix(FieldErr, v))
-}
-
-// ErrHasSuffix applies the HasSuffix predicate on the "err" field.
-func ErrHasSuffix(v string) predicate.Task {
-	return predicate.Task(sql.FieldHasSuffix(FieldErr, v))
-}
-
-// ErrEqualFold applies the EqualFold predicate on the "err" field.
-func ErrEqualFold(v string) predicate.Task {
-	return predicate.Task(sql.FieldEqualFold(FieldErr, v))
-}
-
-// ErrContainsFold applies the ContainsFold predicate on the "err" field.
-func ErrContainsFold(v string) predicate.Task {
-	return predicate.Task(sql.FieldContainsFold(FieldErr, v))
 }
 
 // And groups predicates with the AND operator between them.

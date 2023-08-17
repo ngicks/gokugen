@@ -20,7 +20,9 @@ func TestRepository_tasks_can_be_updated(t *testing.T, repo def.Repository) {
 	testRepository_update_to_known_value(t, repo)
 	testRepository_update_with_all_possible_none_some_combination(t, repo)
 	testRepository_update_with_nil_replaced_with_empty_map(t, repo)
-	testRepository_state_other_than_scheduled_is_not_updatable(t, repo)
+	testRepository_update_nonexistent(t, repo)
+	testRepository_update_state_other_than_scheduled_is_not_updatable(t, repo)
+	testRepository_update_normalize(t, repo)
 }
 
 func testRepository_update_to_known_value(t *testing.T, repo def.Repository) {
@@ -49,6 +51,7 @@ func testRepository_update_to_known_value(t *testing.T, repo def.Repository) {
 	require.Empty(updated.Err)
 	require.True(updateParam.ScheduledAt.Value().Equal(updated.ScheduledAt))
 	require.True(task.CreatedAt.Equal(updated.CreatedAt))
+	require.True(updateParam.Deadline.Value().Equal(updated.Deadline))
 	require.True(task.CancelledAt.Equal(updated.CancelledAt))
 	require.True(task.DispatchedAt.Equal(updated.DispatchedAt))
 	require.True(task.DoneAt.Equal(updated.DoneAt))
@@ -56,8 +59,8 @@ func testRepository_update_to_known_value(t *testing.T, repo def.Repository) {
 	require.True(maps.Equal(updateParam.Meta.Value(), updated.Meta))
 
 	require.True(
-		task.Update(updateParamPartial, true).Equal(updated),
-		"not equal. diff = %s", cmp.Diff(task.Update(updateParamPartial, true), updated),
+		task.Update(updateParamPartial).Equal(updated),
+		"not equal. diff = %s", cmp.Diff(task.Update(updateParamPartial), updated),
 	)
 }
 
@@ -96,8 +99,8 @@ func testRepository_update_with_all_possible_none_some_combination(
 		updated, err := repo.GetById(context.Background(), task.Id)
 		require.NoError(err)
 		require.True(
-			task.Update(updateParam, true).Equal(updated),
-			"not equal. diff = %s", cmp.Diff(task.Update(updateParam, true), updated),
+			task.Update(updateParam).Equal(updated),
+			"not equal. diff = %s", cmp.Diff(task.Update(updateParam), updated),
 		)
 	}
 }
@@ -126,34 +129,53 @@ func testRepository_update_with_nil_replaced_with_empty_map(t *testing.T, repo d
 	require.NotNil(updated.Meta)
 }
 
-func testRepository_state_other_than_scheduled_is_not_updatable(t *testing.T, repo def.Repository) {
+func testRepository_update_nonexistent(t *testing.T, repo def.Repository) {
 	t.Helper()
-	require := require.New(t)
+
+	err := repo.UpdateById(context.Background(), def.NeverExistentId, updateParam)
+	assertIsIdNotFound(t, err)
+}
+
+func testRepository_update_state_other_than_scheduled_is_not_updatable(
+	t *testing.T,
+	repo def.Repository,
+) {
+	t.Helper()
 
 	eachState := createEachState(t, repo)
 
 	var err error
 	err = repo.UpdateById(context.Background(), eachState.Cancelled.Id, updateParam)
-	require.True(
-		def.IsAlreadyCancelled(err),
-		"incorrect error. must be def.IsAlreadyCancelled(err) == true, but is %s", err,
-	)
+	assertIsAlreadyCancelled(t, err)
 
 	err = repo.UpdateById(context.Background(), eachState.Dispatched.Id, updateParam)
-	require.True(
-		def.IsAlreadyDispatched(err),
-		"incorrect error. must be def.IsAlreadyDispatched(err) == true, but is %s", err,
-	)
+	assertIsAlreadyDispatched(t, err)
 
 	err = repo.UpdateById(context.Background(), eachState.Done.Id, updateParam)
-	require.True(
-		def.IsAlreadyDone(err),
-		"incorrect error. must be def.IsAlreadyDone(err) == true, but is %s", err,
-	)
+	assertIsAlreadyDone(t, err)
 
 	err = repo.UpdateById(context.Background(), eachState.Err.Id, updateParam)
+	assertIsAlreadyDone(t, err)
+}
+
+func testRepository_update_normalize(t *testing.T, repo def.Repository) {
+	t.Helper()
+	require := require.New(t)
+
+	task, err := repo.AddTask(context.Background(), initialParam)
+	require.NoError(err)
+	err = repo.UpdateById(context.Background(), task.Id, def.TaskUpdateParam{
+		ScheduledAt: option.Some(exampleDateNotNormalized),
+		Deadline:    option.Some(option.Some(exampleDateNotNormalized.Add(3 * time.Minute))),
+	})
+	require.NoError(err)
+
+	task, err = repo.GetById(context.Background(), task.Id)
+	require.NoError(err)
+
 	require.True(
-		def.IsAlreadyDone(err),
-		"incorrect error. must be def.IsAlreadyDone(err) == true, but is %s", err,
+		task.ScheduledAt.Equal(exampleDateNormalized),
+		"expected = %s, actual = %s", exampleDateNormalized, task.ScheduledAt,
 	)
+	assertTimeNormalized(t, task.Deadline.Value())
 }

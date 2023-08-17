@@ -26,12 +26,6 @@ func (tc *TaskCreate) SetWorkID(s string) *TaskCreate {
 	return tc
 }
 
-// SetParam sets the "param" field.
-func (tc *TaskCreate) SetParam(m map[string]string) *TaskCreate {
-	tc.mutation.SetParam(m)
-	return tc
-}
-
 // SetPriority sets the "priority" field.
 func (tc *TaskCreate) SetPriority(i int) *TaskCreate {
 	tc.mutation.SetPriority(i)
@@ -57,6 +51,32 @@ func (tc *TaskCreate) SetNillableState(t *task.State) *TaskCreate {
 	if t != nil {
 		tc.SetState(*t)
 	}
+	return tc
+}
+
+// SetErr sets the "err" field.
+func (tc *TaskCreate) SetErr(s string) *TaskCreate {
+	tc.mutation.SetErr(s)
+	return tc
+}
+
+// SetNillableErr sets the "err" field if the given value is not nil.
+func (tc *TaskCreate) SetNillableErr(s *string) *TaskCreate {
+	if s != nil {
+		tc.SetErr(*s)
+	}
+	return tc
+}
+
+// SetParam sets the "param" field.
+func (tc *TaskCreate) SetParam(m map[string]string) *TaskCreate {
+	tc.mutation.SetParam(m)
+	return tc
+}
+
+// SetMeta sets the "meta" field.
+func (tc *TaskCreate) SetMeta(m map[string]string) *TaskCreate {
+	tc.mutation.SetMeta(m)
 	return tc
 }
 
@@ -136,18 +156,6 @@ func (tc *TaskCreate) SetNillableDoneAt(t *time.Time) *TaskCreate {
 	return tc
 }
 
-// SetErr sets the "err" field.
-func (tc *TaskCreate) SetErr(s string) *TaskCreate {
-	tc.mutation.SetErr(s)
-	return tc
-}
-
-// SetMeta sets the "meta" field.
-func (tc *TaskCreate) SetMeta(m map[string]string) *TaskCreate {
-	tc.mutation.SetMeta(m)
-	return tc
-}
-
 // SetID sets the "id" field.
 func (tc *TaskCreate) SetID(s string) *TaskCreate {
 	tc.mutation.SetID(s)
@@ -189,10 +197,6 @@ func (tc *TaskCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (tc *TaskCreate) defaults() {
-	if _, ok := tc.mutation.Param(); !ok {
-		v := task.DefaultParam
-		tc.mutation.SetParam(v)
-	}
 	if _, ok := tc.mutation.Priority(); !ok {
 		v := task.DefaultPriority
 		tc.mutation.SetPriority(v)
@@ -201,13 +205,21 @@ func (tc *TaskCreate) defaults() {
 		v := task.DefaultState
 		tc.mutation.SetState(v)
 	}
-	if _, ok := tc.mutation.CreatedAt(); !ok {
-		v := task.DefaultCreatedAt()
-		tc.mutation.SetCreatedAt(v)
+	if _, ok := tc.mutation.Err(); !ok {
+		v := task.DefaultErr
+		tc.mutation.SetErr(v)
+	}
+	if _, ok := tc.mutation.Param(); !ok {
+		v := task.DefaultParam
+		tc.mutation.SetParam(v)
 	}
 	if _, ok := tc.mutation.Meta(); !ok {
 		v := task.DefaultMeta
 		tc.mutation.SetMeta(v)
+	}
+	if _, ok := tc.mutation.CreatedAt(); !ok {
+		v := task.DefaultCreatedAt()
+		tc.mutation.SetCreatedAt(v)
 	}
 }
 
@@ -221,9 +233,6 @@ func (tc *TaskCreate) check() error {
 			return &ValidationError{Name: "work_id", err: fmt.Errorf(`gen: validator failed for field "Task.work_id": %w`, err)}
 		}
 	}
-	if _, ok := tc.mutation.Param(); !ok {
-		return &ValidationError{Name: "param", err: errors.New(`gen: missing required field "Task.param"`)}
-	}
 	if _, ok := tc.mutation.Priority(); !ok {
 		return &ValidationError{Name: "priority", err: errors.New(`gen: missing required field "Task.priority"`)}
 	}
@@ -235,17 +244,20 @@ func (tc *TaskCreate) check() error {
 			return &ValidationError{Name: "state", err: fmt.Errorf(`gen: validator failed for field "Task.state": %w`, err)}
 		}
 	}
+	if _, ok := tc.mutation.Err(); !ok {
+		return &ValidationError{Name: "err", err: errors.New(`gen: missing required field "Task.err"`)}
+	}
+	if _, ok := tc.mutation.Param(); !ok {
+		return &ValidationError{Name: "param", err: errors.New(`gen: missing required field "Task.param"`)}
+	}
+	if _, ok := tc.mutation.Meta(); !ok {
+		return &ValidationError{Name: "meta", err: errors.New(`gen: missing required field "Task.meta"`)}
+	}
 	if _, ok := tc.mutation.ScheduledAt(); !ok {
 		return &ValidationError{Name: "scheduled_at", err: errors.New(`gen: missing required field "Task.scheduled_at"`)}
 	}
 	if _, ok := tc.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`gen: missing required field "Task.created_at"`)}
-	}
-	if _, ok := tc.mutation.Err(); !ok {
-		return &ValidationError{Name: "err", err: errors.New(`gen: missing required field "Task.err"`)}
-	}
-	if _, ok := tc.mutation.Meta(); !ok {
-		return &ValidationError{Name: "meta", err: errors.New(`gen: missing required field "Task.meta"`)}
 	}
 	return nil
 }
@@ -286,10 +298,6 @@ func (tc *TaskCreate) createSpec() (*Task, *sqlgraph.CreateSpec) {
 		_spec.SetField(task.FieldWorkID, field.TypeString, value)
 		_node.WorkID = value
 	}
-	if value, ok := tc.mutation.Param(); ok {
-		_spec.SetField(task.FieldParam, field.TypeJSON, value)
-		_node.Param = value
-	}
 	if value, ok := tc.mutation.Priority(); ok {
 		_spec.SetField(task.FieldPriority, field.TypeInt, value)
 		_node.Priority = value
@@ -297,6 +305,18 @@ func (tc *TaskCreate) createSpec() (*Task, *sqlgraph.CreateSpec) {
 	if value, ok := tc.mutation.State(); ok {
 		_spec.SetField(task.FieldState, field.TypeEnum, value)
 		_node.State = value
+	}
+	if value, ok := tc.mutation.Err(); ok {
+		_spec.SetField(task.FieldErr, field.TypeString, value)
+		_node.Err = value
+	}
+	if value, ok := tc.mutation.Param(); ok {
+		_spec.SetField(task.FieldParam, field.TypeJSON, value)
+		_node.Param = value
+	}
+	if value, ok := tc.mutation.Meta(); ok {
+		_spec.SetField(task.FieldMeta, field.TypeJSON, value)
+		_node.Meta = value
 	}
 	if value, ok := tc.mutation.ScheduledAt(); ok {
 		_spec.SetField(task.FieldScheduledAt, field.TypeTime, value)
@@ -321,14 +341,6 @@ func (tc *TaskCreate) createSpec() (*Task, *sqlgraph.CreateSpec) {
 	if value, ok := tc.mutation.DoneAt(); ok {
 		_spec.SetField(task.FieldDoneAt, field.TypeTime, value)
 		_node.DoneAt = &value
-	}
-	if value, ok := tc.mutation.Err(); ok {
-		_spec.SetField(task.FieldErr, field.TypeString, value)
-		_node.Err = value
-	}
-	if value, ok := tc.mutation.Meta(); ok {
-		_spec.SetField(task.FieldMeta, field.TypeJSON, value)
-		_node.Meta = value
 	}
 	return _node, _spec
 }

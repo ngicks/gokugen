@@ -34,9 +34,7 @@ func ErrKindUpdate(t Task) error {
 }
 
 func ErrKindCancel(t Task) error {
-	errKind := ErrKind(t, ErrKindOption{
-		SkipCancelledAt: true,
-	})
+	errKind := ErrKind(t, ErrKindOption{})
 	if errKind != "" {
 		return &RepositoryError{Id: t.Id, Kind: errKind}
 	}

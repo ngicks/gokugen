@@ -28,7 +28,7 @@ func TestRepository(t *testing.T) {
 		for _, instance := range instances {
 			instance.Close()
 		}
-		os.RemoveAll(tempDir)
+		// os.RemoveAll(tempDir)
 	}()
 
 	newInitializedRepository := func() def.Repository {
@@ -58,6 +58,7 @@ func TestRepository(t *testing.T) {
 		if err := client.Schema.Create(context.Background()); err != nil {
 			log.Fatalf("failed creating schema resources: %v", err)
 		}
+		t.Logf("created %s", repoFileUrl.String())
 
 		return reposiotory
 	}

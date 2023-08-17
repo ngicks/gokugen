@@ -16,12 +16,16 @@ const (
 	FieldID = "id"
 	// FieldWorkID holds the string denoting the work_id field in the database.
 	FieldWorkID = "work_id"
-	// FieldParam holds the string denoting the param field in the database.
-	FieldParam = "param"
 	// FieldPriority holds the string denoting the priority field in the database.
 	FieldPriority = "priority"
 	// FieldState holds the string denoting the state field in the database.
 	FieldState = "state"
+	// FieldErr holds the string denoting the err field in the database.
+	FieldErr = "err"
+	// FieldParam holds the string denoting the param field in the database.
+	FieldParam = "param"
+	// FieldMeta holds the string denoting the meta field in the database.
+	FieldMeta = "meta"
 	// FieldScheduledAt holds the string denoting the scheduled_at field in the database.
 	FieldScheduledAt = "scheduled_at"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
@@ -34,10 +38,6 @@ const (
 	FieldDispatchedAt = "dispatched_at"
 	// FieldDoneAt holds the string denoting the done_at field in the database.
 	FieldDoneAt = "done_at"
-	// FieldErr holds the string denoting the err field in the database.
-	FieldErr = "err"
-	// FieldMeta holds the string denoting the meta field in the database.
-	FieldMeta = "meta"
 	// Table holds the table name of the task in the database.
 	Table = "tasks"
 )
@@ -46,17 +46,17 @@ const (
 var Columns = []string{
 	FieldID,
 	FieldWorkID,
-	FieldParam,
 	FieldPriority,
 	FieldState,
+	FieldErr,
+	FieldParam,
+	FieldMeta,
 	FieldScheduledAt,
 	FieldCreatedAt,
 	FieldDeadline,
 	FieldCancelledAt,
 	FieldDispatchedAt,
 	FieldDoneAt,
-	FieldErr,
-	FieldMeta,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -72,14 +72,16 @@ func ValidColumn(column string) bool {
 var (
 	// WorkIDValidator is a validator for the "work_id" field. It is called by the builders before save.
 	WorkIDValidator func(string) error
-	// DefaultParam holds the default value on creation for the "param" field.
-	DefaultParam map[string]string
 	// DefaultPriority holds the default value on creation for the "priority" field.
 	DefaultPriority int
-	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
-	DefaultCreatedAt func() time.Time
+	// DefaultErr holds the default value on creation for the "err" field.
+	DefaultErr string
+	// DefaultParam holds the default value on creation for the "param" field.
+	DefaultParam map[string]string
 	// DefaultMeta holds the default value on creation for the "meta" field.
 	DefaultMeta map[string]string
+	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
+	DefaultCreatedAt func() time.Time
 )
 
 // State defines the type for the "state" enum field.
@@ -134,6 +136,11 @@ func ByState(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldState, opts...).ToFunc()
 }
 
+// ByErr orders the results by the err field.
+func ByErr(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldErr, opts...).ToFunc()
+}
+
 // ByScheduledAt orders the results by the scheduled_at field.
 func ByScheduledAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldScheduledAt, opts...).ToFunc()
@@ -162,9 +169,4 @@ func ByDispatchedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByDoneAt orders the results by the done_at field.
 func ByDoneAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDoneAt, opts...).ToFunc()
-}
-
-// ByErr orders the results by the err field.
-func ByErr(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldErr, opts...).ToFunc()
 }

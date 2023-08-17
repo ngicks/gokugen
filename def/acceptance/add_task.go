@@ -25,6 +25,7 @@ func TestRepository_tasks_can_be_added(t *testing.T, repo def.Repository) {
 	testRepository_add_task_300_elements(t, repo)
 	testRepository_add_task_error(t, repo)
 	testRepository_add_task_with_nil_replaced_with_empty_map(t, repo)
+	testRepository_add_task_normalize(t, repo)
 }
 
 func testRepository_add_task_300_elements(t *testing.T, repo def.Repository) {
@@ -37,24 +38,20 @@ func testRepository_add_task_300_elements(t *testing.T, repo def.Repository) {
 	idSet := make(map[string]struct{})
 
 	for i := 0; i < 100; i++ {
-		initialParam := def.TaskUpdateParam{
-			WorkId:      option.Some("foo"),
-			Param:       option.Some(map[string]string{"bar": "baz"}),
-			Priority:    option.Some(12),
-			ScheduledAt: option.Some(sampleDate),
-			Meta:        option.Some(map[string]string{"qux": "quux"}),
-		}
-		for i := 1; i <= 0b111; i++ {
+		for i := 1; i <= 0b1111; i++ {
 			// shadowing
 			initialParam := initialParam
 
-			if i&0b001 == 0 {
+			if i&0b0001 == 0 {
 				initialParam.Param = option.None[map[string]string]()
 			}
-			if i&0b010 > 0 {
+			if i&0b0010 > 0 {
 				initialParam.Priority = option.None[int]()
 			}
-			if i&0b100 > 0 {
+			if i&0b0100 > 0 {
+				initialParam.Deadline = option.None[option.Option[time.Time]]()
+			}
+			if i&0b1000 > 0 {
 				initialParam.Meta = option.None[map[string]string]()
 			}
 
@@ -90,19 +87,23 @@ func testRepository_add_task(
 
 	require.NotEmpty(task.Id)
 	require.Equal(initialParam.WorkId.Value(), task.WorkId)
-	require.True(maps.Equal(initialParam.Param.Value(), task.Param))
 	require.Equal(initialParam.Priority.Value(), task.Priority)
 	require.Equal(def.TaskScheduled, task.State)
+	// param, meta
+	require.True(maps.Equal(initialParam.Param.Value(), task.Param))
+	require.True(maps.Equal(initialParam.Meta.Value(), task.Meta))
+
+	// time fields
 	require.True(sampleDate.Equal(task.ScheduledAt))
 	// Theoritically task.CreatedAt.Compare(currentTime) == 1 is always true.
 	// However some test environment does not allow the timer to advance.
 	// Therefore it is a wrong assumption for those environemnts.
 	require.GreaterOrEqual(task.CreatedAt.Compare(timeBeforeAddition), 0)
+	require.True(initialParam.Deadline.Value().Equal(task.Deadline))
 	require.True(task.CancelledAt.IsNone())
 	require.True(task.DispatchedAt.IsNone())
 	require.True(task.DoneAt.IsNone())
 	require.Empty(task.Err)
-	require.True(maps.Equal(initialParam.Meta.Value(), task.Meta))
 
 	return task
 }
@@ -152,4 +153,21 @@ func testRepository_add_task_with_nil_replaced_with_empty_map(t *testing.T, repo
 	require.NotNil(task.Param)
 	require.True(maps.Equal(task.Param, map[string]string{}))
 	require.NotNil(task.Meta)
+}
+
+func testRepository_add_task_normalize(t *testing.T, repo def.Repository) {
+	t.Helper()
+	require := require.New(t)
+
+	task, err := repo.AddTask(
+		context.Background(),
+		initialParam.Update(def.TaskUpdateParam{
+			ScheduledAt: option.Some(exampleDateNotNormalized),
+			Deadline:    option.Some(option.Some(exampleDateNotNormalized.Add(3 * time.Minute))),
+		}),
+	)
+	require.NoError(err)
+
+	require.True(task.ScheduledAt.Equal(exampleDateNormalized))
+	require.True(task.Deadline.Value().Equal(exampleDateNormalized.Add(3 * time.Minute)))
 }

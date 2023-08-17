@@ -33,7 +33,6 @@ type Repository interface {
 	// UpdateById updates a task specified by id with param.
 	// Every None fields are considered as `no update` for that field.
 	UpdateById(ctx context.Context, id string, param TaskUpdateParam) error
-	UpdateMeta(ctx context.Context, query TaskQueryParam, param map[string]string) (rowsAffected int, err error)
 	// Cancel changes a task specified by id to cancelled state.
 	// It only succeeds when the task is not yet dispatched nor done.
 	Cancel(ctx context.Context, id string) error

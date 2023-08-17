@@ -20,12 +20,16 @@ type Task struct {
 	ID string `json:"id,omitempty"`
 	// WorkID holds the value of the "work_id" field.
 	WorkID string `json:"work_id,omitempty"`
-	// Param holds the value of the "param" field.
-	Param map[string]string `json:"param,omitempty"`
 	// Priority holds the value of the "priority" field.
 	Priority int `json:"priority,omitempty"`
 	// State holds the value of the "state" field.
 	State task.State `json:"state,omitempty"`
+	// Err holds the value of the "err" field.
+	Err string `json:"err,omitempty"`
+	// Param holds the value of the "param" field.
+	Param map[string]string `json:"param,omitempty"`
+	// Meta holds the value of the "meta" field.
+	Meta map[string]string `json:"meta,omitempty"`
 	// ScheduledAt holds the value of the "scheduled_at" field.
 	ScheduledAt time.Time `json:"scheduled_at,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
@@ -37,11 +41,7 @@ type Task struct {
 	// DispatchedAt holds the value of the "dispatched_at" field.
 	DispatchedAt *time.Time `json:"dispatched_at,omitempty"`
 	// DoneAt holds the value of the "done_at" field.
-	DoneAt *time.Time `json:"done_at,omitempty"`
-	// Err holds the value of the "err" field.
-	Err string `json:"err,omitempty"`
-	// Meta holds the value of the "meta" field.
-	Meta         map[string]string `json:"meta,omitempty"`
+	DoneAt       *time.Time `json:"done_at,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -85,14 +85,6 @@ func (t *Task) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				t.WorkID = value.String
 			}
-		case task.FieldParam:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field param", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &t.Param); err != nil {
-					return fmt.Errorf("unmarshal field param: %w", err)
-				}
-			}
 		case task.FieldPriority:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field priority", values[i])
@@ -104,6 +96,28 @@ func (t *Task) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field state", values[i])
 			} else if value.Valid {
 				t.State = task.State(value.String)
+			}
+		case task.FieldErr:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field err", values[i])
+			} else if value.Valid {
+				t.Err = value.String
+			}
+		case task.FieldParam:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field param", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &t.Param); err != nil {
+					return fmt.Errorf("unmarshal field param: %w", err)
+				}
+			}
+		case task.FieldMeta:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field meta", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &t.Meta); err != nil {
+					return fmt.Errorf("unmarshal field meta: %w", err)
+				}
 			}
 		case task.FieldScheduledAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -145,20 +159,6 @@ func (t *Task) assignValues(columns []string, values []any) error {
 				t.DoneAt = new(time.Time)
 				*t.DoneAt = value.Time
 			}
-		case task.FieldErr:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field err", values[i])
-			} else if value.Valid {
-				t.Err = value.String
-			}
-		case task.FieldMeta:
-			if value, ok := values[i].(*[]byte); !ok {
-				return fmt.Errorf("unexpected type %T for field meta", values[i])
-			} else if value != nil && len(*value) > 0 {
-				if err := json.Unmarshal(*value, &t.Meta); err != nil {
-					return fmt.Errorf("unmarshal field meta: %w", err)
-				}
-			}
 		default:
 			t.selectValues.Set(columns[i], values[i])
 		}
@@ -198,14 +198,20 @@ func (t *Task) String() string {
 	builder.WriteString("work_id=")
 	builder.WriteString(t.WorkID)
 	builder.WriteString(", ")
-	builder.WriteString("param=")
-	builder.WriteString(fmt.Sprintf("%v", t.Param))
-	builder.WriteString(", ")
 	builder.WriteString("priority=")
 	builder.WriteString(fmt.Sprintf("%v", t.Priority))
 	builder.WriteString(", ")
 	builder.WriteString("state=")
 	builder.WriteString(fmt.Sprintf("%v", t.State))
+	builder.WriteString(", ")
+	builder.WriteString("err=")
+	builder.WriteString(t.Err)
+	builder.WriteString(", ")
+	builder.WriteString("param=")
+	builder.WriteString(fmt.Sprintf("%v", t.Param))
+	builder.WriteString(", ")
+	builder.WriteString("meta=")
+	builder.WriteString(fmt.Sprintf("%v", t.Meta))
 	builder.WriteString(", ")
 	builder.WriteString("scheduled_at=")
 	builder.WriteString(t.ScheduledAt.Format(time.ANSIC))
@@ -232,12 +238,6 @@ func (t *Task) String() string {
 		builder.WriteString("done_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
-	builder.WriteString(", ")
-	builder.WriteString("err=")
-	builder.WriteString(t.Err)
-	builder.WriteString(", ")
-	builder.WriteString("meta=")
-	builder.WriteString(fmt.Sprintf("%v", t.Meta))
 	builder.WriteByte(')')
 	return builder.String()
 }

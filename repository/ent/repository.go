@@ -9,7 +9,6 @@ import (
 	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/google/uuid"
 	"github.com/ngicks/gokugen/def"
-	"github.com/ngicks/gokugen/def/util"
 	"github.com/ngicks/gokugen/repository/ent/gen"
 	"github.com/ngicks/gokugen/repository/ent/gen/predicate"
 	"github.com/ngicks/gokugen/repository/ent/gen/task"
@@ -40,10 +39,10 @@ func (c *Core) Close() error {
 }
 
 func (c *Core) AddTask(ctx context.Context, param def.TaskUpdateParam) (def.Task, error) {
-	t := param.ToTask(true)
+	t := param.ToTask()
 	t.Id = c.randStrGen()
 	t.State = def.TaskScheduled
-	t.CreatedAt = util.DropMicros(c.clock.Now())
+	t.CreatedAt = def.NormalizeTime(c.clock.Now())
 
 	if !t.IsValid() {
 		return def.Task{},
@@ -56,7 +55,8 @@ func (c *Core) AddTask(ctx context.Context, param def.TaskUpdateParam) (def.Task
 		SetPriority(t.Priority).
 		SetState(task.State(t.State)).
 		SetScheduledAt(t.ScheduledAt).
-		SetCreatedAt(t.CreatedAt)
+		SetCreatedAt(t.CreatedAt).
+		SetNillableDeadline(t.Deadline.Plain())
 	if t.Param != nil {
 		builder = builder.SetParam(t.Param)
 	}
@@ -115,9 +115,10 @@ var fakeTask = def.Task{
 }
 
 func (c *Core) UpdateById(ctx context.Context, id string, param def.TaskUpdateParam) error {
-	if !fakeTask.Update(param, true).IsValid() {
+	if !fakeTask.Update(param).IsValid() {
 		return fmt.Errorf("%w: update to invalid state is not allowed", def.ErrInvalidTask)
 	}
+	param = param.Normalize()
 
 	builder := c.client.Task.UpdateOneID(id).Where(task.StateEQ(task.DefaultState))
 	if param.WorkId.IsSome() {
@@ -135,6 +136,14 @@ func (c *Core) UpdateById(ctx context.Context, id string, param def.TaskUpdatePa
 	}
 	if param.ScheduledAt.IsSome() {
 		builder = builder.SetScheduledAt(param.ScheduledAt.Value())
+	}
+	if param.Deadline.IsSome() {
+		deadline := param.Deadline.Value()
+		if deadline.IsSome() {
+			builder = builder.SetDeadline(deadline.Value())
+		} else {
+			builder = builder.ClearDeadline()
+		}
 	}
 	if param.Meta.IsSome() {
 		meta := param.Meta.Value()
@@ -158,30 +167,12 @@ func (c *Core) UpdateById(ctx context.Context, id string, param def.TaskUpdatePa
 	return nil
 }
 
-func (c *Core) UpdateMeta(
-	ctx context.Context,
-	query def.TaskQueryParam,
-	param map[string]string,
-) (rowsAffected int, err error) {
-	query = query.TruncTime()
-
-	builder := where(c.client.Task.Update(), query)
-
-	for k, v := range param {
-		builder.Modify(func(u *sql.UpdateBuilder) {
-			sqljson.Append(u, task.FieldMeta, []string{v}, sqljson.Path(k))
-		})
-	}
-
-	return builder.Save(ctx)
-}
-
 func (c *Core) Cancel(ctx context.Context, id string) error {
 	err := c.client.Task.
 		UpdateOneID(id).
 		Where(task.StateEQ(task.StateScheduled)).
 		SetState(task.StateCancelled).
-		SetCancelledAt(c.clock.Now()).
+		SetCancelledAt(def.NormalizeTime(c.clock.Now())).
 		Exec(ctx)
 
 	if gen.IsNotFound(err) {
@@ -202,7 +193,7 @@ func (c *Core) MarkAsDispatched(ctx context.Context, id string) error {
 		UpdateOneID(id).
 		Where(task.StateEQ(task.StateScheduled)).
 		SetState(task.StateDispatched).
-		SetDispatchedAt(c.clock.Now()).
+		SetDispatchedAt(def.NormalizeTime(c.clock.Now())).
 		Exec(ctx)
 
 	if gen.IsNotFound(err) {
@@ -225,10 +216,10 @@ func (c *Core) MarkAsDone(ctx context.Context, id string, err error) error {
 
 	if err == nil {
 		builder = builder.SetState(task.StateDone).
-			SetDoneAt(c.clock.Now())
+			SetDoneAt(def.NormalizeTime(c.clock.Now()))
 	} else {
 		builder = builder.SetState(task.StateErr).
-			SetDoneAt(c.clock.Now()).
+			SetDoneAt(def.NormalizeTime(c.clock.Now())).
 			SetErr(err.Error())
 	}
 
@@ -252,11 +243,15 @@ func (c *Core) Find(
 	query def.TaskQueryParam,
 	offset, limit int,
 ) ([]def.Task, error) {
-	query = query.TruncTime()
+	query = query.Normalize()
 
 	builder := where(c.client.Task.Query(), query)
 
-	tasks, err := builder.Offset(offset).Limit(limit).All(ctx)
+	tasks, err := builder.
+		Order(task.ByCreatedAt()).
+		Offset(offset).
+		Limit(limit).
+		All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -272,11 +267,15 @@ func (c *Core) GetNext(ctx context.Context) (def.Task, error) {
 	t, err := c.client.Task.
 		Query().
 		Where(task.StateEQ(task.DefaultState)).
-		Order(task.ByScheduledAt(sql.OrderAsc()), task.ByPriority(sql.OrderDesc())).
+		Order(
+			task.ByScheduledAt(sql.OrderAsc()),
+			task.ByPriority(sql.OrderDesc()),
+			task.ByCreatedAt(sql.OrderAsc()),
+		).
 		First(ctx)
 	if err != nil {
 		if gen.IsNotFound(err) {
-			return def.Task{}, &def.RepositoryError{Kind: def.Empty, Raw: err}
+			return def.Task{}, &def.RepositoryError{Kind: def.Exhausted, Raw: err}
 		}
 		return def.Task{}, err
 	}
@@ -309,27 +308,18 @@ func mapPointerToOption[T any](v *T) option.Option[T] {
 	}
 }
 
-func derefOrZero[T any](v *T) T {
-	if v == nil {
-		var zero T
-		return zero
-	} else {
-		return *v
-	}
-}
-
 func where[T interface {
 	Where(ps ...predicate.Task) T
 }](builder T, query def.TaskQueryParam) T {
-	builder = whereOptEq(builder, query.Id, task.IDEQ)
-	builder = whereOptEq(builder, query.WorkId, task.WorkIDEQ)
-	builder = whereOptEq(builder, query.Priority, task.PriorityEQ)
-	builder = whereOptEq(
+	builder = whereFieldEq(builder, query.Id, task.IDEQ)
+	builder = whereFieldEq(builder, query.WorkId, task.WorkIDEQ)
+	builder = whereFieldEq(builder, query.Priority, task.PriorityEQ)
+	builder = whereFieldEq(
 		builder,
 		query.State,
 		func(v def.State) predicate.Task { return task.StateEQ(task.State(v)) },
 	)
-	builder = whereOptEq(builder, query.Err, task.ErrEQ)
+	builder = whereFieldEq(builder, query.Err, task.ErrEQ)
 
 	builder = whereTime(builder, query.ScheduledAt, task.FieldScheduledAt)
 	builder = whereTime(builder, query.CreatedAt, task.FieldCreatedAt)
@@ -338,23 +328,13 @@ func where[T interface {
 	builder = whereOptTime(builder, query.DispatchedAt, task.FieldDispatchedAt)
 	builder = whereOptTime(builder, query.DoneAt, task.FieldDoneAt)
 
-	if query.Param.IsSome() {
-		param := query.Param.Value()
-		if len(param) > 0 {
-			builder = builder.Where(jsonMatcher(task.FieldParam, param))
-		}
-	}
-	if query.Meta.IsSome() {
-		meta := query.Meta.Value()
-		if len(meta) > 0 {
-			builder = builder.Where(jsonMatcher(task.FieldMeta, meta))
-		}
-	}
+	builder = whereMap(builder, query.Param, task.FieldParam)
+	builder = whereMap(builder, query.Meta, task.FieldMeta)
 
 	return builder
 }
 
-func whereOptEq[T interface {
+func whereFieldEq[T interface {
 	Where(ps ...predicate.Task) T
 }, U any](builder T, query option.Option[U], pred func(v U) predicate.Task) T {
 	if query.IsNone() {
@@ -385,9 +365,9 @@ func whereOptTime[T interface {
 }
 
 func timePred(fieldName string, matcher def.TimeMatcher) predicate.Task {
-	switch matcher.MatchType {
+	switch matcher.MatchType.Get() {
 	default:
-		panic(fmt.Errorf("unknown matcher type: %s", matcher.MatchType))
+		panic(fmt.Errorf("unknown matcher type: %s", matcher.MatchType.Get()))
 	case def.TimeMatcherNonNull:
 		return sql.FieldNotNull(fieldName)
 	case def.TimeMatcherEqual:
@@ -403,11 +383,20 @@ func timePred(fieldName string, matcher def.TimeMatcher) predicate.Task {
 	}
 }
 
+func whereMap[T interface {
+	Where(ps ...predicate.Task) T
+}](builder T, query option.Option[[]def.MapMatcher], fieldName string) T {
+	if query.IsNone() {
+		return builder
+	}
+	return builder.Where(jsonMatcher(fieldName, query.Value()))
+}
+
 func jsonMatcher(field string, matchers []def.MapMatcher) predicate.Task {
 	return func(s *sql.Selector) {
 		for _, kv := range matchers {
 			var pred *sql.Predicate
-			switch kv.MatchType {
+			switch kv.MatchType.Get() {
 			case def.MapMatcherHasKey:
 				pred = sqljson.HasKey(
 					field,

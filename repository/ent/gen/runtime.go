@@ -19,20 +19,24 @@ func init() {
 	taskDescWorkID := taskFields[1].Descriptor()
 	// task.WorkIDValidator is a validator for the "work_id" field. It is called by the builders before save.
 	task.WorkIDValidator = taskDescWorkID.Validators[0].(func(string) error)
-	// taskDescParam is the schema descriptor for param field.
-	taskDescParam := taskFields[2].Descriptor()
-	// task.DefaultParam holds the default value on creation for the param field.
-	task.DefaultParam = taskDescParam.Default.(map[string]string)
 	// taskDescPriority is the schema descriptor for priority field.
-	taskDescPriority := taskFields[3].Descriptor()
+	taskDescPriority := taskFields[2].Descriptor()
 	// task.DefaultPriority holds the default value on creation for the priority field.
 	task.DefaultPriority = taskDescPriority.Default.(int)
-	// taskDescCreatedAt is the schema descriptor for created_at field.
-	taskDescCreatedAt := taskFields[6].Descriptor()
-	// task.DefaultCreatedAt holds the default value on creation for the created_at field.
-	task.DefaultCreatedAt = taskDescCreatedAt.Default.(func() time.Time)
+	// taskDescErr is the schema descriptor for err field.
+	taskDescErr := taskFields[4].Descriptor()
+	// task.DefaultErr holds the default value on creation for the err field.
+	task.DefaultErr = taskDescErr.Default.(string)
+	// taskDescParam is the schema descriptor for param field.
+	taskDescParam := taskFields[5].Descriptor()
+	// task.DefaultParam holds the default value on creation for the param field.
+	task.DefaultParam = taskDescParam.Default.(map[string]string)
 	// taskDescMeta is the schema descriptor for meta field.
-	taskDescMeta := taskFields[12].Descriptor()
+	taskDescMeta := taskFields[6].Descriptor()
 	// task.DefaultMeta holds the default value on creation for the meta field.
 	task.DefaultMeta = taskDescMeta.Default.(map[string]string)
+	// taskDescCreatedAt is the schema descriptor for created_at field.
+	taskDescCreatedAt := taskFields[8].Descriptor()
+	// task.DefaultCreatedAt holds the default value on creation for the created_at field.
+	task.DefaultCreatedAt = taskDescCreatedAt.Default.(func() time.Time)
 }

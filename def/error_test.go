@@ -41,8 +41,8 @@ func TestIsRepositoryError(t *testing.T) {
 			"Direct already done",
 		},
 		{
-			IsEmpty,
-			&RepositoryError{Kind: Empty},
+			IsExhausted,
+			&RepositoryError{Kind: Exhausted},
 			true,
 			"Direct already empty",
 		},

@@ -5,18 +5,17 @@ import (
 	"slices"
 	"time"
 
-	"github.com/ngicks/gokugen/def/util"
 	"github.com/ngicks/und/option"
 )
 
 // TaskUpdateParam is set of parameters for users to update tasks.
 type TaskUpdateParam struct {
 	WorkId      option.Option[string]                   `json:"work_id"`
-	Param       option.Option[map[string]string]        `json:"param"`
 	Priority    option.Option[int]                      `json:"priority"`
+	Param       option.Option[map[string]string]        `json:"param"`
+	Meta        option.Option[map[string]string]        `json:"meta"`
 	ScheduledAt option.Option[time.Time]                `json:"scheduled_at"`
 	Deadline    option.Option[option.Option[time.Time]] `json:"deadline"`
-	Meta        option.Option[map[string]string]        `json:"meta"`
 }
 
 func (p TaskUpdateParam) Update(u TaskUpdateParam) TaskUpdateParam {
@@ -30,8 +29,8 @@ func (p TaskUpdateParam) Update(u TaskUpdateParam) TaskUpdateParam {
 	return p
 }
 
-func (p TaskUpdateParam) ToTask(ignoreMicro bool) Task {
-	return Task{}.Update(p, ignoreMicro)
+func (p TaskUpdateParam) ToTask() Task {
+	return Task{}.Update(p)
 }
 
 func (p TaskUpdateParam) Clone() TaskUpdateParam {
@@ -48,19 +47,19 @@ func (p TaskUpdateParam) Clone() TaskUpdateParam {
 	return p
 }
 
-func (t TaskUpdateParam) TruncTime() TaskUpdateParam {
+func (t TaskUpdateParam) Normalize() TaskUpdateParam {
 	t = t.Clone()
-	t.ScheduledAt = t.ScheduledAt.Map(util.DropMicros)
-	t.Deadline = truncOptionOptionTime(t.Deadline)
+	t.ScheduledAt = t.ScheduledAt.Map(NormalizeTime)
+	t.Deadline = normalizeOptionOptionTime(t.Deadline)
 	return t
 }
 
-func truncOptionOptionTime(
+func normalizeOptionOptionTime(
 	v option.Option[option.Option[time.Time]],
 ) option.Option[option.Option[time.Time]] {
 	return v.Map(
 		func(v option.Option[time.Time]) option.Option[time.Time] {
-			return v.Map(util.DropMicros)
+			return v.Map(NormalizeTime)
 		},
 	)
 }
@@ -69,11 +68,11 @@ func truncOptionOptionTime(
 type TaskQueryParam struct {
 	Id           option.Option[string]                     `json:"id"`
 	WorkId       option.Option[string]                     `json:"work_id"`
+	Priority     option.Option[int]                        `json:"priority"`
+	State        option.Option[State]                      `json:"state"`
+	Err          option.Option[string]                     `json:"err"`
 	Param        option.Option[[]MapMatcher]               `json:"param"`
 	Meta         option.Option[[]MapMatcher]               `json:"meta"`
-	Priority     option.Option[int]                        `json:"priority"`
-	Err          option.Option[string]                     `json:"err"`
-	State        option.Option[State]                      `json:"state"`
 	ScheduledAt  option.Option[TimeMatcher]                `json:"scheduled_at"`
 	CreatedAt    option.Option[TimeMatcher]                `json:"created_at"`
 	Deadline     option.Option[option.Option[TimeMatcher]] `json:"deadline"`
@@ -88,27 +87,27 @@ func (m TaskQueryParam) Clone() TaskQueryParam {
 	return m
 }
 
-func (m TaskQueryParam) TruncTime() TaskQueryParam {
+func (m TaskQueryParam) Normalize() TaskQueryParam {
 	m = m.Clone()
-	m.ScheduledAt = m.ScheduledAt.Map(truncTimeMatcher)
-	m.CreatedAt = m.CreatedAt.Map(truncTimeMatcher)
-	m.CancelledAt = truncOptionTimeMatcher(m.CancelledAt)
-	m.DispatchedAt = truncOptionTimeMatcher(m.DispatchedAt)
-	m.DoneAt = truncOptionTimeMatcher(m.DoneAt)
+	m.ScheduledAt = m.ScheduledAt.Map(normalizeTimeMatcher)
+	m.CreatedAt = m.CreatedAt.Map(normalizeTimeMatcher)
+	m.CancelledAt = normalizeOptionTimeMatcher(m.CancelledAt)
+	m.DispatchedAt = normalizeOptionTimeMatcher(m.DispatchedAt)
+	m.DoneAt = normalizeOptionTimeMatcher(m.DoneAt)
 	return m
 }
 
-func truncTimeMatcher(m TimeMatcher) TimeMatcher {
-	m.Value = util.DropMicros(m.Value)
+func normalizeTimeMatcher(m TimeMatcher) TimeMatcher {
+	m.Value = NormalizeTime(m.Value)
 	return m
 }
 
-func truncOptionTimeMatcher(
+func normalizeOptionTimeMatcher(
 	m option.Option[option.Option[TimeMatcher]],
 ) option.Option[option.Option[TimeMatcher]] {
 	return m.Map(
 		func(v option.Option[TimeMatcher]) option.Option[TimeMatcher] {
-			return v.Map(truncTimeMatcher)
+			return v.Map(normalizeTimeMatcher)
 		},
 	)
 }
@@ -122,6 +121,7 @@ type MapMatcher struct {
 type mapMatchType string
 
 const (
+	MapMatcherDefault  mapMatchType = ""
 	MapMatcherHasKey   mapMatchType = "HasKey"   // query for objects which have that key.
 	MapMatcherExact    mapMatchType = "Exact"    // query for exact same value.
 	MapMatcherForward  mapMatchType = "Forward"  // query for forward match.
@@ -133,6 +133,17 @@ func (t mapMatchType) String() string {
 	return string(t)
 }
 
+// Get returns mapMatchType, falling back to MapMatcherExact if unknown variants.
+func (t mapMatchType) Get() mapMatchType {
+	switch t {
+	case MapMatcherHasKey, MapMatcherExact, MapMatcherForward,
+		MapMatcherBackward, MapMatcherMiddle:
+		return t
+	default:
+		return MapMatcherExact
+	}
+}
+
 type TimeMatcher struct {
 	MatchType timeMatchType
 	Value     time.Time
@@ -141,6 +152,7 @@ type TimeMatcher struct {
 type timeMatchType string
 
 const (
+	TimeMatcherDefault     timeMatchType = ""
 	TimeMatcherNonNull     timeMatchType = "NonNull"
 	TimeMatcherEqual       timeMatchType = "Equal"
 	TimeMatcherBefore      timeMatchType = "Before"
@@ -148,3 +160,14 @@ const (
 	TimeMatcherAfter       timeMatchType = "After"
 	TimeMatcherAfterEqual  timeMatchType = "AfterEqual"
 )
+
+// Get returns timeMatchType, falling back to TimeMatcherEqual if unknown variants.
+func (t timeMatchType) Get() timeMatchType {
+	switch t {
+	case TimeMatcherNonNull, TimeMatcherEqual, TimeMatcherBefore,
+		TimeMatcherBeforeEqual, TimeMatcherAfter, TimeMatcherAfterEqual:
+		return t
+	default:
+		return TimeMatcherEqual
+	}
+}

@@ -13,17 +13,17 @@ var (
 	TasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeString, Unique: true},
 		{Name: "work_id", Type: field.TypeString},
-		{Name: "param", Type: field.TypeJSON},
 		{Name: "priority", Type: field.TypeInt, Default: 0},
 		{Name: "state", Type: field.TypeEnum, Enums: []string{"scheduled", "dispatched", "cancelled", "done", "err"}, Default: "scheduled"},
+		{Name: "err", Type: field.TypeString, Default: ""},
+		{Name: "param", Type: field.TypeJSON},
+		{Name: "meta", Type: field.TypeJSON},
 		{Name: "scheduled_at", Type: field.TypeTime},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "deadline", Type: field.TypeTime, Nullable: true},
 		{Name: "cancelled_at", Type: field.TypeTime, Nullable: true},
 		{Name: "dispatched_at", Type: field.TypeTime, Nullable: true},
 		{Name: "done_at", Type: field.TypeTime, Nullable: true},
-		{Name: "err", Type: field.TypeString},
-		{Name: "meta", Type: field.TypeJSON},
 	}
 	// TasksTable holds the schema information for the "tasks" table.
 	TasksTable = &schema.Table{
@@ -34,12 +34,17 @@ var (
 			{
 				Name:    "sched",
 				Unique:  false,
-				Columns: []*schema.Column{TasksColumns[5], TasksColumns[3]},
+				Columns: []*schema.Column{TasksColumns[7], TasksColumns[2]},
 				Annotation: &entsql.IndexAnnotation{
 					DescColumns: map[string]bool{
-						TasksColumns[3].Name: true,
+						TasksColumns[2].Name: true,
 					},
 				},
+			},
+			{
+				Name:    "task_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{TasksColumns[8]},
 			},
 		},
 	}
