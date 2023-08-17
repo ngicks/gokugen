@@ -50,7 +50,7 @@ func init() {
 	exampleDateNotNormalized = time.Date(1992, 8, 17, 11, 15, 24, 123456789, jst)
 }
 
-// TestRepository is an accecptance test set for Repository interface.
+// TestRepository is an acceptance test set for Repository interface.
 // Only those which can pass this test are considered conformers of the interface.
 //
 // This test uses repository instances returned from newInitializedRepository.
