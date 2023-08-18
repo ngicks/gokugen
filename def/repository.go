@@ -25,7 +25,7 @@ type Repository interface {
 	// Implementations must not leave Id field empty.
 	// It finally returns a Task created inside it.
 	//
-	// Implementations must test param validity by calling param.ToTask(true).IsValid().
+	// Implementations must test param validity by calling param.ToTask().IsValid().
 	// If param is invalid, AddTask returns ErrInvalidTask or
 	// an error which includes ErrInvalidTask in its error chain.
 	AddTask(ctx context.Context, param TaskUpdateParam) (Task, error)

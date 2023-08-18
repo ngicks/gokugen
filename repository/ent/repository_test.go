@@ -14,7 +14,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/ngicks/gokugen/def"
-	"github.com/ngicks/gokugen/def/acceptance"
+	"github.com/ngicks/gokugen/def/acceptance/repository"
 	"github.com/ngicks/gokugen/repository/ent/gen"
 )
 
@@ -63,5 +63,5 @@ func TestRepository(t *testing.T) {
 		return reposiotory
 	}
 
-	acceptance.TestRepository(t, newInitializedRepository)
+	repository.TestRepository(t, newInitializedRepository)
 }
