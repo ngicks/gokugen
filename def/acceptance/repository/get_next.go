@@ -73,12 +73,17 @@ func TestRepository_next_task_can_be_fetched(t *testing.T, repo def.Repository) 
 	}
 
 	// created_at is not related.
-	tasks := createInRandomOrder(t, repo, params)
+	firstTask, err := repo.AddTask(context.Background(), params[0])
+	require.NoError(err)
+	tasks := createInRandomOrder(t, repo, params[1:])
+	tasks = append([]def.Task{firstTask}, tasks...)
 
-	for _, task := range tasks {
+	for idx, task := range tasks {
 		fetched, err := repo.GetNext(context.Background())
 		require.NoError(err)
-		assertSameTask(t, task, fetched)
+		if !assertSameTask(t, task, fetched) {
+			t.Logf("failed at idx = %d", idx)
+		}
 		_ = repo.Cancel(context.Background(), fetched.Id)
 	}
 }

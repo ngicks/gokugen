@@ -22,13 +22,13 @@ import (
 func TestRepository_tasks_can_be_added(t *testing.T, repo def.Repository) {
 	t.Helper()
 
-	testRepository_add_task_300_elements(t, repo)
+	testRepository_add_task_1500_elements(t, repo)
 	testRepository_add_task_error(t, repo)
 	testRepository_add_task_with_nil_replaced_with_empty_map(t, repo)
 	testRepository_add_task_normalize(t, repo)
 }
 
-func testRepository_add_task_300_elements(t *testing.T, repo def.Repository) {
+func testRepository_add_task_1500_elements(t *testing.T, repo def.Repository) {
 	t.Helper()
 
 	require := require.New(t)
@@ -40,22 +40,22 @@ func testRepository_add_task_300_elements(t *testing.T, repo def.Repository) {
 	for i := 0; i < 100; i++ {
 		for i := 1; i <= 0b1111; i++ {
 			// shadowing
-			initialParam := initialParam
+			taskParam := initialParam.Clone()
 
 			if i&0b0001 == 0 {
-				initialParam.Param = option.None[map[string]string]()
+				taskParam.Param = option.None[map[string]string]()
 			}
-			if i&0b0010 > 0 {
-				initialParam.Priority = option.None[int]()
+			if i&0b0010 == 0 {
+				taskParam.Priority = option.None[int]()
 			}
-			if i&0b0100 > 0 {
-				initialParam.Deadline = option.None[option.Option[time.Time]]()
+			if i&0b0100 == 0 {
+				taskParam.Deadline = option.None[option.Option[time.Time]]()
 			}
-			if i&0b1000 > 0 {
-				initialParam.Meta = option.None[map[string]string]()
+			if i&0b1000 == 0 {
+				taskParam.Meta = option.None[map[string]string]()
 			}
 
-			task := testRepository_add_task(t, repo, initialParam)
+			task := testRepository_add_task(t, repo, taskParam)
 
 			if _, alreadyExist := idSet[task.Id]; alreadyExist {
 				t.Fatalf("AddTask returned same id twice. task = %+#v", task)
@@ -95,9 +95,9 @@ func testRepository_add_task(
 
 	// time fields
 	require.True(sampleDate.Equal(task.ScheduledAt))
-	// Theoritically task.CreatedAt.Compare(currentTime) == 1 is always true.
+	// Theoretically task.CreatedAt.Compare(currentTime) == 1 is always true.
 	// However some test environment does not allow the timer to advance.
-	// Therefore it is a wrong assumption for those environemnts.
+	// It is a wrong assumption for those environments.
 	require.GreaterOrEqual(task.CreatedAt.Compare(timeBeforeAddition), 0)
 	require.True(initialParam.Deadline.Value().Equal(task.Deadline))
 	require.True(task.CancelledAt.IsNone())

@@ -58,6 +58,8 @@ func init() {
 // The test uses each instance however only one instance is used at a time.
 // Therefore an invocation may invalidate all instances it has returned.
 func TestRepository(t *testing.T, newInitializedRepository func() def.Repository) {
+	t.Helper()
+
 	t.Run("tasks can be added", func(t *testing.T) {
 		TestRepository_tasks_can_be_added(t, newInitializedRepository())
 	})
