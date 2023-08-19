@@ -29,8 +29,12 @@ func (p TaskUpdateParam) Update(u TaskUpdateParam) TaskUpdateParam {
 	return p
 }
 
-func (p TaskUpdateParam) ToTask() Task {
-	return Task{}.Update(p)
+func (p TaskUpdateParam) ToTask(id string, createdAt time.Time) Task {
+	return Task{
+		Id:        id,
+		CreatedAt: NormalizeTime(createdAt),
+		State:     TaskScheduled,
+	}.Update(p)
 }
 
 func (p TaskUpdateParam) Clone() TaskUpdateParam {

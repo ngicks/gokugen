@@ -39,10 +39,7 @@ func (c *Core) Close() error {
 }
 
 func (c *Core) AddTask(ctx context.Context, param def.TaskUpdateParam) (def.Task, error) {
-	t := param.ToTask()
-	t.Id = c.randStrGen()
-	t.State = def.TaskScheduled
-	t.CreatedAt = def.NormalizeTime(c.clock.Now())
+	t := param.ToTask(c.randStrGen(), c.clock.Now())
 
 	if !t.IsValid() {
 		return def.Task{},
