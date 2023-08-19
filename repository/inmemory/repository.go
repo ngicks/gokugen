@@ -24,13 +24,18 @@ type InMemoryRepository struct {
 }
 
 func NewInMemoryRepository() *InMemoryRepository {
-	return &InMemoryRepository{
-		insertionOrderCount: new(atomic.Uint64),
-		heap:                heapimpl.NewFilterableHeap[*indexedTask](),
-		orderedMap:          orderedmap.New[string, *indexedTask](),
-		randStrGen:          uuid.NewString,
-		clock:               mockable.NewClockReal(),
+	r := &InMemoryRepository{
+		randStrGen: uuid.NewString,
+		clock:      mockable.NewClockReal(),
 	}
+	r.init()
+	return r
+}
+
+func (r *InMemoryRepository) init() {
+	r.insertionOrderCount = new(atomic.Uint64)
+	r.heap = heapimpl.NewFilterableHeap[*indexedTask]()
+	r.orderedMap = orderedmap.New[string, *indexedTask]()
 }
 
 func (r *InMemoryRepository) Close() error {
