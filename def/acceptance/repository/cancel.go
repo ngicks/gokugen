@@ -12,13 +12,13 @@ import (
 func TestRepository_tasks_can_be_cancelled(t *testing.T, repo def.Repository) {
 	t.Helper()
 
-	eachState := createEachState(t, repo)
+	eachState := CreateEachState(t, repo)
 
 	testRepository_cancel(t, repo, eachState)
 	testRepository_cancel_error(t, repo, eachState)
 }
 
-func testRepository_cancel(t *testing.T, repo def.Repository, eachState eachStateTask) {
+func testRepository_cancel(t *testing.T, repo def.Repository, eachState EachStateTask) {
 	t.Helper()
 	require := require.New(t)
 
@@ -42,7 +42,7 @@ func testRepository_cancel(t *testing.T, repo def.Repository, eachState eachStat
 	assertTimeNormalized(t, refetched.CancelledAt.Value())
 }
 
-func testRepository_cancel_error(t *testing.T, repo def.Repository, eachState eachStateTask) {
+func testRepository_cancel_error(t *testing.T, repo def.Repository, eachState EachStateTask) {
 
 	var err error
 	err = repo.Cancel(context.Background(), def.NeverExistentId)

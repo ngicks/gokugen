@@ -12,18 +12,18 @@ import (
 func TestRepository_dispatched_tasks_can_be_marked_as_done(t *testing.T, repo def.Repository) {
 	t.Helper()
 
-	eachState := createEachState(t, repo)
+	eachState := CreateEachState(t, repo)
 	testRepository_mark_as_done(t, repo, eachState, nil)
 	testRepository_mark_as_done_error(t, repo, eachState, nil)
 
-	eachState = createEachState(t, repo)
+	eachState = CreateEachState(t, repo)
 	testRepository_mark_as_done(t, repo, eachState, fakeErr)
 	testRepository_mark_as_done_error(t, repo, eachState, fakeErr)
 }
 
 func testRepository_mark_as_done(
 	t *testing.T, repo def.Repository,
-	eachState eachStateTask,
+	eachState EachStateTask,
 	taskErr error,
 ) {
 	t.Helper()
@@ -56,7 +56,7 @@ func testRepository_mark_as_done(
 func testRepository_mark_as_done_error(
 	t *testing.T,
 	repo def.Repository,
-	eachState eachStateTask,
+	eachState EachStateTask,
 	taskErr error,
 ) {
 	var err error

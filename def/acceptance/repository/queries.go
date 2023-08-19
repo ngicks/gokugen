@@ -18,7 +18,7 @@ func prepareTasks(t *testing.T, repo def.Repository) []def.Task {
 
 	tasks := make([]def.Task, 0)
 
-	eachState := createEachState(t, repo)
+	eachState := CreateEachState(t, repo)
 
 	tasks = append(
 		tasks,

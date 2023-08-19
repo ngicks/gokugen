@@ -142,7 +142,7 @@ func testRepository_update_state_other_than_scheduled_is_not_updatable(
 ) {
 	t.Helper()
 
-	eachState := createEachState(t, repo)
+	eachState := CreateEachState(t, repo)
 
 	var err error
 	err = repo.UpdateById(context.Background(), eachState.Cancelled.Id, updateParam)

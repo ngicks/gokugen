@@ -12,13 +12,13 @@ import (
 func TestRepository_tasks_can_be_marked_as_dispatched(t *testing.T, repo def.Repository) {
 	t.Helper()
 
-	eachState := createEachState(t, repo)
+	eachState := CreateEachState(t, repo)
 
 	testRepository_mark_as_dispatched(t, repo, eachState)
 	testRepository_mark_as_dispatched_error(t, repo, eachState)
 }
 
-func testRepository_mark_as_dispatched(t *testing.T, repo def.Repository, eachState eachStateTask) {
+func testRepository_mark_as_dispatched(t *testing.T, repo def.Repository, eachState EachStateTask) {
 	t.Helper()
 	require := require.New(t)
 
@@ -45,7 +45,7 @@ func testRepository_mark_as_dispatched(t *testing.T, repo def.Repository, eachSt
 func testRepository_mark_as_dispatched_error(
 	t *testing.T,
 	repo def.Repository,
-	eachState eachStateTask,
+	eachState EachStateTask,
 ) {
 
 	var err error

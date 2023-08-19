@@ -18,7 +18,7 @@ func TestRepository_next_task_can_be_fetched(t *testing.T, repo def.Repository) 
 	_, err := repo.GetNext(context.Background())
 	assertIsExhausted(t, err)
 
-	eachState := createEachState(t, repo)
+	eachState := CreateEachState(t, repo)
 
 	task, err := repo.GetNext(context.Background())
 	require.NoError(err)

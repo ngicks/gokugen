@@ -13,15 +13,15 @@ var (
 	fakeErr = errors.New("fake error")
 )
 
-type eachStateTask struct {
+type EachStateTask struct {
 	Scheduled, Cancelled, Dispatched, Done, Err def.Task
 }
 
-func createEachState(t *testing.T, repo def.Repository) eachStateTask {
+func CreateEachState(t *testing.T, repo def.Repository) EachStateTask {
 	t.Helper()
 	require := require.New(t)
 
-	var eachState eachStateTask
+	var eachState EachStateTask
 
 	eachState.Scheduled = func() def.Task {
 		task, err := repo.AddTask(context.Background(), initialParam)

@@ -13,7 +13,7 @@ func TestRepository_tasks_can_be_fetched_by_id(t *testing.T, repo def.Repository
 	t.Helper()
 	require := require.New(t)
 
-	eachState := createEachState(t, repo)
+	eachState := CreateEachState(t, repo)
 
 	for _, task := range []def.Task{
 		eachState.Scheduled,
