@@ -50,7 +50,7 @@ func TestRepository(t *testing.T) {
 			t.Fatalf("failed opening connection to sqlite: %v", err)
 		}
 
-		reposiotory := NewCore(client)
+		reposiotory := NewEntRepository(client)
 
 		instances = append(instances, reposiotory)
 

@@ -16,37 +16,37 @@ import (
 	"github.com/ngicks/und/option"
 )
 
-var _ def.Repository = (*Core)(nil)
+var _ def.Repository = (*EntRepository)(nil)
 
 type RandStrGen func() string
 
-type Core struct {
+type EntRepository struct {
 	client     *gen.Client
 	randStrGen RandStrGen
 	clock      mockable.Clock
 }
 
-func NewCore(client *gen.Client) *Core {
-	return &Core{
+func NewEntRepository(client *gen.Client) *EntRepository {
+	return &EntRepository{
 		client:     client,
 		randStrGen: uuid.NewString,
 		clock:      mockable.NewClockReal(),
 	}
 }
 
-func (c *Core) Close() error {
-	return c.client.Close()
+func (r *EntRepository) Close() error {
+	return r.client.Close()
 }
 
-func (c *Core) AddTask(ctx context.Context, param def.TaskUpdateParam) (def.Task, error) {
-	t := param.ToTask(c.randStrGen(), c.clock.Now())
+func (r *EntRepository) AddTask(ctx context.Context, param def.TaskUpdateParam) (def.Task, error) {
+	t := param.ToTask(r.randStrGen(), r.clock.Now())
 
 	if !t.IsValid() {
 		return def.Task{},
 			fmt.Errorf("%w. reason = %v", def.ErrInvalidTask, t.ReportInvalidity())
 	}
 
-	builder := c.client.Task.Create().
+	builder := r.client.Task.Create().
 		SetID(t.Id).
 		SetWorkID(t.WorkId).
 		SetPriority(t.Priority).
@@ -70,8 +70,8 @@ func (c *Core) AddTask(ctx context.Context, param def.TaskUpdateParam) (def.Task
 	return mapEntToDefTask(created), nil
 }
 
-func (c *Core) GetById(ctx context.Context, id string) (def.Task, error) {
-	t, err := c.client.Task.Get(ctx, id)
+func (r *EntRepository) GetById(ctx context.Context, id string) (def.Task, error) {
+	t, err := r.client.Task.Get(ctx, id)
 	if err != nil {
 		if gen.IsNotFound(err) {
 			return def.Task{},
@@ -111,13 +111,17 @@ var fakeTask = def.Task{
 	Meta: map[string]string{"baz": "qux"},
 }
 
-func (c *Core) UpdateById(ctx context.Context, id string, param def.TaskUpdateParam) error {
+func (r *EntRepository) UpdateById(
+	ctx context.Context,
+	id string,
+	param def.TaskUpdateParam,
+) error {
 	if !fakeTask.Update(param).IsValid() {
 		return fmt.Errorf("%w: update to invalid state is not allowed", def.ErrInvalidTask)
 	}
 	param = param.Normalize()
 
-	builder := c.client.Task.UpdateOneID(id).Where(task.StateEQ(task.DefaultState))
+	builder := r.client.Task.UpdateOneID(id).Where(task.StateEQ(task.DefaultState))
 	if param.WorkId.IsSome() {
 		builder = builder.SetWorkID(param.WorkId.Value())
 	}
@@ -152,7 +156,7 @@ func (c *Core) UpdateById(ctx context.Context, id string, param def.TaskUpdatePa
 
 	err := builder.Exec(ctx)
 	if gen.IsNotFound(err) {
-		t, err := c.GetById(ctx, id)
+		t, err := r.GetById(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -164,16 +168,16 @@ func (c *Core) UpdateById(ctx context.Context, id string, param def.TaskUpdatePa
 	return nil
 }
 
-func (c *Core) Cancel(ctx context.Context, id string) error {
-	err := c.client.Task.
+func (r *EntRepository) Cancel(ctx context.Context, id string) error {
+	err := r.client.Task.
 		UpdateOneID(id).
 		Where(task.StateEQ(task.StateScheduled)).
 		SetState(task.StateCancelled).
-		SetCancelledAt(def.NormalizeTime(c.clock.Now())).
+		SetCancelledAt(def.NormalizeTime(r.clock.Now())).
 		Exec(ctx)
 
 	if gen.IsNotFound(err) {
-		t, err := c.GetById(ctx, id)
+		t, err := r.GetById(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -185,16 +189,16 @@ func (c *Core) Cancel(ctx context.Context, id string) error {
 	return nil
 }
 
-func (c *Core) MarkAsDispatched(ctx context.Context, id string) error {
-	err := c.client.Task.
+func (r *EntRepository) MarkAsDispatched(ctx context.Context, id string) error {
+	err := r.client.Task.
 		UpdateOneID(id).
 		Where(task.StateEQ(task.StateScheduled)).
 		SetState(task.StateDispatched).
-		SetDispatchedAt(def.NormalizeTime(c.clock.Now())).
+		SetDispatchedAt(def.NormalizeTime(r.clock.Now())).
 		Exec(ctx)
 
 	if gen.IsNotFound(err) {
-		t, err := c.GetById(ctx, id)
+		t, err := r.GetById(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -206,24 +210,24 @@ func (c *Core) MarkAsDispatched(ctx context.Context, id string) error {
 	return nil
 }
 
-func (c *Core) MarkAsDone(ctx context.Context, id string, err error) error {
-	builder := c.client.Task.
+func (r *EntRepository) MarkAsDone(ctx context.Context, id string, err error) error {
+	builder := r.client.Task.
 		UpdateOneID(id).
 		Where(task.StateEQ(task.StateDispatched))
 
 	if err == nil {
 		builder = builder.SetState(task.StateDone).
-			SetDoneAt(def.NormalizeTime(c.clock.Now()))
+			SetDoneAt(def.NormalizeTime(r.clock.Now()))
 	} else {
 		builder = builder.SetState(task.StateErr).
-			SetDoneAt(def.NormalizeTime(c.clock.Now())).
+			SetDoneAt(def.NormalizeTime(r.clock.Now())).
 			SetErr(err.Error())
 	}
 
 	updateErr := builder.Exec(ctx)
 
 	if gen.IsNotFound(updateErr) {
-		t, err := c.GetById(ctx, id)
+		t, err := r.GetById(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -235,14 +239,14 @@ func (c *Core) MarkAsDone(ctx context.Context, id string, err error) error {
 	return nil
 }
 
-func (c *Core) Find(
+func (r *EntRepository) Find(
 	ctx context.Context,
 	query def.TaskQueryParam,
 	offset, limit int,
 ) ([]def.Task, error) {
 	query = query.Normalize()
 
-	builder := where(c.client.Task.Query(), query)
+	builder := where(r.client.Task.Query(), query)
 
 	tasks, err := builder.
 		Order(task.ByCreatedAt()).
@@ -260,8 +264,8 @@ func (c *Core) Find(
 	return ret, nil
 }
 
-func (c *Core) GetNext(ctx context.Context) (def.Task, error) {
-	t, err := c.client.Task.
+func (r *EntRepository) GetNext(ctx context.Context) (def.Task, error) {
+	t, err := r.client.Task.
 		Query().
 		Where(task.StateEQ(task.DefaultState)).
 		Order(
