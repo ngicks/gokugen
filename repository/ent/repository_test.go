@@ -18,7 +18,11 @@ import (
 	"github.com/ngicks/gokugen/repository/ent/gen"
 )
 
-func TestRepository(t *testing.T) {
+var (
+	debug = os.Getenv("TEST_DEBUG") == "1"
+)
+
+func TestRepository_ent_sqlite(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		panic(err)
@@ -63,5 +67,5 @@ func TestRepository(t *testing.T) {
 		return reposiotory
 	}
 
-	repository.TestRepository(t, newInitializedRepository)
+	repository.TestRepository(t, newInitializedRepository, debug)
 }

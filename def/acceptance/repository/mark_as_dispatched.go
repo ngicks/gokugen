@@ -9,16 +9,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_tasks_can_be_marked_as_dispatched(t *testing.T, repo def.Repository) {
+func TestRepository_tasks_can_be_marked_as_dispatched(
+	t *testing.T,
+	repo def.Repository,
+	debug bool,
+) {
 	t.Helper()
 
 	eachState := CreateEachState(t, repo)
 
-	testRepository_mark_as_dispatched(t, repo, eachState)
-	testRepository_mark_as_dispatched_error(t, repo, eachState)
+	testRepository_mark_as_dispatched(t, repo, eachState, debug)
+	testRepository_mark_as_dispatched_error(t, repo, eachState, debug)
 }
 
-func testRepository_mark_as_dispatched(t *testing.T, repo def.Repository, eachState EachStateTask) {
+func testRepository_mark_as_dispatched(
+	t *testing.T,
+	repo def.Repository,
+	eachState EachStateTask,
+	debug bool,
+) {
 	t.Helper()
 	require := require.New(t)
 
@@ -46,6 +55,7 @@ func testRepository_mark_as_dispatched_error(
 	t *testing.T,
 	repo def.Repository,
 	eachState EachStateTask,
+	debug bool,
 ) {
 
 	var err error

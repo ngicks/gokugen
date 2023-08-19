@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_tasks_can_be_cancelled(t *testing.T, repo def.Repository) {
+func TestRepository_tasks_can_be_cancelled(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 
 	eachState := CreateEachState(t, repo)
 
-	testRepository_cancel(t, repo, eachState)
-	testRepository_cancel_error(t, repo, eachState)
+	testRepository_cancel(t, repo, eachState, debug)
+	testRepository_cancel_error(t, repo, eachState, debug)
 }
 
-func testRepository_cancel(t *testing.T, repo def.Repository, eachState EachStateTask) {
+func testRepository_cancel(t *testing.T, repo def.Repository, eachState EachStateTask, debug bool) {
 	t.Helper()
 	require := require.New(t)
 
@@ -42,7 +42,12 @@ func testRepository_cancel(t *testing.T, repo def.Repository, eachState EachStat
 	assertTimeNormalized(t, refetched.CancelledAt.Value())
 }
 
-func testRepository_cancel_error(t *testing.T, repo def.Repository, eachState EachStateTask) {
+func testRepository_cancel_error(
+	t *testing.T,
+	repo def.Repository,
+	eachState EachStateTask,
+	debug bool,
+) {
 
 	var err error
 	err = repo.Cancel(context.Background(), def.NeverExistentId)

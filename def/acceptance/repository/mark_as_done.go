@@ -9,22 +9,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_dispatched_tasks_can_be_marked_as_done(t *testing.T, repo def.Repository) {
+func TestRepository_dispatched_tasks_can_be_marked_as_done(
+	t *testing.T,
+	repo def.Repository,
+	debug bool,
+) {
 	t.Helper()
 
 	eachState := CreateEachState(t, repo)
-	testRepository_mark_as_done(t, repo, eachState, nil)
-	testRepository_mark_as_done_error(t, repo, eachState, nil)
+	testRepository_mark_as_done(t, repo, eachState, nil, debug)
+	testRepository_mark_as_done_error(t, repo, eachState, nil, debug)
 
 	eachState = CreateEachState(t, repo)
-	testRepository_mark_as_done(t, repo, eachState, fakeErr)
-	testRepository_mark_as_done_error(t, repo, eachState, fakeErr)
+	testRepository_mark_as_done(t, repo, eachState, fakeErr, debug)
+	testRepository_mark_as_done_error(t, repo, eachState, fakeErr, debug)
 }
 
 func testRepository_mark_as_done(
 	t *testing.T, repo def.Repository,
 	eachState EachStateTask,
 	taskErr error,
+	debug bool,
 ) {
 	t.Helper()
 	require := require.New(t)
@@ -58,6 +63,7 @@ func testRepository_mark_as_done_error(
 	repo def.Repository,
 	eachState EachStateTask,
 	taskErr error,
+	debug bool,
 ) {
 	var err error
 	err = repo.MarkAsDone(context.Background(), def.NeverExistentId, taskErr)

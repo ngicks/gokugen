@@ -12,20 +12,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_tasks_can_be_updated(t *testing.T, repo def.Repository) {
+func TestRepository_tasks_can_be_updated(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 
 	// first of all, update with known value and
 	// check if task.Update matches behavior of UpdateById.
-	testRepository_update_to_known_value(t, repo)
-	testRepository_update_with_all_possible_none_some_combination(t, repo)
-	testRepository_update_with_nil_replaced_with_empty_map(t, repo)
-	testRepository_update_nonexistent(t, repo)
-	testRepository_update_state_other_than_scheduled_is_not_updatable(t, repo)
-	testRepository_update_normalize(t, repo)
+	testRepository_update_to_known_value(t, repo, debug)
+	testRepository_update_with_all_possible_none_some_combination(t, repo, debug)
+	testRepository_update_with_nil_replaced_with_empty_map(t, repo, debug)
+	testRepository_update_nonexistent(t, repo, debug)
+	testRepository_update_state_other_than_scheduled_is_not_updatable(t, repo, debug)
+	testRepository_update_normalize(t, repo, debug)
 }
 
-func testRepository_update_to_known_value(t *testing.T, repo def.Repository) {
+func testRepository_update_to_known_value(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 
 	require := require.New(t)
@@ -67,6 +67,7 @@ func testRepository_update_to_known_value(t *testing.T, repo def.Repository) {
 func testRepository_update_with_all_possible_none_some_combination(
 	t *testing.T,
 	repo def.Repository,
+	debug bool,
 ) {
 	t.Helper()
 
@@ -105,7 +106,11 @@ func testRepository_update_with_all_possible_none_some_combination(
 	}
 }
 
-func testRepository_update_with_nil_replaced_with_empty_map(t *testing.T, repo def.Repository) {
+func testRepository_update_with_nil_replaced_with_empty_map(
+	t *testing.T,
+	repo def.Repository,
+	debug bool,
+) {
 	t.Helper()
 
 	require := require.New(t)
@@ -129,7 +134,7 @@ func testRepository_update_with_nil_replaced_with_empty_map(t *testing.T, repo d
 	require.NotNil(updated.Meta)
 }
 
-func testRepository_update_nonexistent(t *testing.T, repo def.Repository) {
+func testRepository_update_nonexistent(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 
 	err := repo.UpdateById(context.Background(), def.NeverExistentId, updateParam)
@@ -139,6 +144,7 @@ func testRepository_update_nonexistent(t *testing.T, repo def.Repository) {
 func testRepository_update_state_other_than_scheduled_is_not_updatable(
 	t *testing.T,
 	repo def.Repository,
+	debug bool,
 ) {
 	t.Helper()
 
@@ -158,7 +164,7 @@ func testRepository_update_state_other_than_scheduled_is_not_updatable(
 	assertIsAlreadyDone(t, err)
 }
 
-func testRepository_update_normalize(t *testing.T, repo def.Repository) {
+func testRepository_update_normalize(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 	require := require.New(t)
 

@@ -19,16 +19,16 @@ import (
 //   - Id's are auto-generated and not overlapping at least for 300 elements
 //   - An user can fetch added tasks by calling GetById.
 //   - It returns ErrInvalidTask if some specific field of TaskUpdateParam is empty.
-func TestRepository_tasks_can_be_added(t *testing.T, repo def.Repository) {
+func TestRepository_tasks_can_be_added(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 
-	testRepository_add_task_1500_elements(t, repo)
-	testRepository_add_task_error(t, repo)
-	testRepository_add_task_with_nil_replaced_with_empty_map(t, repo)
-	testRepository_add_task_normalize(t, repo)
+	testRepository_add_task_1500_elements(t, repo, debug)
+	testRepository_add_task_error(t, repo, debug)
+	testRepository_add_task_with_nil_replaced_with_empty_map(t, repo, debug)
+	testRepository_add_task_normalize(t, repo, debug)
 }
 
-func testRepository_add_task_1500_elements(t *testing.T, repo def.Repository) {
+func testRepository_add_task_1500_elements(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 
 	require := require.New(t)
@@ -108,7 +108,7 @@ func testRepository_add_task(
 	return task
 }
 
-func testRepository_add_task_error(t *testing.T, repo def.Repository) {
+func testRepository_add_task_error(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 
 	require := require.New(t)
@@ -136,7 +136,11 @@ func testRepository_add_task_error(t *testing.T, repo def.Repository) {
 	}
 }
 
-func testRepository_add_task_with_nil_replaced_with_empty_map(t *testing.T, repo def.Repository) {
+func testRepository_add_task_with_nil_replaced_with_empty_map(
+	t *testing.T,
+	repo def.Repository,
+	debug bool,
+) {
 	t.Helper()
 
 	require := require.New(t)
@@ -155,7 +159,7 @@ func testRepository_add_task_with_nil_replaced_with_empty_map(t *testing.T, repo
 	require.NotNil(task.Meta)
 }
 
-func testRepository_add_task_normalize(t *testing.T, repo def.Repository) {
+func testRepository_add_task_normalize(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 	require := require.New(t)
 

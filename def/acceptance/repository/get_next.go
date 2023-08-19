@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_next_task_can_be_fetched(t *testing.T, repo def.Repository) {
+func TestRepository_next_task_can_be_fetched(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 	require := require.New(t)
 
@@ -72,7 +72,8 @@ func TestRepository_next_task_can_be_fetched(t *testing.T, repo def.Repository) 
 		},
 	}
 
-	// created_at is not related.
+	// insertion order / created_at is considered
+	// only if 2 or more tasks have same scheduled_at and priority.
 	firstTask, err := repo.AddTask(context.Background(), params[0])
 	require.NoError(err)
 	tasks := createInRandomOrder(t, repo, params[1:])

@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_can_find_tasks(t *testing.T, repo def.Repository) {
+func TestRepository_can_find_tasks(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 	assert := assert.New(t)
 	require := require.New(t)
@@ -27,9 +27,11 @@ func TestRepository_can_find_tasks(t *testing.T, repo def.Repository) {
 	require.Len(found, len(tasks))
 
 	for idx, set := range queryTestCases(tasks) {
-		t.Logf("case = %d, query = %s",
-			idx, mustMarshal(set.param),
-		)
+		if debug {
+			t.Logf("case = %d, query = %s",
+				idx, mustMarshal(set.param),
+			)
+		}
 		found, err = repo.Find(
 			context.Background(),
 			set.param,

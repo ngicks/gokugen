@@ -57,39 +57,39 @@ func init() {
 // The function will be called multiple times.
 // The test uses each instance however only one instance is used at a time.
 // Therefore an invocation may invalidate all instances it has returned.
-func TestRepository(t *testing.T, newInitializedRepository func() def.Repository) {
+func TestRepository(t *testing.T, newInitializedRepository func() def.Repository, debug bool) {
 	t.Helper()
 
 	t.Run("tasks can be added", func(t *testing.T) {
-		TestRepository_tasks_can_be_added(t, newInitializedRepository())
+		TestRepository_tasks_can_be_added(t, newInitializedRepository(), debug)
 	})
 
 	t.Run("tasks can be fetched by id", func(t *testing.T) {
-		TestRepository_tasks_can_be_fetched_by_id(t, newInitializedRepository())
+		TestRepository_tasks_can_be_fetched_by_id(t, newInitializedRepository(), debug)
 	})
 
 	t.Run("tasks can be updated", func(t *testing.T) {
-		TestRepository_tasks_can_be_updated(t, newInitializedRepository())
+		TestRepository_tasks_can_be_updated(t, newInitializedRepository(), debug)
 	})
 
 	t.Run("tasks can be cancelled", func(t *testing.T) {
-		TestRepository_tasks_can_be_cancelled(t, newInitializedRepository())
+		TestRepository_tasks_can_be_cancelled(t, newInitializedRepository(), debug)
 	})
 
 	t.Run("tasks can be marked as dispatched", func(t *testing.T) {
-		TestRepository_tasks_can_be_marked_as_dispatched(t, newInitializedRepository())
+		TestRepository_tasks_can_be_marked_as_dispatched(t, newInitializedRepository(), debug)
 	})
 
 	t.Run("dispatched tasks can be marked as done", func(t *testing.T) {
-		TestRepository_dispatched_tasks_can_be_marked_as_done(t, newInitializedRepository())
+		TestRepository_dispatched_tasks_can_be_marked_as_done(t, newInitializedRepository(), debug)
 	})
 
 	t.Run("can find tasks", func(t *testing.T) {
-		TestRepository_can_find_tasks(t, newInitializedRepository())
+		TestRepository_can_find_tasks(t, newInitializedRepository(), debug)
 	})
 
 	t.Run("next task can be fetched", func(t *testing.T) {
-		TestRepository_next_task_can_be_fetched(t, newInitializedRepository())
+		TestRepository_next_task_can_be_fetched(t, newInitializedRepository(), debug)
 	})
 }
 

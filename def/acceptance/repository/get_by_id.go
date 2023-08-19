@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRepository_tasks_can_be_fetched_by_id(t *testing.T, repo def.Repository) {
+func TestRepository_tasks_can_be_fetched_by_id(t *testing.T, repo def.Repository, debug bool) {
 	t.Helper()
 	require := require.New(t)
 
