@@ -6,10 +6,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"io"
-	"log"
 	"net/url"
 	"os"
 	"path"
+	"sync/atomic"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -32,7 +32,7 @@ func TestRepository_ent_sqlite(t *testing.T) {
 		for _, instance := range instances {
 			instance.Close()
 		}
-		// os.RemoveAll(tempDir)
+		os.RemoveAll(tempDir)
 	}()
 
 	newInitializedRepository := func() def.Repository {
@@ -54,17 +54,49 @@ func TestRepository_ent_sqlite(t *testing.T) {
 			t.Fatalf("failed opening connection to sqlite: %v", err)
 		}
 
-		reposiotory := NewEntRepository(client)
+		repository := NewEntRepository(client)
 
-		instances = append(instances, reposiotory)
+		instances = append(instances, repository)
 
 		// Run the auto migration tool.
 		if err := client.Schema.Create(context.Background()); err != nil {
-			log.Fatalf("failed creating schema resources: %v", err)
+			t.Fatalf("failed creating schema resources: %v", err)
 		}
 		t.Logf("created %s", repoFileUrl.String())
 
-		return reposiotory
+		return repository
+	}
+
+	repository.TestRepository(t, newInitializedRepository, debug)
+}
+
+func TestRepository_ent_sqlite3_in_memory(t *testing.T) {
+	var (
+		prev atomic.Pointer[EntRepository]
+	)
+	defer func() {
+		if prevRepo := prev.Load(); prevRepo != nil {
+			prevRepo.Close()
+		}
+	}()
+
+	newInitializedRepository := func() def.Repository {
+		client, err := gen.Open("sqlite3", ":memory:?_fk=1")
+		if err != nil {
+			t.Fatalf("failed opening connection to sqlite: %v", err)
+		}
+
+		repository := NewEntRepository(client)
+
+		if err := client.Schema.Create(context.Background()); err != nil {
+			t.Fatalf("failed creating schema resources: %v", err)
+		}
+
+		if prevRepo := prev.Swap(repository); prevRepo != nil {
+			prevRepo.Close()
+		}
+
+		return repository
 	}
 
 	repository.TestRepository(t, newInitializedRepository, debug)
