@@ -55,14 +55,14 @@ type Task struct {
 
 func (t Task) Equal(u Task) bool {
 	return fromTaskToComparable(t) == fromTaskToComparable(u) &&
+		maps.Equal(t.Param, u.Param) &&
+		maps.Equal(t.Meta, u.Meta) &&
 		t.ScheduledAt.Equal(u.ScheduledAt) &&
 		t.CreatedAt.Equal(u.CreatedAt) &&
 		t.Deadline.Equal(u.Deadline) &&
 		t.CancelledAt.Equal(u.CancelledAt) &&
 		t.DispatchedAt.Equal(u.DispatchedAt) &&
-		t.DoneAt.Equal(u.DoneAt) &&
-		maps.Equal(t.Param, u.Param) &&
-		maps.Equal(t.Meta, u.Meta)
+		t.DoneAt.Equal(u.DoneAt)
 }
 
 type taskComparable struct {
@@ -170,7 +170,11 @@ func (t Task) Less(j Task) bool {
 		return t.ScheduledAt.Before(j.ScheduledAt)
 	}
 
-	return t.Priority > j.Priority
+	if t.Priority != j.Priority {
+		return t.Priority > j.Priority
+	}
+
+	return t.CreatedAt.Before(j.CreatedAt)
 }
 
 func (t Task) Update(param TaskUpdateParam) Task {

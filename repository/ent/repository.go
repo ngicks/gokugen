@@ -18,11 +18,9 @@ import (
 
 var _ def.Repository = (*EntRepository)(nil)
 
-type RandStrGen func() string
-
 type EntRepository struct {
 	client     *gen.Client
-	randStrGen RandStrGen
+	randStrGen def.RandStrGen
 	clock      mockable.Clock
 }
 

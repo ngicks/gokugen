@@ -7,20 +7,26 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.17
+	github.com/ngicks/generic v0.0.0-20230320024227-32842ed7ed0f
+	github.com/ngicks/genericcontainer v0.0.0-20230320070448-f93958917953
 	github.com/ngicks/mockable v0.0.0-20230524100816-106941ea893e
 	github.com/ngicks/und v0.0.0-20230723110635-fd0b45653fa9
 	github.com/stretchr/testify v1.8.4
-	golang.org/x/exp v0.0.0-20220613132600-b0d781184e0d
+	github.com/wk8/go-ordered-map/v2 v2.1.8
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
 )
 
 require (
 	ariga.io/atlas v0.10.2-0.20230427182402-87a07dfb83bf // indirect
 	github.com/agext/levenshtein v1.2.1 // indirect
 	github.com/apparentlymart/go-textseg/v13 v13.0.0 // indirect
+	github.com/bahlo/generic-list-go v0.2.0 // indirect
+	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/hashicorp/hcl/v2 v2.13.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect

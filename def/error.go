@@ -7,9 +7,6 @@ import (
 
 var (
 	ErrInvalidTask       = errors.New("invalid task")
-	ErrAlreadyRunning    = errors.New("already running")
-	ErrNotRunning        = errors.New("not running")
-	ErrNotSupported      = errors.New("operation not supported")
 	ErrNotRegisteredMeta = errors.New("not a registered meta")
 )
 

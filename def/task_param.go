@@ -3,6 +3,7 @@ package def
 import (
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/ngicks/und/option"
@@ -68,7 +69,7 @@ func normalizeOptionOptionTime(
 	)
 }
 
-// TaskSerachMatcher is used to query task.
+// TaskQueryParam is used to query task.
 type TaskQueryParam struct {
 	Id           option.Option[string]                     `json:"id"`
 	WorkId       option.Option[string]                     `json:"work_id"`
@@ -83,6 +84,53 @@ type TaskQueryParam struct {
 	CancelledAt  option.Option[option.Option[TimeMatcher]] `json:"cancelled_at"`
 	DispatchedAt option.Option[option.Option[TimeMatcher]] `json:"dispatched_at"`
 	DoneAt       option.Option[option.Option[TimeMatcher]] `json:"done_at"`
+}
+
+func (m TaskQueryParam) Match(t Task) bool {
+	return matchComparable(t.Id, m.Id) &&
+		matchComparable(t.WorkId, m.WorkId) &&
+		matchComparable(t.Priority, m.Priority) &&
+		matchComparable(t.State, m.State) &&
+		matchComparable(t.Err, m.Err) &&
+		matchMap(t.Param, m.Param) &&
+		matchMap(t.Meta, m.Meta) &&
+		matchTime(&t.ScheduledAt, m.ScheduledAt) &&
+		matchTime(&t.CreatedAt, m.CreatedAt) &&
+		matchOptTime(t.Deadline.Plain(), m.Deadline) &&
+		matchOptTime(t.CancelledAt.Plain(), m.CancelledAt) &&
+		matchOptTime(t.DispatchedAt.Plain(), m.DispatchedAt) &&
+		matchOptTime(t.DoneAt.Plain(), m.DoneAt)
+}
+
+func matchComparable[T comparable](v T, m option.Option[T]) bool {
+	if m.IsNone() {
+		return true
+	}
+	return v == m.Value()
+}
+
+func matchMap(v map[string]string, m option.Option[[]MapMatcher]) bool {
+	if m.IsNone() {
+		return true
+	}
+	return MapMatchers(m.Value()).Match(v)
+}
+
+func matchTime(v *time.Time, m option.Option[TimeMatcher]) bool {
+	if m.IsNone() {
+		return true
+	}
+	return m.Value().Match(v)
+}
+
+func matchOptTime(v *time.Time, m option.Option[option.Option[TimeMatcher]]) bool {
+	if m.IsNone() {
+		return true
+	}
+	if m.Value().IsNone() {
+		return v == nil
+	}
+	return m.Value().Value().Match(v)
 }
 
 func (m TaskQueryParam) Clone() TaskQueryParam {
@@ -122,6 +170,41 @@ type MapMatcher struct {
 	MatchType mapMatchType
 }
 
+func (m MapMatcher) Match(mm map[string]string) bool {
+	switch m.MatchType.Get() {
+	case MapMatcherHasKey:
+		_, ok := mm[m.Key]
+		return ok
+	case MapMatcherExact, MapMatcherForward, MapMatcherBackward, MapMatcherMiddle:
+		v, ok := mm[m.Key]
+		if !ok {
+			return false
+		}
+		switch m.MatchType.Get() {
+		case MapMatcherExact:
+			return v == m.Value
+		case MapMatcherForward:
+			return strings.HasPrefix(v, m.Value)
+		case MapMatcherBackward:
+			return strings.HasSuffix(v, m.Value)
+		case MapMatcherMiddle:
+			return strings.Contains(v, m.Value)
+		}
+	}
+	return false
+}
+
+type MapMatchers []MapMatcher
+
+func (mm MapMatchers) Match(v map[string]string) bool {
+	for _, m := range mm {
+		if !m.Match(v) {
+			return false
+		}
+	}
+	return true
+}
+
 type mapMatchType string
 
 const (
@@ -151,6 +234,31 @@ func (t mapMatchType) Get() mapMatchType {
 type TimeMatcher struct {
 	MatchType timeMatchType
 	Value     time.Time
+}
+
+func (m TimeMatcher) Match(v *time.Time) bool {
+	switch m.MatchType.Get() {
+	case TimeMatcherNonNull:
+		return v != nil
+	case TimeMatcherEqual, TimeMatcherBefore, TimeMatcherBeforeEqual,
+		TimeMatcherAfter, TimeMatcherAfterEqual:
+		if v == nil {
+			return false
+		}
+		switch m.MatchType.Get() {
+		case TimeMatcherEqual:
+			return m.Value.Equal(*v)
+		case TimeMatcherBefore:
+			return m.Value.Compare(*v) > 0
+		case TimeMatcherBeforeEqual:
+			return m.Value.Compare(*v) >= 0
+		case TimeMatcherAfter:
+			return m.Value.Compare(*v) < 0
+		case TimeMatcherAfterEqual:
+			return m.Value.Compare(*v) <= 0
+		}
+	}
+	return true
 }
 
 type timeMatchType string

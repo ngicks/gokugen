@@ -13,7 +13,7 @@ var NeverExistentId = "%%%%$$$$%%%%$$$$%%%%$$$$"
 // ObservableRepository is a combination of Repository and Timer interfaces.
 type ObservableRepository interface {
 	Repository
-	TimerLike
+	Observer
 }
 
 //nolint:lll
@@ -51,7 +51,8 @@ type Repository interface {
 	GetNext(ctx context.Context) (Task, error)
 }
 
-type TimerLike interface {
+type Observer interface {
+	LastTimerUpdateError() error
 	// StartTimer starts its internal timer.
 	// A channel returned from TimerChannel emits only if it is started.
 	// In started state, the timer channel updates to a next scheduled element
