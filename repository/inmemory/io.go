@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/ngicks/genericcontainer/heapimpl"
 	"github.com/ngicks/gokugen/def"
@@ -36,10 +37,11 @@ func (r *InMemoryRepository) Load(kv []KeyValue) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	r.insertionOrderCount = new(atomic.Uint64)
 	r.heap = heapimpl.NewFilterableHeap[*indexedTask]()
 	r.orderedMap = orderedmap.New[string, *indexedTask]()
 	for _, pair := range kv {
-		wrapped := wrapTask(pair.Value.Clone())
+		wrapped := wrapTask(pair.Value.Clone(), r.insertionOrderCount)
 		if pair.Value.State == def.TaskScheduled {
 			r.heap.Push(wrapped)
 		}

@@ -23,8 +23,6 @@ func TestIo(t *testing.T) {
 		_, _ = repo.AddTask(context.Background(), def.TaskUpdateParam{
 			WorkId:      option.Some("foo"),
 			ScheduledAt: option.Some(time.Now()),
-			// w/o this, heap order is unstable since created_at is same for many elements.
-			Priority: option.Some(i),
 		})
 	}
 

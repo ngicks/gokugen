@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/google/uuid"
 	"github.com/ngicks/genericcontainer/heapimpl"
@@ -14,19 +15,21 @@ import (
 )
 
 type InMemoryRepository struct {
-	mu         sync.Mutex
-	heap       *heapimpl.FilterableHeap[*indexedTask]
-	orderedMap *orderedmap.OrderedMap[string, *indexedTask]
-	randStrGen def.RandStrGen
-	clock      mockable.Clock
+	mu                  sync.Mutex
+	insertionOrderCount *atomic.Uint64
+	heap                *heapimpl.FilterableHeap[*indexedTask]
+	orderedMap          *orderedmap.OrderedMap[string, *indexedTask]
+	randStrGen          def.RandStrGen
+	clock               mockable.Clock
 }
 
 func NewInMemoryRepository() *InMemoryRepository {
 	return &InMemoryRepository{
-		heap:       heapimpl.NewFilterableHeap[*indexedTask](),
-		orderedMap: orderedmap.New[string, *indexedTask](),
-		randStrGen: uuid.NewString,
-		clock:      mockable.NewClockReal(),
+		insertionOrderCount: new(atomic.Uint64),
+		heap:                heapimpl.NewFilterableHeap[*indexedTask](),
+		orderedMap:          orderedmap.New[string, *indexedTask](),
+		randStrGen:          uuid.NewString,
+		clock:               mockable.NewClockReal(),
 	}
 }
 
@@ -48,7 +51,7 @@ func (r *InMemoryRepository) AddTask(
 		return def.Task{},
 			fmt.Errorf("%w. reason = %v", def.ErrInvalidTask, t.ReportInvalidity())
 	}
-	wrapped := wrapTask(t.Clone())
+	wrapped := wrapTask(t.Clone(), r.insertionOrderCount)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
