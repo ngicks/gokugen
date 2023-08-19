@@ -55,7 +55,7 @@ func (r *InMemoryRepository) AddTask(
 
 	r.heap.Push(wrapped)
 	r.orderedMap.Set(wrapped.task.Id, wrapped)
-	return t, nil
+	return t.Clone(), nil
 }
 
 func (r *InMemoryRepository) GetById(ctx context.Context, id string) (def.Task, error) {
@@ -71,7 +71,7 @@ func (r *InMemoryRepository) GetById(ctx context.Context, id string) (def.Task, 
 		return def.Task{},
 			&def.RepositoryError{Kind: def.IdNotFound, Id: id}
 	}
-	return *task.task, nil
+	return task.task.Clone(), nil
 }
 
 func (r *InMemoryRepository) UpdateById(
@@ -193,7 +193,7 @@ func (r *InMemoryRepository) Find(
 			if limit > 0 {
 				limit--
 			}
-			out = append(out, *pair.Value.task)
+			out = append(out, pair.Value.task.Clone())
 		}
 	}
 	return out, nil
@@ -206,5 +206,5 @@ func (r *InMemoryRepository) GetNext(ctx context.Context) (def.Task, error) {
 	if r.heap.Len() == 0 {
 		return def.Task{}, &def.RepositoryError{Kind: def.Exhausted}
 	}
-	return *r.heap.Peek().task, nil
+	return r.heap.Peek().task.Clone(), nil
 }

@@ -19,7 +19,7 @@ func (r *InMemoryRepository) Save() []KeyValue {
 
 	out := make([]KeyValue, 0, r.orderedMap.Len())
 	for pair := r.orderedMap.Oldest(); pair != nil; pair = pair.Next() {
-		out = append(out, KeyValue{Key: pair.Key, Value: *pair.Value.task})
+		out = append(out, KeyValue{Key: pair.Key, Value: pair.Value.task.Clone()})
 	}
 	return out
 }
@@ -39,7 +39,7 @@ func (r *InMemoryRepository) Load(kv []KeyValue) error {
 	r.heap = heapimpl.NewFilterableHeap[*indexedTask]()
 	r.orderedMap = orderedmap.New[string, *indexedTask]()
 	for _, pair := range kv {
-		wrapped := wrapTask(pair.Value)
+		wrapped := wrapTask(pair.Value.Clone())
 		if pair.Value.State == def.TaskScheduled {
 			r.heap.Push(wrapped)
 		}
