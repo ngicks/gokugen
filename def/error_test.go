@@ -91,13 +91,17 @@ func TestIsRepositoryError(t *testing.T) {
 	repoErr := &RepositoryError{Kind: AlreadyCancelled}
 	wrapped := fmt.Errorf("%w", repoErr)
 	nonRepoErrWrapped := fmt.Errorf("%w", errSample)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		assert.True(
 			IsAlreadyCancelled(wrapped),
 			"wrapped error must return true if it has RepositoryError in its chain.",
 		)
 		assert.False(IsAlreadyCancelled(nonRepoErrWrapped))
-		wrapped = fmt.Errorf("%w", wrapped)
+		if i%3 != 0 {
+			wrapped = fmt.Errorf("%w", wrapped)
+		} else {
+			wrapped = fmt.Errorf("%w, %w", wrapped, errors.New("mah"))
+		}
 		nonRepoErrWrapped = fmt.Errorf("%w", nonRepoErrWrapped)
 	}
 }
