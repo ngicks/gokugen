@@ -178,8 +178,6 @@ func (t Task) Less(j Task) bool {
 }
 
 func (t Task) Update(param TaskUpdateParam) Task {
-	t = t.Clone()
-
 	assignIfSome(&t.WorkId, param.WorkId, nil, nil)
 	assignIfSome(
 		&t.Param,

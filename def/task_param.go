@@ -20,14 +20,13 @@ type TaskUpdateParam struct {
 }
 
 func (p TaskUpdateParam) Update(u TaskUpdateParam) TaskUpdateParam {
-	p = p.Clone()
 	p.WorkId = u.WorkId.Or(p.WorkId)
 	p.Param = u.Param.Or(p.Param)
 	p.Priority = u.Priority.Or(p.Priority)
 	p.ScheduledAt = u.ScheduledAt.Or(p.ScheduledAt)
 	p.Deadline = u.Deadline.Or(p.Deadline)
 	p.Meta = u.Meta.Or(p.Meta)
-	return p
+	return p.Clone()
 }
 
 func (p TaskUpdateParam) ToTask(id string, createdAt time.Time) Task {
@@ -140,13 +139,12 @@ func (m TaskQueryParam) Clone() TaskQueryParam {
 }
 
 func (m TaskQueryParam) Normalize() TaskQueryParam {
-	m = m.Clone()
 	m.ScheduledAt = m.ScheduledAt.Map(normalizeTimeMatcher)
 	m.CreatedAt = m.CreatedAt.Map(normalizeTimeMatcher)
 	m.CancelledAt = normalizeOptionTimeMatcher(m.CancelledAt)
 	m.DispatchedAt = normalizeOptionTimeMatcher(m.DispatchedAt)
 	m.DoneAt = normalizeOptionTimeMatcher(m.DoneAt)
-	return m
+	return m.Clone()
 }
 
 func normalizeTimeMatcher(m TimeMatcher) TimeMatcher {
