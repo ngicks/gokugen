@@ -9,8 +9,11 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/ngicks/generic v0.0.0-20230320024227-32842ed7ed0f
 	github.com/ngicks/genericcontainer v0.0.0-20230320070448-f93958917953
+	github.com/ngicks/genericsync v0.0.0-20230320055056-d2085f143d81
+	github.com/ngicks/gommon/pkg/timing v0.0.4
 	github.com/ngicks/mockable v0.0.0-20230524100816-106941ea893e
 	github.com/ngicks/und v0.0.0-20230723110635-fd0b45653fa9
+	github.com/ngicks/workerpool v0.0.1-alpha5
 	github.com/stretchr/testify v1.8.4
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
@@ -30,6 +33,8 @@ require (
 	github.com/mitchellh/go-wordwrap v0.0.0-20150314170334-ad45545899c7 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
+	github.com/ngicks/gommon/pkg/common v0.2.0 // indirect
+	github.com/ngicks/type-param-common v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/zclconf/go-cty v1.8.0 // indirect
 	golang.org/x/mod v0.10.0 // indirect

@@ -5,8 +5,19 @@ import (
 	"fmt"
 )
 
+func IsDefError(err error) bool {
+	return (err == ErrInvalidTask ||
+		err == ErrWorkIdNotFound ||
+		err == ErrNotRegisteredMeta ||
+		errors.Is(err, ErrInvalidTask) ||
+		errors.Is(err, ErrWorkIdNotFound) ||
+		errors.Is(err, ErrNotRegisteredMeta) ||
+		IsRepositoryErr(err, ""))
+}
+
 var (
 	ErrInvalidTask       = errors.New("invalid task")
+	ErrWorkIdNotFound    = errors.New("work_id not found")
 	ErrNotRegisteredMeta = errors.New("not a registered meta")
 )
 
@@ -43,7 +54,11 @@ func IsRepositoryErr(err error, kind RepositoryErrorKind) bool {
 	for {
 		repoErr, ok := err.(*RepositoryError)
 		if ok {
-			return repoErr.Kind == kind
+			if kind == "" {
+				return true
+			} else {
+				return repoErr.Kind == kind
+			}
 		}
 		switch x := err.(type) {
 		case interface{ Unwrap() error }:
