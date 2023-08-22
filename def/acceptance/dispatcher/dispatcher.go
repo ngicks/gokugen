@@ -8,7 +8,7 @@ import (
 
 	"github.com/ngicks/genericsync"
 	"github.com/ngicks/gokugen/def"
-	"github.com/ngicks/gommon/pkg/timing"
+	timinghelper "github.com/ngicks/timing-helper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,7 +99,7 @@ func testDispatcher_block_at_max_concurrent_plus_1_tasks(
 		retChannels[i] = errChan
 	}
 
-	waiter := timing.CreateWaiterCh(func() {
+	waiter := timinghelper.CreateWaiterCh(func() {
 		errCh, err := dispatcher.Dispatch(
 			context.Background(),
 			func(ctx context.Context) (def.Task, error) {
@@ -194,7 +194,7 @@ func testDispatcher_propagates_cancellation(
 
 		var errCh <-chan error
 		var err error
-		waiter := timing.CreateWaiterFn(func() {
+		waiter := timinghelper.CreateWaiterFn(func() {
 			errCh, err = dispatcher.Dispatch(ctx, func(ctx context.Context) (def.Task, error) {
 				<-stepChan
 				<-stepChan

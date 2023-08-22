@@ -7,11 +7,12 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
 	github.com/mattn/go-sqlite3 v1.14.17
+	github.com/ngicks/eventqueue v0.0.0-20230822171926-4da05f80335a
 	github.com/ngicks/generic v0.0.0-20230320024227-32842ed7ed0f
 	github.com/ngicks/genericcontainer v0.0.0-20230320070448-f93958917953
 	github.com/ngicks/genericsync v0.0.0-20230320055056-d2085f143d81
-	github.com/ngicks/gommon/pkg/timing v0.0.4
 	github.com/ngicks/mockable v0.0.0-20230524100816-106941ea893e
+	github.com/ngicks/timing-helper v0.0.0-20230822171135-9abb192ed0f9
 	github.com/ngicks/und v0.0.0-20230723110635-fd0b45653fa9
 	github.com/ngicks/workerpool v0.0.1-alpha5
 	github.com/stretchr/testify v1.8.4
@@ -26,6 +27,7 @@ require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/gammazero/deque v0.2.1 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
 	github.com/hashicorp/hcl/v2 v2.13.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -34,6 +36,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/ngicks/gommon/pkg/common v0.2.0 // indirect
+	github.com/ngicks/gommon/pkg/timing v0.0.4 // indirect
 	github.com/ngicks/type-param-common v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/zclconf/go-cty v1.8.0 // indirect
