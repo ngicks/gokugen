@@ -45,11 +45,11 @@ func (t *MutationHookTimer) LastTimerUpdateError() error {
 	return t.lastErr
 }
 
-func (t *MutationHookTimer) update() {
-	t.lastErr = t._update()
+func (t *MutationHookTimer) update(ctx context.Context) {
+	t.lastErr = t._update(ctx)
 }
 
-func (t *MutationHookTimer) _update() error {
+func (t *MutationHookTimer) _update(ctx context.Context) error {
 	if !t.isTimerStarted {
 		return nil
 	}
@@ -61,7 +61,7 @@ func (t *MutationHookTimer) _update() error {
 		}
 	}
 
-	next, err := t.repo.GetNext(context.Background())
+	next, err := t.repo.GetNext(ctx)
 	// resets to zero-value if err.
 	t.cachedMin = next
 
@@ -83,7 +83,7 @@ func (t *MutationHookTimer) AddTask(ctx context.Context, param def.TaskUpdatePar
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.cachedMin.Id == "" || param.ToTask(def.NeverExistentId, farFuture).Less(t.cachedMin) {
-		t.update()
+		t.update(ctx)
 	}
 }
 
@@ -92,7 +92,7 @@ func (t *MutationHookTimer) UpdateById(ctx context.Context, id string, param def
 	defer t.mu.Unlock()
 
 	if t.cachedMin.Id == "" {
-		t.update()
+		t.update(ctx)
 		return
 	}
 
@@ -106,7 +106,7 @@ func (t *MutationHookTimer) UpdateById(ctx context.Context, id string, param def
 		param.ScheduledAt = param.ScheduledAt.Or(option.Some(t.cachedMin.ScheduledAt))
 
 		if param.ToTask(def.NeverExistentId, time.Time{}).Less(t.cachedMin) {
-			t.update()
+			t.update(ctx)
 			return
 		}
 	}
@@ -115,7 +115,7 @@ func (t *MutationHookTimer) UpdateById(ctx context.Context, id string, param def
 	updatedToBefore := param.ScheduledAt.IsSome() &&
 		param.ScheduledAt.Value().Before(t.cachedMin.ScheduledAt)
 	if updatedToBefore {
-		t.update()
+		t.update(ctx)
 		return
 	}
 	// 2) id is scheduled at the same time as cachedMin is, and priority is updated.
@@ -123,7 +123,7 @@ func (t *MutationHookTimer) UpdateById(ctx context.Context, id string, param def
 		(param.ScheduledAt.IsNone()) &&
 		param.Priority.Value() > t.cachedMin.Priority
 	if updatedToHigherPriority {
-		t.update()
+		t.update(ctx)
 		return
 	}
 }
@@ -132,7 +132,7 @@ func (t *MutationHookTimer) Cancel(ctx context.Context, id string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.cachedMin.Id == "" || t.cachedMin.Id == id {
-		t.update()
+		t.update(ctx)
 	}
 }
 
@@ -142,15 +142,15 @@ func (t *MutationHookTimer) MarkAsDispatched(ctx context.Context, id string) {
 	defer t.mu.Unlock()
 
 	if id == t.cachedMin.Id {
-		t.update()
+		t.update(ctx)
 	}
 }
 
-func (t *MutationHookTimer) StartTimer() {
+func (t *MutationHookTimer) StartTimer(ctx context.Context) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.isTimerStarted = true
-	t.update()
+	t.update(ctx)
 }
 
 func (t *MutationHookTimer) StopTimer() {

@@ -47,7 +47,7 @@ func testHookTimer(t *testing.T, hookTimer HookTimer, fakeTimer *mockable.ClockF
 	assertStopCalled := createAssertStopCalled(t, fakeTimer)
 
 	// empty
-	hookTimer.StartTimer()
+	hookTimer.StartTimer(context.Background())
 	require.NoError(hookTimer.LastTimerUpdateError())
 	assertResetCalled(false)
 	assertStopCalled()
@@ -56,7 +56,7 @@ func testHookTimer(t *testing.T, hookTimer HookTimer, fakeTimer *mockable.ClockF
 	assertStopCalled()
 
 	repo.getErr = fakeErr
-	hookTimer.StartTimer()
+	hookTimer.StartTimer(context.Background())
 	assertResetCalled(false)
 	assertStopCalled()
 	require.ErrorIs(
@@ -68,7 +68,7 @@ func testHookTimer(t *testing.T, hookTimer HookTimer, fakeTimer *mockable.ClockF
 	repo.getErr = nil
 	repo.next = sampleTask
 
-	hookTimer.StartTimer()
+	hookTimer.StartTimer(context.Background())
 	require.NoError(hookTimer.LastTimerUpdateError())
 	assertResetCalled(true)
 	assertStopCalled()

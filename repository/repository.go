@@ -90,8 +90,8 @@ func (r *Repository) LastTimerUpdateError() error {
 	return r.HookTimer.LastTimerUpdateError()
 }
 
-func (r *Repository) StartTimer() {
-	r.HookTimer.StartTimer()
+func (r *Repository) StartTimer(ctx context.Context) {
+	r.HookTimer.StartTimer(ctx)
 }
 
 func (r *Repository) StopTimer() {

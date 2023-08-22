@@ -57,7 +57,7 @@ type Observer interface {
 	// A channel returned from TimerChannel emits only if it is started.
 	// In started state, the timer channel updates to a next scheduled element
 	// on start and at every Repository mutations.
-	StartTimer()
+	StartTimer(ctx context.Context)
 	// StopTimer stops its internal timer.
 	// The channel returned from TimerChannel would not emit after return of StopTimer,
 	// unless StartTimer is called again.
