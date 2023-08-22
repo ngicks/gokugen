@@ -173,19 +173,19 @@ func TestTask_IsValid(t *testing.T) {
 	assert.Equal(0, len(cloned.ReportInvalidity()))
 
 	for i := 1; i <= 0b11111; i++ {
-		if i>>0 != 0 {
+		if i>>0&1 != 0 {
 			cloned.Id = ""
 		}
-		if i>>1 != 0 {
+		if i>>1&1 != 0 {
 			cloned.WorkId = ""
 		}
-		if i>>2 != 0 {
+		if i>>2&1 != 0 {
 			cloned.State = ""
 		}
-		if i>>3 != 0 {
+		if i>>3&1 != 0 {
 			cloned.ScheduledAt = time.Time{}
 		}
-		if i>>4 != 0 {
+		if i>>4&1 != 0 {
 			cloned.CreatedAt = time.Time{}
 		}
 		assert.False(cloned.IsValid())
