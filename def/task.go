@@ -2,12 +2,12 @@ package def
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/ngicks/gokugen/def/util"
 	"github.com/ngicks/und/option"
-	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 type State string
