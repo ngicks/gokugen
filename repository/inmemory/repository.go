@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/ngicks/genericcontainer/heapimpl"
 	"github.com/ngicks/gokugen/def"
+	sortabletask "github.com/ngicks/gokugen/internal/sortable_task"
 	"github.com/ngicks/mockable"
 	"github.com/ngicks/und/option"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
@@ -17,8 +18,8 @@ import (
 type InMemoryRepository struct {
 	mu                  sync.Mutex
 	insertionOrderCount *atomic.Uint64
-	heap                *heapimpl.FilterableHeap[*indexedTask]
-	orderedMap          *orderedmap.OrderedMap[string, *indexedTask]
+	heap                *heapimpl.FilterableHeap[*sortabletask.IndexedTask]
+	orderedMap          *orderedmap.OrderedMap[string, *sortabletask.IndexedTask]
 	randStrGen          def.RandStrGen
 	clock               mockable.Clock
 }
@@ -34,8 +35,8 @@ func NewInMemoryRepository() *InMemoryRepository {
 
 func (r *InMemoryRepository) init() {
 	r.insertionOrderCount = new(atomic.Uint64)
-	r.heap = heapimpl.NewFilterableHeap[*indexedTask]()
-	r.orderedMap = orderedmap.New[string, *indexedTask]()
+	r.heap = heapimpl.NewFilterableHeap[*sortabletask.IndexedTask]()
+	r.orderedMap = orderedmap.New[string, *sortabletask.IndexedTask]()
 }
 
 func (r *InMemoryRepository) Close() error {
@@ -56,13 +57,13 @@ func (r *InMemoryRepository) AddTask(
 		return def.Task{},
 			fmt.Errorf("%w. reason = %v", def.ErrInvalidTask, t.ReportInvalidity())
 	}
-	wrapped := wrapTask(t.Clone(), r.insertionOrderCount)
+	wrapped := sortabletask.WrapTask(t.Clone(), r.insertionOrderCount)
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.heap.Push(wrapped)
-	r.orderedMap.Set(wrapped.task.Id, wrapped)
+	r.orderedMap.Set(wrapped.Task.Id, wrapped)
 	return t.Clone(), nil
 }
 
@@ -79,7 +80,7 @@ func (r *InMemoryRepository) GetById(ctx context.Context, id string) (def.Task, 
 		return def.Task{},
 			&def.RepositoryError{Kind: def.IdNotFound, Id: id}
 	}
-	return task.task.Clone(), nil
+	return task.Task.Clone(), nil
 }
 
 func (r *InMemoryRepository) UpdateById(
@@ -100,11 +101,11 @@ func (r *InMemoryRepository) UpdateById(
 	if !ok {
 		return &def.RepositoryError{Kind: def.IdNotFound, Id: id}
 	}
-	if task.task.State != def.TaskScheduled {
-		return def.ErrKindUpdate(*task.task)
+	if task.Task.State != def.TaskScheduled {
+		return def.ErrKindUpdate(*task.Task)
 	}
-	*(task.task) = task.task.Update(param)
-	r.heap.Fix(task.index)
+	*(task.Task) = task.Task.Update(param)
+	r.heap.Fix(task.Index)
 	return nil
 }
 
@@ -120,14 +121,14 @@ func (r *InMemoryRepository) Cancel(ctx context.Context, id string) error {
 	if !ok {
 		return &def.RepositoryError{Kind: def.IdNotFound, Id: id}
 	}
-	if task.task.State != def.TaskScheduled {
-		return def.ErrKindCancel(*task.task)
+	if task.Task.State != def.TaskScheduled {
+		return def.ErrKindCancel(*task.Task)
 	}
 
-	r.heap.Remove(task.index)
+	r.heap.Remove(task.Index)
 
-	task.task.State = def.TaskCancelled
-	task.task.CancelledAt = option.Some(def.NormalizeTime(r.clock.Now()))
+	task.Task.State = def.TaskCancelled
+	task.Task.CancelledAt = option.Some(def.NormalizeTime(r.clock.Now()))
 
 	return nil
 }
@@ -144,12 +145,12 @@ func (r *InMemoryRepository) MarkAsDispatched(ctx context.Context, id string) er
 	if !ok {
 		return &def.RepositoryError{Kind: def.IdNotFound, Id: id}
 	}
-	if task.task.State != def.TaskScheduled {
-		return def.ErrKindMarkAsDispatch(*task.task)
+	if task.Task.State != def.TaskScheduled {
+		return def.ErrKindMarkAsDispatch(*task.Task)
 	}
-	r.heap.Remove(task.index)
-	task.task.State = def.TaskDispatched
-	task.task.DispatchedAt = option.Some(def.NormalizeTime(r.clock.Now()))
+	r.heap.Remove(task.Index)
+	task.Task.State = def.TaskDispatched
+	task.Task.DispatchedAt = option.Some(def.NormalizeTime(r.clock.Now()))
 	return nil
 }
 
@@ -165,16 +166,16 @@ func (r *InMemoryRepository) MarkAsDone(ctx context.Context, id string, err erro
 	if !ok {
 		return &def.RepositoryError{Kind: def.IdNotFound, Id: id}
 	}
-	if task.task.State != def.TaskDispatched {
-		return def.ErrKindMarkAsDone(*task.task)
+	if task.Task.State != def.TaskDispatched {
+		return def.ErrKindMarkAsDone(*task.Task)
 	}
 	if err == nil {
-		task.task.State = def.TaskDone
+		task.Task.State = def.TaskDone
 	} else {
-		task.task.State = def.TaskErr
-		task.task.Err = err.Error()
+		task.Task.State = def.TaskErr
+		task.Task.Err = err.Error()
 	}
-	task.task.DoneAt = option.Some(def.NormalizeTime(r.clock.Now()))
+	task.Task.DoneAt = option.Some(def.NormalizeTime(r.clock.Now()))
 	return nil
 }
 
@@ -190,7 +191,7 @@ func (r *InMemoryRepository) Find(
 
 	out := make([]def.Task, 0)
 	for pair := r.orderedMap.Oldest(); pair != nil; pair = pair.Next() {
-		if matcher.Match(*pair.Value.task) {
+		if matcher.Match(*pair.Value.Task) {
 			if offset != 0 {
 				offset--
 				continue
@@ -201,7 +202,7 @@ func (r *InMemoryRepository) Find(
 			if limit > 0 {
 				limit--
 			}
-			out = append(out, pair.Value.task.Clone())
+			out = append(out, pair.Value.Task.Clone())
 		}
 	}
 	return out, nil
@@ -214,5 +215,5 @@ func (r *InMemoryRepository) GetNext(ctx context.Context) (def.Task, error) {
 	if r.heap.Len() == 0 {
 		return def.Task{}, &def.RepositoryError{Kind: def.Exhausted}
 	}
-	return r.heap.Peek().task.Clone(), nil
+	return r.heap.Peek().Task.Clone(), nil
 }

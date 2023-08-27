@@ -15,9 +15,9 @@ require (
 	github.com/ngicks/timing-helper v0.0.0-20230822171135-9abb192ed0f9
 	github.com/ngicks/und v0.0.0-20230723110635-fd0b45653fa9
 	github.com/ngicks/workerpool v0.0.1-alpha5
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/stretchr/testify v1.8.4
 	github.com/wk8/go-ordered-map/v2 v2.1.8
-	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0
 )
 
 require (
@@ -40,6 +40,7 @@ require (
 	github.com/ngicks/type-param-common v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/zclconf/go-cty v1.8.0 // indirect
+	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
 	golang.org/x/mod v0.10.0 // indirect
 	golang.org/x/text v0.8.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

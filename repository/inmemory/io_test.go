@@ -43,7 +43,7 @@ func TestIo(t *testing.T) {
 			break
 		}
 		require.Equal(pair.Key, pairOther.Key)
-		require.True(pair.Value.task.Equal(*pairOther.Value.task))
+		require.True(pair.Value.Task.Equal(*pairOther.Value.Task))
 		pair, pairOther = pair.Next(), pairOther.Next()
 	}
 
@@ -52,7 +52,7 @@ func TestIo(t *testing.T) {
 		if repo.heap.Len() == 0 || repoOther.heap.Len() == 0 {
 			break
 		}
-		t, u := *repo.heap.Pop().task, *repoOther.heap.Pop().task
+		t, u := *repo.heap.Pop().Task, *repoOther.heap.Pop().Task
 		assert.True(t.Equal(u), "diff = %s", cmp.Diff(t, u))
 	}
 }
