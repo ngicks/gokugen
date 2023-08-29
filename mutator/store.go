@@ -6,8 +6,7 @@ import (
 )
 
 const (
-	IdKey    = "github.com/ngicks/gokugen/mutator.id"
-	ParamKey = "github.com/ngicks/gokugen/mutator.param"
+	KeyRandomizeScheduledAt = "RandomizeScheduledAt"
 )
 
 var DefaultMutatorStore MutatorStore = defaultMutatorStore{}
@@ -19,7 +18,7 @@ type MutatorStore interface {
 type defaultMutatorStore struct{}
 
 var decoders = map[string]func(param string) (Mutator, error){
-	"RandomizeScheduledAt": func(param string) (Mutator, error) {
+	KeyRandomizeScheduledAt: func(param string) (Mutator, error) {
 		var v RandomizeScheduledAt
 		err := json.Unmarshal([]byte(param), &v)
 		if err != nil {
