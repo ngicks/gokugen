@@ -30,9 +30,16 @@ var decoders = map[string]func(param string) (Mutator, error){
 }
 
 func (defaultMutatorStore) Load(meta map[string]string) (Mutators, error) {
+	if len(meta) == 0 {
+		return make(Mutators, 0), nil
+	}
+
 	mutators := make(Mutators, 0)
 	for k, dec := range decoders {
-		param := meta[k]
+		param, ok := meta[k]
+		if !ok {
+			continue
+		}
 		mut, err := dec(param)
 		if err != nil {
 			return nil, fmt.Errorf("%w: wrong param for %s. input meta = %+#v", err, k, meta)
