@@ -34,6 +34,6 @@ func (r RandomizeScheduledAt) Mutate(p def.TaskUpdateParam) def.TaskUpdateParam 
 	}
 
 	return p.Update(def.TaskUpdateParam{
-		ScheduledAt: option.Some(p.ScheduledAt.Value().Add(time.Duration(randVal))),
+		ScheduledAt: option.Some(p.ScheduledAt.Value().Add(r.Min + time.Duration(randVal))),
 	})
 }
