@@ -9,23 +9,6 @@ import (
 	"github.com/ngicks/und/option"
 )
 
-var (
-	randomReader = rand.Reader
-)
-
-type Mutator interface {
-	Mutate(p def.TaskUpdateParam) def.TaskUpdateParam
-}
-
-type Mutators []Mutator
-
-func (m Mutators) Apply(param def.TaskUpdateParam) def.TaskUpdateParam {
-	for _, mm := range m {
-		param = mm.Mutate(param)
-	}
-	return param.Clone()
-}
-
 var _ Mutator = RandomizeScheduledAt{}
 
 type RandomizeScheduledAt struct {
