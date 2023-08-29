@@ -45,7 +45,7 @@ type Entry struct {
 	schedule Schedule
 }
 
-func From(t time.Time, schedule Schedule) *Entry {
+func NewEntry(t time.Time, schedule Schedule) *Entry {
 	return &Entry{
 		prev:     t,
 		schedule: schedule,
