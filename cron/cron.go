@@ -15,12 +15,6 @@ import (
 	"github.com/ngicks/mockable"
 )
 
-type wrappedTask struct {
-	*sortabletask.IndexedTask
-	key      serializable
-	mutators mutator.Mutators
-}
-
 var _ scheduler.VolatileTask = (*CronStore)(nil)
 
 type CronStore struct {
@@ -36,10 +30,13 @@ type CronStore struct {
 func NewCronTable(entries []*Entry) (*CronStore, error) {
 	c := &CronStore{
 		insertionOrderCount: new(atomic.Uint64),
-		schedule:            heapimpl.NewFilterableHeap[*wrappedTask](),
-		mutators:            mutator.DefaultMutatorStore,
-		entries:             make(map[serializable]*Entry),
-		clock:               mockable.NewClockReal(),
+		schedule: heapimpl.NewFilterableHeapHooks[*wrappedTask](
+			sortabletask.Less[*wrappedTask],
+			sortabletask.MakeHeapMethodSet[*wrappedTask](),
+		),
+		mutators: mutator.DefaultMutatorStore,
+		entries:  make(map[serializable]*Entry),
+		clock:    mockable.NewClockReal(),
 	}
 
 	for _, ent := range entries {
@@ -138,6 +135,7 @@ func (c *CronStore) StopTimer() {
 		}
 	}
 }
+
 func (c *CronStore) TimerChannel() <-chan time.Time {
 	return c.clock.C()
 }

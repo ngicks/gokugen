@@ -53,6 +53,7 @@
     "rescheduler",
     "robfig",
     "sched",
+    "sortabletask",
     "sqljson",
     "stretchr",
     "syncparam",

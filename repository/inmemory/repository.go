@@ -35,7 +35,10 @@ func NewInMemoryRepository() *InMemoryRepository {
 
 func (r *InMemoryRepository) init() {
 	r.insertionOrderCount = new(atomic.Uint64)
-	r.heap = heapimpl.NewFilterableHeap[*sortabletask.IndexedTask]()
+	r.heap = heapimpl.NewFilterableHeapHooks[*sortabletask.IndexedTask](
+		sortabletask.Less[*sortabletask.IndexedTask],
+		sortabletask.MakeHeapMethodSet[*sortabletask.IndexedTask](),
+	)
 	r.orderedMap = orderedmap.New[string, *sortabletask.IndexedTask]()
 }
 
