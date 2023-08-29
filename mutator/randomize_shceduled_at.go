@@ -1,7 +1,8 @@
 package mutator
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"time"
 
 	"github.com/ngicks/gokugen/def"
@@ -9,7 +10,7 @@ import (
 )
 
 var (
-	random = rand.New(rand.NewSource(time.Now().UnixMicro()))
+	randomReader = rand.Reader
 )
 
 type Mutator interface {
@@ -33,15 +34,22 @@ type RandomizeScheduledAt struct {
 
 func (r RandomizeScheduledAt) Mutate(p def.TaskUpdateParam) def.TaskUpdateParam {
 	diff := r.Max - r.Min
-	positive := true
+	neg := false
 	if diff < 0 {
-		positive = false
+		neg = true
 		diff = -diff
 	}
-	randVal := random.Int63n(int64(diff))
-	if !positive {
+
+	randBigVal, err := rand.Int(randomReader, big.NewInt(int64(diff)))
+	if err != nil {
+		panic(err)
+	}
+
+	randVal := randBigVal.Int64()
+	if neg {
 		randVal = -randVal
 	}
+
 	return p.Update(def.TaskUpdateParam{
 		ScheduledAt: option.Some(p.ScheduledAt.Value().Add(time.Duration(randVal))),
 	})
