@@ -18,11 +18,11 @@ type serializable struct {
 func paramToSerializable(p def.TaskUpdateParam) serializable {
 	param, meta := `{}`, `{}`
 
-	if v := p.Param.Value(); v != nil {
+	if v := p.Param.Value(); len(v) > 0 {
 		paramBin, _ := json.Marshal(v)
 		param = string(paramBin)
 	}
-	if v := p.Meta.Value(); v != nil {
+	if v := p.Meta.Value(); len(v) > 0 {
 		metaBin, _ := json.Marshal(v)
 		meta = string(metaBin)
 	}
