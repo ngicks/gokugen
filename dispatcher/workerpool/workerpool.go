@@ -72,7 +72,13 @@ func (e *executor) Exec(ctx context.Context, id string, param workFn) error {
 	default:
 	}
 
-	fnErr := (*fn)(combined, t.Param)
+	var workCtx context.Context = combined
+	if t.Deadline.IsSome() {
+		deadlineCtx, workFnCancel := context.WithDeadline(combined, t.Deadline.Value())
+		defer workFnCancel()
+		workCtx = deadlineCtx
+	}
+	fnErr := (*fn)(workCtx, t.Param)
 
 	param.workErr <- fnErr
 	return fnErr
