@@ -1,13 +1,33 @@
 package mutator
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/ngicks/gokugen/def"
 )
 
 const (
 	KeyRandomizeScheduledAt = "RandomizeScheduledAt"
 )
+
+type ParamMutatingRepository struct {
+	def.ObservableRepository
+	MutatorStore MutatorStore
+}
+
+func (r *ParamMutatingRepository) AddTask(
+	ctx context.Context,
+	param def.TaskUpdateParam,
+) (def.Task, error) {
+	mutator, err := r.MutatorStore.Load(param.Param.Value())
+	if err != nil {
+		return def.Task{}, err
+	}
+	param = mutator.Apply(param)
+	return r.ObservableRepository.AddTask(ctx, param)
+}
 
 var DefaultMutatorStore MutatorStore = defaultMutatorStore{}
 
