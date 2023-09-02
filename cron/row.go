@@ -1,6 +1,10 @@
 package cron
 
 import (
+	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ngicks/gokugen/def"
@@ -8,27 +12,99 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type CronRowRaw struct {
-	Param    def.TaskUpdateParam
-	Schedule string
+// RawExpression is any of cron standard expression both without and with sec,
+// e.g. "15,45 30 12 *" or "@every 4h25m".
+// Or JsonExp.
+type RawExpression any
+
+func ParseRawExpression(raw RawExpression) (cron.Schedule, error) {
+	switch x := raw.(type) {
+	case JsonExp:
+		return x.Parse()
+	case string:
+		if len(x) > 0 && x[0] != '@' {
+			splitted := strings.Split(strings.TrimSpace(x), " ")
+			var count int
+			for _, part := range splitted {
+				if len(part) != 0 {
+					count++
+				}
+			}
+			if count == 6 {
+				return parser.Parse(x)
+			}
+		}
+		return cron.ParseStandard(x)
+	}
+
+	return nil, fmt.Errorf("ParseRawExpression: unknown. input must be string or JsonExp, but is %T", raw)
 }
 
-func (r CronRowRaw) Parse() (CronRow, error) {
-	sched, err := cron.ParseStandard(r.Schedule)
-	if err != nil {
-		return CronRow{}, err
+type JsonExp struct {
+	Second, Minute, Hour, Dom, Month, Dow []uint64
+
+	// Override location for this schedule.
+	Location *time.Location
+}
+
+func (e JsonExp) Format() string {
+	var buf bytes.Buffer
+
+	for _, nums := range [...][]uint64{
+		e.Second, e.Minute, e.Hour, e.Dom, e.Month, e.Dow,
+	} {
+		if len(nums) == 0 {
+			buf.WriteByte('*')
+		} else {
+			for _, num := range nums {
+				buf.WriteString(strconv.FormatUint(num, 10))
+				buf.WriteByte(',')
+			}
+			buf.Truncate(buf.Len() - 1)
+		}
+		buf.WriteByte(' ')
 	}
-	return CronRow{
+	buf.Truncate(buf.Len() - 1)
+	return buf.String()
+}
+
+var (
+	parser = cron.NewParser(
+		cron.Second |
+			cron.Minute |
+			cron.Hour |
+			cron.Dom |
+			cron.Month |
+			cron.Dow,
+	)
+)
+
+func (e JsonExp) Parse() (cron.Schedule, error) {
+	return parser.Parse(e.Format())
+}
+
+type RowRaw struct {
+	Param    def.TaskUpdateParam
+	Schedule RawExpression
+}
+
+func (r RowRaw) Parse() (Row, error) {
+	sched, err := ParseRawExpression(r.Schedule)
+
+	if err != nil {
+		return Row{}, err
+	}
+	return Row{
 		Param:    r.Param.Clone(),
 		Schedule: sched,
 	}, nil
 }
 
-type CronRow struct {
+type Row struct {
 	Param    def.TaskUpdateParam
 	Schedule cron.Schedule
 }
 
-func (r CronRow) Next(prev time.Time) def.TaskUpdateParam {
+func (r Row) Next(prev time.Time) def.TaskUpdateParam {
 	return r.Param.Update(def.TaskUpdateParam{ScheduledAt: option.Some(r.Schedule.Next(prev))})
 }

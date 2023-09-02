@@ -13,17 +13,13 @@ import (
 )
 
 var (
-	fakeCurrent = time.Date(
-		2023, time.April, 20,
-		6, 29, 2, 123000000,
-		time.UTC,
-	)
+	fakeCurrent = parseTime("2023-04-20T06:29:02.123000000Z")
 )
 
 func TestCron(t *testing.T) {
 	assert := assert.New(t)
 
-	raw := []CronRowRaw{
+	raw := []RowRaw{
 		{
 			Param: def.TaskUpdateParam{
 				WorkId: option.Some("foo"),
@@ -50,7 +46,7 @@ func TestCron(t *testing.T) {
 		},
 	}
 
-	rows := make([]CronRow, len(raw))
+	rows := make([]Row, len(raw))
 
 	for idx := range raw {
 		var err error
@@ -126,7 +122,7 @@ func TestCron_default_mutator_store(t *testing.T) {
 	assert := assert.New(t)
 
 	fakeCurrent := parseTime("2023-05-17T12:00:00Z")
-	row, _ := CronRowRaw{
+	row, _ := RowRaw{
 		Param: def.TaskUpdateParam{
 			WorkId: option.Some("foo"),
 			Meta: option.Some(map[string]string{
