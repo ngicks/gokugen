@@ -76,7 +76,9 @@ func TestCron(t *testing.T) {
 	assert.Equal(task.WorkId, "baz")
 	assertTimeEqual(t, parseTime("2023-04-20T06:30:00Z"), task.ScheduledAt)
 
-	for idx, expected := range []def.Task{
+	table.StartTimer(context.Background())
+
+	for _, expected := range []def.Task{
 		{WorkId: "baz", ScheduledAt: parseTime("2023-04-20T06:30:00Z")},
 		{WorkId: "bar", ScheduledAt: parseTime("2023-04-20T07:00:00Z")},
 		{WorkId: "bar", ScheduledAt: parseTime("2023-04-20T07:05:00Z")},
@@ -88,10 +90,8 @@ func TestCron(t *testing.T) {
 		{WorkId: "foo", ScheduledAt: parseTime("2023-04-20T19:44:02Z")},
 		{WorkId: "qux", ScheduledAt: parseTime("2023-04-21T00:00:00Z")},
 	} {
-		if idx > 0 {
-			lastResetDur, _ := fakeClock.LastReset()
-			assert.Equal(expected.ScheduledAt.Sub(fakeCurrent), lastResetDur)
-		}
+		lastResetDur, _ := fakeClock.LastReset()
+		assert.Equal(expected.ScheduledAt.Sub(fakeCurrent), lastResetDur)
 
 		task, err := table.Pop(context.Background())
 		assert.NoError(err)
