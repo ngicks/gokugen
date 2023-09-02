@@ -37,7 +37,10 @@ func ParseRawExpression(raw RawExpression) (cron.Schedule, error) {
 		return cron.ParseStandard(x)
 	}
 
-	return nil, fmt.Errorf("ParseRawExpression: unknown. input must be string or JsonExp, but is %T", raw)
+	return nil, fmt.Errorf(
+		"ParseRawExpression: unknown. input must be string or JsonExp, but is %T",
+		raw,
+	)
 }
 
 type JsonExp struct {
