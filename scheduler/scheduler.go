@@ -122,6 +122,64 @@ func (s *Scheduler) Step(ctx context.Context) StepState {
 	}
 }
 
+func (s *Scheduler) Retry(ctx context.Context, prev StepState) (state StepState, retryErr bool) {
+	s.stepMu.Lock()
+	defer s.stepMu.Unlock()
+
+	err := prev.Match(StepResultHandler{
+		TimerUpdateError: func(err error) error {
+			s.repo.StopTimer()
+			s.repo.StartTimer(ctx)
+			if err := s.repo.LastTimerUpdateError(); err != nil {
+				state = StateTimerUpdateError(err)
+				return err
+			}
+			s.volatileTask.StopTimer()
+			s.volatileTask.StartTimer(ctx)
+			if err := s.volatileTask.LastTimerUpdateError(); err != nil {
+				state = StateTimerUpdateError(err)
+				return err
+			}
+			return nil
+		},
+		AwaitingNext: func(err error) error {
+			return nil
+		},
+		NextTask: func(task def.Task, err error) error {
+			return nil
+		},
+		DispatchErr: func(task def.Task, isRepo bool, err error) error {
+			if isRepo {
+				fetched, err := s.repo.GetById(ctx, task.Id)
+				if err != nil && !def.IsDefError(err) {
+					state = StateDispatchErr(task, isRepo, err)
+					return err
+				}
+				task = fetched
+			}
+			state = s.dispatchTask(ctx, kindTask{task, isRepo})
+			return state.Err()
+		},
+		Dispatched: func(id string) error {
+			return nil
+		},
+		TaskDone: func(id string, taskErr error, updateErr error) error {
+			err := s.repo.MarkAsDone(ctx, id, taskErr)
+			if err != nil && !def.IsAlreadyDone(err) {
+				state = StateTaskDone(id, taskErr, err)
+				return err
+			}
+			return nil
+		},
+	})
+
+	if err != nil {
+		retryErr = true
+	}
+
+	return
+}
+
 func (s *Scheduler) setGetNextResult(task def.Task, err error, isRepo bool) {
 	if err == nil {
 		s.lastTask = &kindTask{
@@ -140,14 +198,14 @@ func (s *Scheduler) dispatchTask(ctx context.Context, next kindTask) StepState {
 		ctx,
 		func() func(context.Context) (def.Task, error) {
 			if next.isRepo {
-				return s.repoFetcher(next.task.Id)
+				return s.repoFetcher(next.task)
 			} else {
-				return s.volatileFetcher(next.task.Id)
+				return s.volatileFetcher(next.task)
 			}
 		}(),
 	)
 	if dispatchErr != nil {
-		return StateDispatchErr(next.task.Id, dispatchErr)
+		return StateDispatchErr(next.task, next.isRepo, dispatchErr)
 	}
 
 	s.eventQueue.Reserve(func() taskResult {
@@ -161,13 +219,13 @@ func (s *Scheduler) dispatchTask(ctx context.Context, next kindTask) StepState {
 	return StateDispatched(next.task.Id)
 }
 
-func (s *Scheduler) repoFetcher(id string) func(ctx context.Context) (def.Task, error) {
+func (s *Scheduler) repoFetcher(task def.Task) func(ctx context.Context) (def.Task, error) {
 	return func(ctx context.Context) (def.Task, error) {
-		err := s.repo.MarkAsDispatched(ctx, id)
-		if err != nil {
+		err := s.repo.MarkAsDispatched(ctx, task.Id)
+		if err != nil && !def.IsAlreadyDispatched(err) {
 			return def.Task{}, err
 		}
-		task, err := s.repo.GetById(ctx, id)
+		task, err := s.repo.GetById(ctx, task.Id)
 		if err != nil {
 			return def.Task{}, err
 		}
@@ -175,8 +233,15 @@ func (s *Scheduler) repoFetcher(id string) func(ctx context.Context) (def.Task, 
 	}
 }
 
-func (s *Scheduler) volatileFetcher(id string) func(ctx context.Context) (def.Task, error) {
+func (s *Scheduler) volatileFetcher(task def.Task) func(ctx context.Context) (def.Task, error) {
 	return func(ctx context.Context) (def.Task, error) {
-		return s.volatileTask.Pop(ctx)
+		peeked, err := s.volatileTask.GetNext(ctx)
+		if err != nil {
+			return def.Task{}, err
+		}
+		if peeked.Id == task.Id {
+			return s.volatileTask.Pop(ctx)
+		}
+		return task, nil
 	}
 }

@@ -23,8 +23,9 @@ type nextTask struct {
 }
 
 type dispatchResult struct {
-	Id  string
-	Err error
+	Task   def.Task
+	IsRepo bool
+	Err    error
 }
 
 type taskDoneResult struct {
@@ -66,8 +67,9 @@ func StateDispatchErr(task def.Task, isRepo bool, err error) StepState {
 	return StepState{
 		s: DispatchErr,
 		v: dispatchResult{
-			Id:  id,
-			Err: err,
+			Task:   task,
+			IsRepo: isRepo,
+			Err:    err,
 		},
 	}
 }
@@ -107,13 +109,36 @@ func (r StepState) Match(h StepResultHandler) error {
 		return h.NextTask(v.Task, v.Err)
 	case DispatchErr:
 		v := r.v.(dispatchResult)
-		return h.DispatchErr(v.Id, v.Err)
+		return h.DispatchErr(v.Task, v.IsRepo, v.Err)
 	case Dispatched:
 		return h.Dispatched(r.v.(string))
 	case TaskDone:
 		v := r.v.(taskDoneResult)
 		return h.TaskDone(v.Id, v.TaskErr, v.UpdateErr)
 	}
+}
+
+func (r StepState) Err() error {
+	return r.Match(StepResultHandler{
+		TimerUpdateError: func(err error) error {
+			return err
+		},
+		AwaitingNext: func(err error) error {
+			return err
+		},
+		NextTask: func(task def.Task, err error) error {
+			return err
+		},
+		DispatchErr: func(task def.Task, isRepo bool, err error) error {
+			return err
+		},
+		Dispatched: func(id string) error {
+			return nil
+		},
+		TaskDone: func(id string, taskErr error, updateErr error) error {
+			return updateErr
+		},
+	})
 }
 
 // StepResultHandler handles all StepResult States.
@@ -123,7 +148,7 @@ type StepResultHandler struct {
 	TimerUpdateError func(err error) error
 	AwaitingNext     func(err error) error
 	NextTask         func(task def.Task, err error) error
-	DispatchErr      func(id string, err error) error
+	DispatchErr      func(task def.Task, isRepo bool, err error) error
 	Dispatched       func(id string) error
 	TaskDone         func(id string, taskErr error, updateErr error) error
 }
