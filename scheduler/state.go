@@ -33,27 +33,27 @@ type taskDoneResult struct {
 	UpdateErr error
 }
 
-type StepResult struct {
+type StepState struct {
 	s State
 	v any
 }
 
-func StateTimerUpdateError(err error) StepResult {
-	return StepResult{
+func StateTimerUpdateError(err error) StepState {
+	return StepState{
 		s: TimerUpdateError,
 		v: err,
 	}
 }
 
-func StateAwaitingNext(err error) StepResult {
-	return StepResult{
+func StateAwaitingNext(err error) StepState {
+	return StepState{
 		s: AwaitingNext,
 		v: err,
 	}
 }
 
-func StateNextTask(task def.Task, err error) StepResult {
-	return StepResult{
+func StateNextTask(task def.Task, err error) StepState {
+	return StepState{
 		s: NextTask,
 		v: nextTask{
 			Task: task,
@@ -62,8 +62,8 @@ func StateNextTask(task def.Task, err error) StepResult {
 	}
 }
 
-func StateDispatchErr(id string, err error) StepResult {
-	return StepResult{
+func StateDispatchErr(task def.Task, isRepo bool, err error) StepState {
+	return StepState{
 		s: DispatchErr,
 		v: dispatchResult{
 			Id:  id,
@@ -72,15 +72,15 @@ func StateDispatchErr(id string, err error) StepResult {
 	}
 }
 
-func StateDispatched(id string) StepResult {
-	return StepResult{
+func StateDispatched(id string) StepState {
+	return StepState{
 		s: Dispatched,
 		v: id,
 	}
 }
 
-func StateTaskDone(id string, taskErr error, updateErr error) StepResult {
-	return StepResult{
+func StateTaskDone(id string, taskErr error, updateErr error) StepState {
+	return StepState{
 		s: TaskDone,
 		v: taskDoneResult{
 			Id:        id,
@@ -90,7 +90,7 @@ func StateTaskDone(id string, taskErr error, updateErr error) StepResult {
 	}
 }
 
-func (r StepResult) Match(h StepResultHandler) error {
+func (r StepState) Match(h StepResultHandler) error {
 	if ok, report := h.IsValid(); !ok {
 		panic(report)
 	}

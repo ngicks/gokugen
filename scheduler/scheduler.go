@@ -74,7 +74,7 @@ func (s *Scheduler) RunQueue(ctx context.Context) (remaining int, err error) {
 }
 
 // Step lets s proceed to the next step. It blocks until s reaches a state or an error occurs.
-func (s *Scheduler) Step(ctx context.Context) StepResult {
+func (s *Scheduler) Step(ctx context.Context) StepState {
 	s.stepMu.Lock()
 	defer s.stepMu.Unlock()
 
@@ -135,7 +135,7 @@ func (s *Scheduler) setGetNextResult(task def.Task, err error, isRepo bool) {
 	}
 }
 
-func (s *Scheduler) dispatchTask(ctx context.Context, next kindTask) StepResult {
+func (s *Scheduler) dispatchTask(ctx context.Context, next kindTask) StepState {
 	errCh, dispatchErr := s.dispatcher.Dispatch(
 		ctx,
 		func() func(context.Context) (def.Task, error) {
