@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"strconv"
@@ -22,11 +23,14 @@ func ParseRawExpression(raw RawExpression) (cron.Schedule, error) {
 	case JsonExp:
 		return x.Parse()
 	case string:
-		if len(x) > 0 && x[0] != '@' {
-			splitted := strings.Split(strings.TrimSpace(x), " ")
+		if len(x) > 0 && !strings.Contains(x, "@") {
+			scanner := bufio.NewScanner(strings.NewReader(x))
+			scanner.Split(bufio.ScanWords)
 			var count int
-			for _, part := range splitted {
-				if len(part) != 0 {
+			for scanner.Scan() {
+				text := scanner.Text()
+				if !strings.HasPrefix(text, "TZ=") &&
+					!strings.HasPrefix(text, "CRON_TZ=") {
 					count++
 				}
 			}
@@ -47,11 +51,17 @@ type JsonExp struct {
 	Second, Minute, Hour, Dom, Month, Dow []uint64
 
 	// Override location for this schedule.
-	Location *time.Location
+	Location string
 }
 
 func (e JsonExp) Format() string {
 	var buf bytes.Buffer
+
+	if e.Location != "" {
+		buf.WriteString("TZ=")
+		buf.WriteString(e.Location)
+		buf.WriteByte(' ')
+	}
 
 	for _, nums := range [...][]uint64{
 		e.Second, e.Minute, e.Hour, e.Dom, e.Month, e.Dow,
