@@ -2,14 +2,14 @@ package mutator
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	"github.com/ngicks/gokugen/def"
 )
 
 const (
-	KeyRandomizeScheduledAt = "RandomizeScheduledAt"
+	LabelRandomizeScheduledAtMin = "ngicks.RandomizeScheduledAt.min"
+	LabelRandomizeScheduledAtMax = "ngicks.RandomizeScheduledAt.max"
+	LabelScheduleAtNow           = "ngicks.ScheduleAtNow"
 )
 
 type ParamMutatingRepository struct {
@@ -21,7 +21,7 @@ func (r *ParamMutatingRepository) AddTask(
 	ctx context.Context,
 	param def.TaskUpdateParam,
 ) (def.Task, error) {
-	mutator, err := r.MutatorStore.Load(param.Param.Value())
+	mutator, err := r.MutatorStore.Load(param.Meta.Value())
 	if err != nil {
 		return def.Task{}, err
 	}
@@ -37,15 +37,11 @@ type MutatorStore interface {
 
 type defaultMutatorStore struct{}
 
-var decoders = map[string]func(param string) (Mutator, error){
-	KeyRandomizeScheduledAt: func(param string) (Mutator, error) {
-		var v RandomizeScheduledAt
-		err := json.Unmarshal([]byte(param), &v)
-		if err != nil {
-			return nil, err
-		}
-		return v, nil
-	},
+type decoderFn func(meta map[string]string) (Mutator, bool, error)
+
+var decoders = []decoderFn{
+	func(meta map[string]string) (Mutator, bool, error) { return DecodeScheduleAtNow(meta) },
+	func(meta map[string]string) (Mutator, bool, error) { return DecodeRandomizeScheduledAt(meta) },
 }
 
 func (defaultMutatorStore) Load(meta map[string]string) (Mutators, error) {
@@ -54,16 +50,14 @@ func (defaultMutatorStore) Load(meta map[string]string) (Mutators, error) {
 	}
 
 	mutators := make(Mutators, 0)
-	for k, dec := range decoders {
-		param, ok := meta[k]
-		if !ok {
-			continue
-		}
-		mut, err := dec(param)
+	for _, dec := range decoders {
+		mutator, found, err := dec(meta)
 		if err != nil {
-			return nil, fmt.Errorf("%w: wrong param for %s. input meta = %+#v", err, k, meta)
+			return nil, err
 		}
-		mutators = append(mutators, mut)
+		if found {
+			mutators = append(mutators, mutator)
+		}
 	}
 	return mutators, nil
 }

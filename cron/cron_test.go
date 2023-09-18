@@ -126,7 +126,8 @@ func TestCron_default_mutator_store(t *testing.T) {
 		Param: def.TaskUpdateParam{
 			WorkId: option.Some("foo"),
 			Meta: option.Some(map[string]string{
-				mutator.KeyRandomizeScheduledAt: `{"Min": -1000000000,"Max":1000000000}`,
+				mutator.LabelRandomizeScheduledAtMin: "-1s",
+				mutator.LabelRandomizeScheduledAtMax: "1s",
 			}),
 		},
 		Schedule: "@every 1h",

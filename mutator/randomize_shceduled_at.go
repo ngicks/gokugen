@@ -9,6 +9,31 @@ import (
 	"github.com/ngicks/und/option"
 )
 
+func DecodeRandomizeScheduledAt(meta map[string]string) (RandomizeScheduledAt, bool, error) {
+	max, maxOk := meta[LabelRandomizeScheduledAtMax]
+	min, minOk := meta[LabelRandomizeScheduledAtMin]
+	if !maxOk && !minOk {
+		return RandomizeScheduledAt{}, false, nil
+	}
+	var (
+		randomizeScheduledAt RandomizeScheduledAt
+		err                  error
+	)
+	if maxOk {
+		randomizeScheduledAt.Max, err = time.ParseDuration(max)
+		if err != nil {
+			return RandomizeScheduledAt{}, false, err
+		}
+	}
+	if minOk {
+		randomizeScheduledAt.Min, err = time.ParseDuration(min)
+		if err != nil {
+			return RandomizeScheduledAt{}, false, err
+		}
+	}
+	return randomizeScheduledAt, true, nil
+}
+
 var _ Mutator = RandomizeScheduledAt{}
 
 type RandomizeScheduledAt struct {
