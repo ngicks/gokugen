@@ -2,7 +2,9 @@ package mutator
 
 import (
 	"crypto/rand"
+	"fmt"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/ngicks/gokugen/def"
@@ -19,19 +21,43 @@ func DecodeRandomizeScheduledAt(meta map[string]string) (RandomizeScheduledAt, b
 		randomizeScheduledAt RandomizeScheduledAt
 		err                  error
 	)
+
 	if maxOk {
-		randomizeScheduledAt.Max, err = time.ParseDuration(max)
+		randomizeScheduledAt.Max, err = parseDur(max)
 		if err != nil {
 			return RandomizeScheduledAt{}, false, err
 		}
 	}
 	if minOk {
-		randomizeScheduledAt.Min, err = time.ParseDuration(min)
+		randomizeScheduledAt.Min, err = parseDur(min)
 		if err != nil {
 			return RandomizeScheduledAt{}, false, err
 		}
 	}
 	return randomizeScheduledAt, true, nil
+}
+
+func parseDur(s string) (time.Duration, error) {
+	if s == "" {
+		return 0, nil
+	}
+
+	dur, err := time.ParseDuration(s)
+	if err == nil {
+		return dur, nil
+	}
+
+	i, err := strconv.ParseInt(s, 10, 64)
+	if err == nil {
+		return time.Duration(i), nil
+	}
+
+	return 0, fmt.Errorf(
+		"The value of %s and %s must be formatted as"+
+			" time.ParseDuration can understand or"+
+			" simple int representing time.Duration. but input is %s",
+		LabelRandomizeScheduledAtMax, LabelRandomizeScheduledAtMin, s,
+	)
 }
 
 var _ Mutator = RandomizeScheduledAt{}

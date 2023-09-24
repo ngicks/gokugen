@@ -23,6 +23,6 @@ type ScheduleAtNow struct {
 
 func (s ScheduleAtNow) Mutate(p def.TaskUpdateParam) def.TaskUpdateParam {
 	p.ScheduledAt = option.Some(clock.Now())
-	p.Normalize()
+	p = p.Normalize()
 	return p
 }
