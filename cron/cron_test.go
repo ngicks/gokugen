@@ -68,7 +68,7 @@ func TestCron(t *testing.T) {
 	fakeClock := mockable.NewClockFake(fakeCurrent)
 	table.clock = fakeClock
 
-	task, err := table.GetNext(context.Background())
+	task, err := table.Peek(context.Background())
 	if err != nil {
 		panic(err)
 	}

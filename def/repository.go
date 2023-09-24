@@ -36,18 +36,19 @@ type Repository interface {
 	// Cancel changes a task specified by id to cancelled state.
 	// It only succeeds when the task is not yet dispatched nor done.
 	Cancel(ctx context.Context, id string) error
-
+	// MarkAsDispatched marks the id as dispatched state.
 	MarkAsDispatched(ctx context.Context, id string) error
 	// MarkAsDone marks the id as done. if err is non-nil, task is marked as failed.
 	// Only tasks having been marked-as-dispatched can be marked-as-done.
 	MarkAsDone(ctx context.Context, id string, err error) error
-
-	// Find finds tasks matching to matcher.
+	// Find finds tasks matching to condition described by matcher.
 	//
 	// Every None fields are considered as empty search conditions.
 	Find(ctx context.Context, matcher TaskQueryParam, offset, limit int) ([]Task, error)
 	// GetNext returns a next scheduled Task without changing repository contents.
 	// GetNext must not return a cancelled, dispatched or done task.
+	//
+	// If the repository is empty, GetNext must return Exhausted kind RepositoryError.
 	GetNext(ctx context.Context) (Task, error)
 }
 
@@ -62,13 +63,14 @@ type Observer interface {
 	// The channel returned from TimerChannel would not emit after return of StopTimer,
 	// unless StartTimer is called again.
 	StopTimer()
+	NextScheduled() (time.Time, bool)
 	// TimerChannel returns the internal timer channel.
 	// The timer can be either of started, or stopped state.
 	// It will emits if and only if in started state.
 	TimerChannel() <-chan time.Time
 }
 
-// DispatchedReverter is an optional interface for RepositoryLike implementations.
+// DispatchedReverter is an optional interface for Repository implementations.
 // A single process scheduler might use this on process start up.
 type DispatchedReverter interface {
 	// RevertDispatched restores states as if
@@ -76,23 +78,16 @@ type DispatchedReverter interface {
 	// A single process scheduler may call this to recover abandoned tasks,
 	// which might have been caused by interrupt/kill signals or power failures.
 	RevertDispatched(ctx context.Context) error
+	// DeleteDispatched deletes dispatched tasks.
+	// A single process scheduler may call this to remove abandoned tasks,
+	// which might have been caused by interrupt/kill signals or power failures.
+	CancelDispatched(ctx context.Context) error
 }
 
-// BeforeDeleter is an optional interface for Repository implementations.
+// EndedDeleter is an optional interface for Repository implementations.
 // This is a suggestion for an unified interface of deletion.
 //
 //nolint:lll
-type BeforeDeleter interface {
-	// DeleteBefore deletes tasks become done or cancelled before before.
-	// It returns Deleted with non-nil fields only if returning is true,
-	// otherwise all fields are nil.
-	//
-	// This package does not use this.
-	// This is here only for an unified interface of soft or hard deletion.
-	DeleteBefore(ctx context.Context, before time.Time, meta map[string]string, returning bool) (Deleted, error)
-}
-
-type Deleted struct {
-	Cancelled map[string]Task
-	Done      map[string]Task
+type EndedDeleter interface {
+	DeleteEnded(ctx context.Context, returning bool, limit int) error
 }

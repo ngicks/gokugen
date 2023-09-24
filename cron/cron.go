@@ -58,12 +58,11 @@ func NewCronTable(entries []*Entry) (*CronStore, error) {
 				),
 			},
 		)
-
 	}
 	return c, nil
 }
 
-func (c *CronStore) GetNext(ctx context.Context) (def.Task, error) {
+func (c *CronStore) Peek(ctx context.Context) (def.Task, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -133,6 +132,17 @@ func (c *CronStore) StopTimer() {
 		case <-c.clock.C():
 		default:
 		}
+	}
+}
+
+func (c *CronStore) NextScheduled() (time.Time, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.schedule.Len() > 0 {
+		return c.schedule.Peek().Task.ScheduledAt, true
+	} else {
+		return time.Time{}, false
 	}
 }
 

@@ -98,6 +98,10 @@ func (r *Repository) StopTimer() {
 	r.HookTimer.StopTimer()
 }
 
+func (r *Repository) NextScheduled() (time.Time, bool) {
+	return r.HookTimer.NextScheduled()
+}
+
 func (r *Repository) TimerChannel() <-chan time.Time {
 	return r.HookTimer.TimerChannel()
 }

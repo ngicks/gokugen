@@ -16,6 +16,7 @@ type MutationHookTimer struct {
 	mu             sync.RWMutex
 	cachedMin      def.Task
 	repo           def.Repository
+	timerReset     bool
 	isTimerStarted bool
 	lastErr        error
 	clock          mockable.Clock
@@ -66,8 +67,11 @@ func (t *MutationHookTimer) _update(ctx context.Context) error {
 	t.cachedMin = next
 
 	if err == nil {
+		t.timerReset = true
 		t.clock.Reset(next.ScheduledAt.Sub(t.clock.Now()))
 		return nil
+	} else {
+		t.timerReset = false
 	}
 
 	if def.IsExhausted(err) {
@@ -163,7 +167,15 @@ func (t *MutationHookTimer) StopTimer() {
 		default:
 		}
 	}
+	t.timerReset = false
+	t.cachedMin = def.Task{}
 	t.isTimerStarted = false
+}
+
+func (t *MutationHookTimer) NextScheduled() (time.Time, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.cachedMin.ScheduledAt, t.timerReset
 }
 
 func (t *MutationHookTimer) TimerChannel() <-chan time.Time {
