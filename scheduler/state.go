@@ -39,6 +39,10 @@ type StepState struct {
 	v any
 }
 
+func (s StepState) State() State {
+	return s.s
+}
+
 func StateTimerUpdateError(err error) StepState {
 	return StepState{
 		s: TimerUpdateError,
