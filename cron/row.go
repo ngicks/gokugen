@@ -3,6 +3,7 @@ package cron
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -94,6 +95,35 @@ var (
 
 func (e JsonExp) Parse() (cron.Schedule, error) {
 	return parser.Parse(e.Format())
+}
+
+type Rows []Row
+
+func (r *Rows) UnmarshalJSON(data []byte) error {
+	in := make([]RowRaw, 0)
+	if err := json.Unmarshal(data, &in); err != nil {
+		return err
+	}
+
+	parsed := make([]Row, len(in))
+	for idx, row := range in {
+		var err error
+		parsed[idx], err = row.Parse()
+		if err != nil {
+			return err
+		}
+	}
+
+	(*r) = parsed
+	return nil
+}
+
+func (r Rows) Entries(now time.Time) []*Entry {
+	out := make([]*Entry, len(r))
+	for idx, rr := range r {
+		out[idx] = NewEntry(now, rr)
+	}
+	return out
 }
 
 type RowRaw struct {
