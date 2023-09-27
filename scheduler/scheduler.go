@@ -16,7 +16,7 @@ type kindTask struct {
 }
 
 type taskResult struct {
-	beforeDispatch kindTask
+	beforeDispatch def.Task
 	err            error
 }
 
@@ -25,7 +25,7 @@ type Scheduler struct {
 	dispatcher def.Dispatcher
 
 	stepMu     sync.Mutex
-	lastTask   *kindTask
+	lastTask   *def.Task
 	getNextErr error
 
 	taskResultCh <-chan taskResult
@@ -91,11 +91,11 @@ func (s *Scheduler) Step(ctx context.Context) StepState {
 		return StateAwaitingNext(ctx.Err())
 	case res := <-s.taskResultCh:
 		var err error
-		if res.beforeDispatch.isRepo && !errors.Is(res.err, context.Canceled) {
+		if !errors.Is(res.err, context.Canceled) {
 			// In case dispatcher is cancelled.
-			err = s.repo.MarkAsDone(ctx, res.beforeDispatch.task.Id, res.err)
+			err = s.repo.MarkAsDone(ctx, res.beforeDispatch.Id, res.err)
 		}
-		return StateTaskDone(res.beforeDispatch.task.Id, res.err, err)
+		return StateTaskDone(res.beforeDispatch.Id, res.err, err)
 	case <-s.repo.TimerChannel():
 		next, err := s.repo.GetNext(ctx)
 		s.setGetNextResult(next, err, true)
@@ -123,16 +123,16 @@ func (s *Scheduler) Retry(ctx context.Context, prev StepState) (state StepState,
 		NextTask: func(task def.Task, err error) error {
 			return nil
 		},
-		DispatchErr: func(task def.Task, isRepo bool, _ error) error {
+		DispatchErr: func(task def.Task, _ error) error {
 			fetched, err := s.repo.GetById(ctx, task.Id)
 			if err != nil && !def.IsDefError(err) {
-				state = StateDispatchErr(task, isRepo, err)
+				state = StateDispatchErr(task, err)
 				return err
 			}
 			if err != nil {
 				task = fetched
 			}
-			state = s.dispatchTask(ctx, kindTask{task, isRepo}, true)
+			state = s.dispatchTask(ctx, task, true)
 			return state.Err()
 		},
 		Dispatched: func(id string) error {
@@ -155,12 +155,9 @@ func (s *Scheduler) Retry(ctx context.Context, prev StepState) (state StepState,
 	return
 }
 
-func (s *Scheduler) setGetNextResult(task def.Task, err error, isRepo bool) {
+func (s *Scheduler) setGetNextResult(task def.Task, err error) {
 	if err == nil {
-		s.lastTask = &kindTask{
-			task:   task,
-			isRepo: isRepo,
-		}
+		s.lastTask = &task
 		s.getNextErr = nil
 	} else {
 		s.lastTask = nil
@@ -168,18 +165,18 @@ func (s *Scheduler) setGetNextResult(task def.Task, err error, isRepo bool) {
 	}
 }
 
-func (s *Scheduler) dispatchTask(ctx context.Context, next kindTask, isRetry bool) StepState {
+func (s *Scheduler) dispatchTask(ctx context.Context, next def.Task, isRetry bool) StepState {
 	errCh, dispatchErr := s.dispatcher.Dispatch(
 		ctx,
 		func(ctx context.Context) (def.Task, error) {
 			var err error
 			if !isRetry {
-				err = s.repo.MarkAsDispatched(ctx, next.task.Id)
+				err = s.repo.MarkAsDispatched(ctx, next.Id)
 			}
 			if err != nil {
 				return def.Task{}, err
 			}
-			task, err := s.repo.GetById(ctx, next.task.Id)
+			task, err := s.repo.GetById(ctx, next.Id)
 			if err != nil {
 				return def.Task{}, err
 			}
@@ -187,7 +184,7 @@ func (s *Scheduler) dispatchTask(ctx context.Context, next kindTask, isRetry boo
 		},
 	)
 	if dispatchErr != nil {
-		return StateDispatchErr(next.task, next.isRepo, dispatchErr)
+		return StateDispatchErr(next, dispatchErr)
 	}
 
 	s.eventQueue.Reserve(func() taskResult {
@@ -198,5 +195,5 @@ func (s *Scheduler) dispatchTask(ctx context.Context, next kindTask, isRetry boo
 		}
 	})
 
-	return StateDispatched(next.task.Id)
+	return StateDispatched(next.Id)
 }
