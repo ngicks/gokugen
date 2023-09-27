@@ -13,40 +13,49 @@ var _ def.ObservableRepository = (*mockRepository)(nil)
 
 type mockRepository struct {
 	*inmemory.InMemoryRepository
-	RepoErr           error
-	TimerErr          error
+	RepoErr           []error
+	TimerErr          []error
 	TimerStarted      bool
 	NextScheduledTime time.Time
-	Clock             mockable.ClockFake
+	Clock             *mockable.ClockFake
+}
+
+func popErr(errors *[]error) error {
+	if len(*errors) == 0 {
+		return nil
+	}
+	p := (*errors)[0]
+	(*errors) = (*errors)[1:]
+	return p
 }
 
 func (r *mockRepository) GetById(ctx context.Context, id string) (def.Task, error) {
-	if r.RepoErr != nil {
-		return def.Task{}, r.RepoErr
+	if err := popErr(&r.RepoErr); err != nil {
+		return def.Task{}, err
 	}
 	return r.InMemoryRepository.GetById(ctx, id)
 }
 func (r *mockRepository) GetNext(ctx context.Context) (def.Task, error) {
-	if r.RepoErr != nil {
-		return def.Task{}, r.RepoErr
+	if err := popErr(&r.RepoErr); err != nil {
+		return def.Task{}, err
 	}
 	return r.InMemoryRepository.GetNext(ctx)
 }
 func (r *mockRepository) MarkAsDispatched(ctx context.Context, id string) error {
-	if r.RepoErr != nil {
-		return r.RepoErr
+	if err := popErr(&r.RepoErr); err != nil {
+		return err
 	}
 	return r.InMemoryRepository.MarkAsDispatched(ctx, id)
 }
 func (r *mockRepository) MarkAsDone(ctx context.Context, id string, err error) error {
-	if r.RepoErr != nil {
-		return r.RepoErr
+	if err := popErr(&r.RepoErr); err != nil {
+		return err
 	}
 	return r.InMemoryRepository.MarkAsDone(ctx, id, err)
 }
 
 func (r *mockRepository) LastTimerUpdateError() error {
-	return r.TimerErr
+	return popErr(&r.TimerErr)
 }
 func (r *mockRepository) StartTimer(ctx context.Context) {
 	r.TimerStarted = true
@@ -98,12 +107,14 @@ func (d *mockDispatcher) Dispatch(
 
 func (d *mockDispatcher) Unblock(id string) {
 	d.Pending[id].Ch <- nil
+	close(d.Pending[id].Ch)
 	delete(d.Pending, id)
 }
 
-func (d *mockDispatcher) UnblockOne() {
+func (d *mockDispatcher) UnblockOne() (ok bool) {
 	for k := range d.Pending {
 		d.Unblock(k)
-		return
+		return true
 	}
+	return false
 }
