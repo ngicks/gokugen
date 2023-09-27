@@ -10,10 +10,9 @@ import (
 	"github.com/ngicks/mockable"
 )
 
-type kindTask struct {
-	task   def.Task
-	isRepo bool
-}
+var (
+	ErrScheduleStoppedOrChanged = errors.New("scheduler stopped or changed")
+)
 
 type taskResult struct {
 	beforeDispatch def.Task
@@ -98,8 +97,16 @@ func (s *Scheduler) Step(ctx context.Context) StepState {
 		return StateTaskDone(res.beforeDispatch.Id, res.err, err)
 	case <-s.repo.TimerChannel():
 		next, err := s.repo.GetNext(ctx)
-		s.setGetNextResult(next, err, true)
-		return StateNextTask(next, err)
+		if err != nil {
+			s.setGetNextResult(def.Task{}, err)
+			return StateNextTask(def.Task{}, err)
+		}
+		nextScheduled, ok := s.repo.NextScheduled()
+		if !ok || !nextScheduled.Equal(next.ScheduledAt) {
+			return StateNextTask(def.Task{}, ErrScheduleStoppedOrChanged)
+		}
+		s.setGetNextResult(next, nil)
+		return StateNextTask(next, nil)
 	}
 }
 

@@ -32,6 +32,7 @@ type volatileTaskRepo struct {
 func newVolatileTaskRepo(v VolatileTask) *volatileTaskRepo {
 	return &volatileTaskRepo{
 		VolatileTask: v,
+		record:       make(map[string]def.Task),
 	}
 }
 
@@ -68,11 +69,13 @@ func (r *volatileTaskRepo) MarkAsDispatched(ctx context.Context, id string) erro
 		if err != nil {
 			return err
 		}
-		delete(r.record, id)
 	}
 
 	return nil
 }
 func (r *volatileTaskRepo) MarkAsDone(ctx context.Context, id string, err error) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.record, id)
 	return nil
 }
