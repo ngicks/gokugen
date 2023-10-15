@@ -40,13 +40,6 @@ func NewScheduler(
 	return newScheduler(repo, dispatcher)
 }
 
-func NewVolatileTask(
-	volatileTask VolatileTask,
-	dispatcher def.Dispatcher,
-) *Scheduler {
-	return newScheduler(newVolatileTaskRepo(volatileTask), dispatcher)
-}
-
 func newScheduler(repo Repository, dispatcher def.Dispatcher) *Scheduler {
 	sink := eventqueue.NewChannelSink[taskResult](0)
 

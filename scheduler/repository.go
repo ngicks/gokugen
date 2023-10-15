@@ -21,12 +21,21 @@ type VolatileTask interface {
 	Pop(ctx context.Context) (def.Task, error)
 }
 
-var _ Repository = (*volatileTaskRepo)(nil)
+type VolatileTaskRepo interface {
+	Repository
+	UpdateTasks(v VolatileTask)
+}
+
+var _ VolatileTaskRepo = (*volatileTaskRepo)(nil)
 
 type volatileTaskRepo struct {
 	mu sync.Mutex
 	VolatileTask
 	record map[string]def.Task
+}
+
+func NewVolatileTaskRepo(v VolatileTask) VolatileTaskRepo {
+	return newVolatileTaskRepo(v)
 }
 
 func newVolatileTaskRepo(v VolatileTask) *volatileTaskRepo {
@@ -69,13 +78,29 @@ func (r *volatileTaskRepo) MarkAsDispatched(ctx context.Context, id string) erro
 		if err != nil {
 			return err
 		}
+		return nil
+	}
+
+	if _, ok := r.record[id]; ok {
+		delete(r.record, id)
+		return &def.RepositoryError{
+			Id:   id,
+			Kind: def.AlreadyCancelled,
+		}
 	}
 
 	return nil
 }
+
 func (r *volatileTaskRepo) MarkAsDone(ctx context.Context, id string, err error) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.record, id)
 	return nil
+}
+
+func (r *volatileTaskRepo) UpdateTasks(v VolatileTask) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.VolatileTask = v
 }

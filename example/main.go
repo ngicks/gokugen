@@ -102,7 +102,10 @@ func main() {
 	cronTasks.StartTimer(context.Background())
 
 	repoScheduler := scheduler.NewScheduler(repo, workerPoolDispatcher)
-	cronScheduler := scheduler.NewVolatileTask(cronTasks, workerPoolDispatcher)
+	cronScheduler := scheduler.NewScheduler(
+		scheduler.NewVolatileTaskRepo(cronTasks),
+		workerPoolDispatcher,
+	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
