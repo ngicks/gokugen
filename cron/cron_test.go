@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -61,7 +62,7 @@ func TestCron(t *testing.T) {
 		ents[idx] = NewEntry(fakeCurrent, rows[idx])
 	}
 
-	table, err := NewCronTable(ents)
+	table, err := NewCronStore(ents)
 	if err != nil {
 		panic(err)
 	}
@@ -93,6 +94,35 @@ func TestCron(t *testing.T) {
 		lastResetDur, _ := fakeClock.LastReset()
 		assert.Equal(expected.ScheduledAt.Sub(fakeCurrent), lastResetDur)
 
+		task, err := table.Pop(context.Background())
+		assert.NoError(err)
+		assert.Equal(expected.WorkId, task.WorkId)
+		assertTimeEqual(t, expected.ScheduledAt, task.ScheduledAt)
+	}
+
+	err = table.EditTask(func(entries []*Entry) []*Entry {
+		entries = slices.DeleteFunc(entries, func(e *Entry) bool {
+			return e.Param().WorkId.Value() != "foo"
+		})
+		sched, err := RowRaw{
+			Param: def.TaskUpdateParam{
+				WorkId: option.Some("quux"),
+			},
+			Schedule: "0 0 21 * *",
+		}.Parse()
+		if err != nil {
+			panic(err)
+		}
+		entries = append(entries, NewEntry(fakeCurrent, sched))
+		return entries
+	})
+	assert.NoError(err)
+
+	for _, expected := range []def.Task{
+		{WorkId: "quux", ScheduledAt: parseTime("2023-04-21T00:00:00Z")},
+		{WorkId: "foo", ScheduledAt: parseTime("2023-04-21T00:09:02Z")},
+		{WorkId: "foo", ScheduledAt: parseTime("2023-04-21T04:34:02Z")},
+	} {
 		task, err := table.Pop(context.Background())
 		assert.NoError(err)
 		assert.Equal(expected.WorkId, task.WorkId)
@@ -133,7 +163,7 @@ func TestCron_default_mutator_store(t *testing.T) {
 		Schedule: "@every 1h",
 	}.Parse()
 
-	table, err := NewCronTable([]*Entry{NewEntry(fakeCurrent, row)})
+	table, err := NewCronStore([]*Entry{NewEntry(fakeCurrent, row)})
 	if err != nil {
 		panic(err)
 	}

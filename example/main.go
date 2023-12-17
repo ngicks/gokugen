@@ -93,7 +93,7 @@ func main() {
 
 	repo := repository.New(memRepo, repository.NewMutationHookTimer())
 
-	cronTasks, err := cron.NewCronTable(rows.Entries(time.Now()))
+	cronTasks, err := cron.NewCronStore(rows.Entries(time.Now()))
 	if err != nil {
 		panic(err)
 	}

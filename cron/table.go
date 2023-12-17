@@ -52,6 +52,14 @@ func NewEntry(t time.Time, schedule Schedule) *Entry {
 	}
 }
 
+// Params returns next schedule without advancing e to next time.
+func (e *Entry) Param() def.TaskUpdateParam {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.schedule.Next(e.prev)
+}
+
+// Next returns next schedule and advances e to next time.
 func (e *Entry) Next() def.TaskUpdateParam {
 	e.mu.Lock()
 	defer e.mu.Unlock()

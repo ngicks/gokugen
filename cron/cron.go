@@ -2,6 +2,8 @@ package cron
 
 import (
 	"context"
+	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,7 +29,7 @@ type CronStore struct {
 	clock               mockable.Clock
 }
 
-func NewCronTable(entries []*Entry) (*CronStore, error) {
+func NewCronStore(entries []*Entry) (*CronStore, error) {
 	c := &CronStore{
 		insertionOrderCount: new(atomic.Uint64),
 		schedule: heapimpl.NewFilterableHeapHooks[*wrappedTask](
@@ -39,27 +41,118 @@ func NewCronTable(entries []*Entry) (*CronStore, error) {
 		clock:    mockable.NewClockReal(),
 	}
 
-	for _, ent := range entries {
+	if err := c.updateTask(entries, nil); err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
+func (c *CronStore) updateTask(added, removed []*Entry) error {
+	type set struct {
+		entry       *Entry
+		wrappedTask *wrappedTask
+	}
+
+	entryMap := make(map[serializable]*set)
+
+	for _, ent := range added {
 		next := ent.Next()
 		key := paramToSerializable(next)
-		c.entries[key] = ent
+
+		_, cHas := c.entries[key]
+		_, addedHas := entryMap[key]
+		if cHas || addedHas {
+			return fmt.Errorf(
+				"given entry is serialized to the value"+
+					" which overlaps to existing *Entry, serialized to %#v",
+				key,
+			)
+		}
+
 		mutators, err := c.mutators.Load(next.Meta.Value())
 		if err != nil {
-			return nil, err
+			return err
 		}
 		next = mutators.Apply(next)
-		c.schedule.Push(
-			&wrappedTask{
-				key:      key,
-				mutators: mutators,
-				IndexedTask: sortabletask.WrapTask(
-					next.ToTask(uuid.NewString(), c.clock.Now()),
-					c.insertionOrderCount,
-				),
-			},
-		)
+		wrapped := &wrappedTask{
+			key:      key,
+			mutators: mutators,
+			IndexedTask: sortabletask.WrapTask(
+				next.ToTask(uuid.NewString(), c.clock.Now()),
+				c.insertionOrderCount,
+			),
+		}
+
+		entryMap[key] = &set{
+			entry:       ent,
+			wrappedTask: wrapped,
+		}
 	}
-	return c, nil
+
+	if len(removed) > 0 {
+		for _, ent := range removed {
+			key := paramToSerializable(ent.Param())
+			delete(c.entries, key)
+		}
+		c.schedule.Filter(func(innerSlice *[]*wrappedTask) {
+			*innerSlice = slices.DeleteFunc(*innerSlice, func(wt *wrappedTask) bool {
+				for _, ent := range removed {
+					key := paramToSerializable(ent.Param())
+					if wt.key == key {
+						return true
+					}
+				}
+				return false
+			})
+		})
+	}
+
+	for key, set := range entryMap {
+		c.entries[key] = set.entry
+		c.schedule.Push(set.wrappedTask)
+	}
+
+	return nil
+}
+
+func (c *CronStore) EditTask(fn func(entries []*Entry) []*Entry) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.stopTimer()
+	defer c.resetTimer()
+
+	var entries []*Entry
+	for _, ent := range c.entries {
+		entries = append(entries, ent)
+	}
+
+	modified := fn(slices.Clone(entries))
+
+	var added, removed []*Entry
+	for _, modifiedEnt := range modified {
+		if !slices.Contains(entries, modifiedEnt) {
+			added = append(added, modifiedEnt)
+		}
+	}
+	for _, ent := range entries {
+		if !slices.Contains(modified, ent) {
+			removed = append(removed, ent)
+		}
+	}
+
+	return c.updateTask(added, removed)
+}
+
+func (c *CronStore) Schedule() []def.Task {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	cloned := c.schedule.Clone()
+
+	var out []def.Task
+	out = append(out, *cloned.Pop().IndexedTask.Task)
+	return out
 }
 
 func (c *CronStore) Peek(ctx context.Context) (def.Task, error) {
@@ -126,7 +219,10 @@ func (c *CronStore) StartTimer(ctx context.Context) {
 func (c *CronStore) StopTimer() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.stopTimer()
+}
 
+func (c *CronStore) stopTimer() {
 	if !c.clock.Stop() {
 		select {
 		case <-c.clock.C():
