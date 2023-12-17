@@ -50,7 +50,7 @@ func TestJsonExp(t *testing.T) {
 			expect: parseTime("2023-04-21T06:00:15+09:00"),
 		},
 	} {
-		sched, err := ParseRawExpression(tc.input)
+		sched, _, err := ParseRawExpression(tc.input)
 		assert.NoError(err)
 		next := sched.Next(fakeCurrent)
 		assertTimeEqual(t, tc.expect.In(time.UTC), next)

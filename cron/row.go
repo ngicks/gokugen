@@ -19,10 +19,14 @@ import (
 // Or JsonExp.
 type RawExpression any
 
-func ParseRawExpression(raw RawExpression) (cron.Schedule, error) {
+func ParseRawExpression(raw RawExpression) (cron.Schedule, string, error) {
 	switch x := raw.(type) {
 	case JsonExp:
-		return x.Parse()
+		sched, err := x.Parse()
+		if err != nil {
+			return nil, "", err
+		}
+		return sched, x.Format(), nil
 	case string:
 		if len(x) > 0 && !strings.Contains(x, "@") {
 			scanner := bufio.NewScanner(strings.NewReader(x))
@@ -36,13 +40,22 @@ func ParseRawExpression(raw RawExpression) (cron.Schedule, error) {
 				}
 			}
 			if count == 6 {
-				return parser.Parse(x)
+				sched, err := parser.Parse(x)
+				if err != nil {
+					return nil, "", err
+				}
+				return sched, x, nil
 			}
 		}
-		return cron.ParseStandard(x)
+
+		sched, err := cron.ParseStandard(x)
+		if err != nil {
+			return nil, "", err
+		}
+		return sched, x, nil
 	}
 
-	return nil, fmt.Errorf(
+	return nil, "", fmt.Errorf(
 		"ParseRawExpression: unknown. input must be string or JsonExp, but is %T",
 		raw,
 	)
@@ -132,22 +145,28 @@ type RowRaw struct {
 }
 
 func (r RowRaw) Parse() (Row, error) {
-	sched, err := ParseRawExpression(r.Schedule)
-
+	sched, hash, err := ParseRawExpression(r.Schedule)
 	if err != nil {
 		return Row{}, err
 	}
+
 	return Row{
-		Param:    r.Param.Clone(),
-		Schedule: sched,
+		param:    r.Param.Clone(),
+		hash:     hash,
+		schedule: sched,
 	}, nil
 }
 
 type Row struct {
-	Param    def.TaskUpdateParam
-	Schedule cron.Schedule
+	param    def.TaskUpdateParam
+	hash     string
+	schedule cron.Schedule
+}
+
+func (r Row) ScheduleHash() string {
+	return r.hash
 }
 
 func (r Row) Next(prev time.Time) def.TaskUpdateParam {
-	return r.Param.Update(def.TaskUpdateParam{ScheduledAt: option.Some(r.Schedule.Next(prev))})
+	return r.param.Update(def.TaskUpdateParam{ScheduledAt: option.Some(r.schedule.Next(prev))})
 }

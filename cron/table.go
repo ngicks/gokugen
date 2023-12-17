@@ -6,6 +6,11 @@ import (
 	"time"
 
 	"github.com/ngicks/gokugen/def"
+	"github.com/ngicks/und/option"
+)
+
+const (
+	MetaKeyScheduleHash = "ngicks.ScheduleHash"
 )
 
 type serializable struct {
@@ -36,6 +41,11 @@ func paramToSerializable(p def.TaskUpdateParam) serializable {
 }
 
 type Schedule interface {
+	// ScheduleHash returns identity value for scheduling.
+	//
+	// Normally this should return string representing cron expression,
+	// however it can be anything.
+	ScheduleHash() string
 	Next(prev time.Time) def.TaskUpdateParam
 }
 
@@ -52,18 +62,29 @@ func NewEntry(t time.Time, schedule Schedule) *Entry {
 	}
 }
 
+func (e *Entry) next() def.TaskUpdateParam {
+	next := e.schedule.Next(e.prev)
+	next.Meta = next.Meta.
+		Or(option.Some(make(map[string]string))).
+		Map(func(v map[string]string) map[string]string {
+			v[MetaKeyScheduleHash] = e.schedule.ScheduleHash()
+			return v
+		})
+	return next
+}
+
 // Params returns next schedule without advancing e to next time.
 func (e *Entry) Param() def.TaskUpdateParam {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return e.schedule.Next(e.prev)
+	return e.next()
 }
 
 // Next returns next schedule and advances e to next time.
 func (e *Entry) Next() def.TaskUpdateParam {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	next := e.schedule.Next(e.prev)
+	next := e.next()
 	e.prev = next.ScheduledAt.Value()
 	return next
 }
