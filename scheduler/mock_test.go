@@ -20,7 +20,7 @@ type mockRepository struct {
 	Clock             *mockable.ClockFake
 }
 
-func popErr(errors *[]error) error {
+func popFrontErr(errors *[]error) error {
 	if len(*errors) == 0 {
 		return nil
 	}
@@ -30,32 +30,32 @@ func popErr(errors *[]error) error {
 }
 
 func (r *mockRepository) GetById(ctx context.Context, id string) (def.Task, error) {
-	if err := popErr(&r.RepoErr); err != nil {
+	if err := popFrontErr(&r.RepoErr); err != nil {
 		return def.Task{}, err
 	}
 	return r.InMemoryRepository.GetById(ctx, id)
 }
 func (r *mockRepository) GetNext(ctx context.Context) (def.Task, error) {
-	if err := popErr(&r.RepoErr); err != nil {
+	if err := popFrontErr(&r.RepoErr); err != nil {
 		return def.Task{}, err
 	}
 	return r.InMemoryRepository.GetNext(ctx)
 }
 func (r *mockRepository) MarkAsDispatched(ctx context.Context, id string) error {
-	if err := popErr(&r.RepoErr); err != nil {
+	if err := popFrontErr(&r.RepoErr); err != nil {
 		return err
 	}
 	return r.InMemoryRepository.MarkAsDispatched(ctx, id)
 }
 func (r *mockRepository) MarkAsDone(ctx context.Context, id string, err error) error {
-	if err := popErr(&r.RepoErr); err != nil {
+	if err := popFrontErr(&r.RepoErr); err != nil {
 		return err
 	}
 	return r.InMemoryRepository.MarkAsDone(ctx, id, err)
 }
 
 func (r *mockRepository) LastTimerUpdateError() error {
-	return popErr(&r.TimerErr)
+	return popFrontErr(&r.TimerErr)
 }
 func (r *mockRepository) StartTimer(ctx context.Context) {
 	r.TimerStarted = true
@@ -65,7 +65,11 @@ func (r *mockRepository) StopTimer() {
 }
 func (r *mockRepository) NextScheduled() (time.Time, bool) {
 	if r.TimerStarted {
-		return r.NextScheduledTime, true
+		if !r.NextScheduledTime.IsZero() {
+			return r.NextScheduledTime, true
+		}
+		task, _ := r.InMemoryRepository.GetNext(context.Background())
+		return task.ScheduledAt, true
 	} else {
 		return time.Time{}, false
 	}
