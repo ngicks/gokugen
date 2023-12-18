@@ -56,13 +56,19 @@ func (c *CronStore) updateTask(added, removed []*Entry) error {
 
 	entryMap := make(map[serializable]*set)
 
+	removedKeys := make(map[serializable]struct{})
+	for _, ent := range removed {
+		removedKeys[paramToSerializable(ent.Param())] = struct{}{}
+	}
+
 	for _, ent := range added {
 		next := ent.Next()
 		key := paramToSerializable(next)
 
 		_, cHas := c.entries[key]
 		_, addedHas := entryMap[key]
-		if cHas || addedHas {
+		_, willRemove := removedKeys[key]
+		if !willRemove && (cHas || addedHas) {
 			return fmt.Errorf(
 				"given entry is serialized to the value"+
 					" which overlaps to existing *Entry, serialized to %#v",

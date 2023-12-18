@@ -69,6 +69,8 @@ func TestCron(t *testing.T) {
 	fakeClock := mockable.NewClockFake(fakeCurrent)
 	table.clock = fakeClock
 
+	assert.Len(table.Schedule(), 4)
+
 	task, err := table.Peek(context.Background())
 	if err != nil {
 		panic(err)
@@ -117,6 +119,8 @@ func TestCron(t *testing.T) {
 		return entries
 	})
 	assert.NoError(err)
+
+	assert.Len(table.Schedule(), 2)
 
 	for _, expected := range []def.Task{
 		{WorkId: "quux", ScheduledAt: parseTime("2023-04-21T00:00:00Z")},
@@ -201,4 +205,120 @@ func TestCron_default_mutator_store(t *testing.T) {
 	}
 
 	assert.Greater(len(nanoSecMap), 50)
+}
+
+func TestCron_EditTask(t *testing.T) {
+	assert := assert.New(t)
+
+	raw := []RowRaw{
+		{
+			Param: def.TaskUpdateParam{
+				WorkId: option.Some("foo"),
+			},
+			Schedule: "0 0 0 * * *",
+		},
+		{
+			Param: def.TaskUpdateParam{
+				WorkId: option.Some("bar"),
+			},
+			Schedule: "0 0 0 * * *",
+		},
+		{
+			Param: def.TaskUpdateParam{
+				WorkId: option.Some("baz"),
+			},
+			Schedule: "0 0 0 * * *",
+		},
+	}
+
+	rows := make([]Row, len(raw))
+
+	for idx := range raw {
+		var err error
+		rows[idx], err = raw[idx].Parse()
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	ents := make([]*Entry, len(rows))
+	for idx := range rows {
+		ents[idx] = NewEntry(fakeCurrent, rows[idx])
+	}
+
+	table, err := NewCronStore(ents)
+	assert.NoError(err)
+
+	assertSchedules := func(t *testing.T, workId []string) {
+		t.Helper()
+		schedules := table.Schedule()
+		for _, sched := range schedules {
+			if !slices.Contains(workId, sched.WorkId) {
+				t.Fatalf("should be one of %#v but is %s, task = %#v", workId, sched.WorkId, sched)
+			}
+		}
+	}
+
+	// adding task which serializes to same value.
+	err = table.EditTask(func(entries []*Entry) []*Entry {
+		entries = append(
+			entries,
+			NewEntry(
+				time.Now(),
+				must(RowRaw{
+					Param: def.TaskUpdateParam{
+						WorkId: option.Some("foo"),
+					},
+					Schedule: "0 0 0 * * *",
+				}.
+					Parse(),
+				),
+			),
+		)
+		return entries
+	})
+	assert.Error(err)
+	assertSchedules(t, []string{"foo", "bar", "baz"})
+
+	// removing and adding same task simultaneously
+	err = table.EditTask(func(entries []*Entry) []*Entry {
+		entries = slices.DeleteFunc(
+			entries,
+			func(e *Entry) bool { return e.Param().WorkId.Value() == "foo" },
+		)
+		entries = append(entries, NewEntry(time.Now(), must(RowRaw{
+			Param: def.TaskUpdateParam{
+				WorkId: option.Some("foo"),
+			},
+			Schedule: "0 0 0 * * *",
+		}.Parse())))
+		return entries
+	})
+	assert.NoError(err)
+	assertSchedules(t, []string{"foo", "bar", "baz"})
+
+	// simply removing
+	err = table.EditTask(func(entries []*Entry) []*Entry {
+		return slices.DeleteFunc(
+			entries,
+			func(e *Entry) bool { return e.Param().WorkId.Value() == "foo" },
+		)
+	})
+	assert.NoError(err)
+	assertSchedules(t, []string{"bar", "baz"})
+
+	// simply adding
+	err = table.EditTask(func(entries []*Entry) []*Entry {
+		return append(
+			entries,
+			NewEntry(time.Now(), must(RowRaw{
+				Param: def.TaskUpdateParam{
+					WorkId: option.Some("qux"),
+				},
+				Schedule: "0 0 0 * * *",
+			}.Parse())),
+		)
+	})
+	assert.NoError(err)
+	assertSchedules(t, []string{"bar", "baz", "qux"})
 }
