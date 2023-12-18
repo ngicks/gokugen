@@ -9,7 +9,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/ngicks/eventqueue v0.0.0-20230822171926-4da05f80335a
 	github.com/ngicks/generic v0.0.0-20230320024227-32842ed7ed0f
-	github.com/ngicks/genericcontainer v0.0.0-20230320070448-f93958917953
+	github.com/ngicks/genericcontainer v0.0.0-20231218091927-6099d7e84fb9
 	github.com/ngicks/genericsync v0.0.0-20230320055056-d2085f143d81
 	github.com/ngicks/mockable v0.0.0-20230524100816-106941ea893e
 	github.com/ngicks/timing-helper v0.0.0-20230822171135-9abb192ed0f9

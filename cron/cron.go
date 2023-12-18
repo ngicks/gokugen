@@ -151,7 +151,9 @@ func (c *CronStore) Schedule() []def.Task {
 	cloned := c.schedule.Clone()
 
 	var out []def.Task
-	out = append(out, *cloned.Pop().IndexedTask.Task)
+	for cloned.Len() > 0 {
+		out = append(out, *cloned.Pop().IndexedTask.Task)
+	}
 	return out
 }
 

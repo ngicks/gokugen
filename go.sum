@@ -57,8 +57,8 @@ github.com/ngicks/eventqueue v0.0.0-20230822171926-4da05f80335a h1:INWruMlwz0Rwu
 github.com/ngicks/eventqueue v0.0.0-20230822171926-4da05f80335a/go.mod h1:VIOVnIu2OKupiWN/0rrqg25PaIIfIu62/QYUf0MitHY=
 github.com/ngicks/generic v0.0.0-20230320024227-32842ed7ed0f h1:faCGrsI60Uzwuo4ZTXvgWB9q5+M1pthIkq3U6PSG7F4=
 github.com/ngicks/generic v0.0.0-20230320024227-32842ed7ed0f/go.mod h1:5B7kcehO5SWP9AWGEc+velmBoc5RrxLNtlfHUrOxl0w=
-github.com/ngicks/genericcontainer v0.0.0-20230320070448-f93958917953 h1:ya1aS85LyH/HPgHn8GG4nAnrjwtkosnflPJ9n+nb74k=
-github.com/ngicks/genericcontainer v0.0.0-20230320070448-f93958917953/go.mod h1:rzL/SWXEtbxXv3XLPd8X4f01Fbs3XXjlYGcgUFA7mAM=
+github.com/ngicks/genericcontainer v0.0.0-20231218091927-6099d7e84fb9 h1:+y9m4bTjeos6NGnoXakxayIWZJC1cTaOHvODxBZFaPw=
+github.com/ngicks/genericcontainer v0.0.0-20231218091927-6099d7e84fb9/go.mod h1:rzL/SWXEtbxXv3XLPd8X4f01Fbs3XXjlYGcgUFA7mAM=
 github.com/ngicks/genericsync v0.0.0-20230320055056-d2085f143d81 h1:JEZsPtH611FAhorwt2gHYmmEuKwZCrDGqNWLra5TGZ0=
 github.com/ngicks/genericsync v0.0.0-20230320055056-d2085f143d81/go.mod h1:ObbEMzaA8ZScBWzUr7OWnWnh8cdYs0vNKra6tXTztFA=
 github.com/ngicks/gommon/pkg/common v0.2.0 h1:rToyjjLKjkZCN2/joVedMUARL7JePl/o8DXy6RUpvL4=
