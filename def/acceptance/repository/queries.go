@@ -154,6 +154,7 @@ func queryTestCases(tasks []def.Task) []queryTestSet {
 	cases = append(cases, queryTestCases_simple(tasks)...) // 6 - 11
 	cases = append(cases, queryTestCases_map(tasks)...)
 	cases = append(cases, queryTestCases_time(tasks)...)
+	cases = append(cases, queryTestCases_no_match(tasks)...)
 	return cases
 }
 
@@ -414,6 +415,17 @@ func queryTestCases_time(tasks []def.Task) []queryTestSet {
 				}),
 			},
 			shouldFind: []int{16, 17},
+		},
+	}
+}
+
+func queryTestCases_no_match(tasks []def.Task) []queryTestSet {
+	return []queryTestSet{
+		{
+			param: def.TaskQueryParam{
+				Id: option.Some(def.NeverExistentId),
+			},
+			shouldFind: []int{},
 		},
 	}
 }
