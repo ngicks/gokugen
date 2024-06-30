@@ -29,6 +29,9 @@ type Repository interface {
 	// If param is invalid, AddTask returns ErrInvalidTask or
 	// an error which includes ErrInvalidTask in its error chain.
 	AddTask(ctx context.Context, param TaskUpdateParam) (Task, error)
+	// GetById fetches a task specified by an id.
+	//
+	// If the id is nonexistent, GetById returns an IdNotFound error which could be wrapped.
 	GetById(ctx context.Context, id string) (Task, error)
 	// UpdateById updates a task specified by id with param.
 	// Every None fields are considered as `no update` for that field.
@@ -44,6 +47,7 @@ type Repository interface {
 	// Find finds tasks matching to condition described by matcher.
 	//
 	// Every None fields are considered as empty search conditions.
+	// For example, if zero value matcher is passed, Find must return every task it stores.
 	Find(ctx context.Context, matcher TaskQueryParam, offset, limit int) ([]Task, error)
 	// GetNext returns a next scheduled Task without changing repository contents.
 	// GetNext must not return a cancelled, dispatched or done task.
@@ -53,6 +57,8 @@ type Repository interface {
 }
 
 type Observer interface {
+	// LastTimerUpdateError returns an error if last update of the timer was failure
+	// It returns nil otherwise.
 	LastTimerUpdateError() error
 	// StartTimer starts its internal timer.
 	// A channel returned from TimerChannel emits only if it is started.
