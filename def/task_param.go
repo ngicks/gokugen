@@ -95,10 +95,10 @@ func (m TaskQueryParam) Match(t Task) bool {
 		matchMap(t.Meta, m.Meta) &&
 		matchTime(&t.ScheduledAt, m.ScheduledAt) &&
 		matchTime(&t.CreatedAt, m.CreatedAt) &&
-		matchOptTime(t.Deadline.Plain(), m.Deadline) &&
-		matchOptTime(t.CancelledAt.Plain(), m.CancelledAt) &&
-		matchOptTime(t.DispatchedAt.Plain(), m.DispatchedAt) &&
-		matchOptTime(t.DoneAt.Plain(), m.DoneAt)
+		matchOptTime(t.Deadline.Pointer(), m.Deadline) &&
+		matchOptTime(t.CancelledAt.Pointer(), m.CancelledAt) &&
+		matchOptTime(t.DispatchedAt.Pointer(), m.DispatchedAt) &&
+		matchOptTime(t.DoneAt.Pointer(), m.DoneAt)
 }
 
 func matchComparable[T comparable](v T, m option.Option[T]) bool {

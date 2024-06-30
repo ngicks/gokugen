@@ -51,7 +51,7 @@ func (r *EntRepository) AddTask(ctx context.Context, param def.TaskUpdateParam) 
 		SetState(task.State(t.State)).
 		SetScheduledAt(t.ScheduledAt).
 		SetCreatedAt(t.CreatedAt).
-		SetNillableDeadline(t.Deadline.Plain())
+		SetNillableDeadline(t.Deadline.Pointer())
 	if t.Param != nil {
 		builder = builder.SetParam(t.Param)
 	}
