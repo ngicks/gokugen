@@ -99,7 +99,7 @@ func testRepository_add_task(
 	// However some test environment does not allow the timer to advance.
 	// It is a wrong assumption for those environments.
 	require.GreaterOrEqual(task.CreatedAt.Compare(timeBeforeAddition), 0)
-	require.True(initialParam.Deadline.Value().Equal(task.Deadline))
+	require.True(option.Equal(initialParam.Deadline.Value(), task.Deadline))
 	require.True(task.CancelledAt.IsNone())
 	require.True(task.DispatchedAt.IsNone())
 	require.True(task.DoneAt.IsNone())
