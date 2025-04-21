@@ -59,10 +59,10 @@ func (t Task) Equal(u Task) bool {
 		maps.Equal(t.Meta, u.Meta) &&
 		t.ScheduledAt.Equal(u.ScheduledAt) &&
 		t.CreatedAt.Equal(u.CreatedAt) &&
-		option.Equal(t.Deadline, u.Deadline) &&
-		option.Equal(t.CancelledAt, u.CancelledAt) &&
-		option.Equal(t.DispatchedAt, u.DispatchedAt) &&
-		option.Equal(t.DoneAt, u.DoneAt)
+		t.Deadline.EqualFunc(u.Deadline, time.Time.Equal) &&
+		t.CancelledAt.EqualFunc(u.CancelledAt, time.Time.Equal) &&
+		t.DispatchedAt.EqualFunc(u.DispatchedAt, time.Time.Equal) &&
+		t.DoneAt.EqualFunc(u.DoneAt, time.Time.Equal)
 }
 
 type taskComparable struct {
